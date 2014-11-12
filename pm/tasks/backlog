@@ -1,0 +1,11 @@
+interrupt-event-signal
+    Move interrupt event signal code common to Kochab and Rigel into its own component.
+
+sem-max-init
+    Support optional configuration of semaphore limits that cause a fatal error if exceeded.
+
+arm-kochab-preempt
+    Merge back redesigned armv7m preemption mechanism for Kochab from SMACCM development head.
+
+lock-wait-timeouts
+    Implement timeout versions of mutex_lock and sem_wait using the existing timer framework.
