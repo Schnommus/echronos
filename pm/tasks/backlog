@@ -1,6 +1,3 @@
-interrupt-event-signal
-    Move interrupt event signal code common to Kochab and Rigel into its own component.
-
 sem-max-init
     Support optional configuration of semaphore limits that cause a fatal error if exceeded.
 
@@ -9,3 +6,11 @@ arm-kochab-preempt
 
 lock-wait-timeouts
     Implement timeout versions of mutex_lock and sem_wait using the existing timer framework.
+
+arm-ext-irq-config
+    There currently exists a pystache stub in the armv7m vectable.s that would populate the vector table with handler addresses for external IRQs, but no XML schema nor scripting to actually allow them to be supplied via the .prx file.
+    We have an implementation for this on the SMACCM development head ready to be backported.
+
+useful-sem-defines
+    MUTEX_ID_ZERO and MUTEX_ID_MAX are currently exposed in the RTOS user API.
+    If even only for consistency, it makes sense that SEM_ID_ZERO and SEM_ID_MAX are similarly exposed.
