@@ -14,3 +14,9 @@ arm-ext-irq-config
 useful-sem-defines
     MUTEX_ID_ZERO and MUTEX_ID_MAX are currently exposed in the RTOS user API.
     If even only for consistency, it makes sense that SEM_ID_ZERO and SEM_ID_MAX are similarly exposed.
+
+ppc-test-coverage
+    Context switch test coverage for FP + ABI-specific functionality on PowerPC.
+
+ppc-toolchain
+    x.py ppc support with fully-integrated ppc toolchain, qemu.
