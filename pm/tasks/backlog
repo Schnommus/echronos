@@ -4,8 +4,15 @@ sem-max-init
 arm-kochab-preempt
     Merge back redesigned armv7m preemption mechanism for Kochab from SMACCM development head.
 
-lock-wait-timeouts
-    Implement timeout versions of mutex_lock and sem_wait using the existing timer framework.
+mutex-lock-timeout
+    Implement a timeout version of mutex_lock using the existing timer framework.
+
+kochab-timer
+    Add timer functionality to the Kochab variant for all platforms.
+    This has to be done before sem-wait-timeout, since Kochab is currently the only variant that uses semaphores.
+
+sem-wait-timeout
+    Implement a timeout version of sem_wait using the existing timer framework.
 
 arm-ext-irq-config
     There currently exists a pystache stub in the armv7m vectable.s that would populate the vector table with handler addresses for external IRQs, but no XML schema nor scripting to actually allow them to be supplied via the .prx file.
