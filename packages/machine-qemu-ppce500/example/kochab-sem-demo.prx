@@ -12,6 +12,7 @@
 
     <module name="ppce500.rtos-kochab">
       <internal_asserts>true</internal_asserts>
+      <api_asserts>true</api_asserts>
       <fatal_error>fatal</fatal_error>
       <prefix>rtos</prefix>
       <taskid_size>8</taskid_size>
@@ -55,6 +56,8 @@
           <name>sem0</name>
         </semaphore>
       </semaphores>
+
+      <semaphore_enable_max>true</semaphore_enable_max>
 
       <mutex>
         <stats>false</stats>
