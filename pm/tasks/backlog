@@ -24,6 +24,9 @@ kochab-documentation
     Now that the Rigel documentation task has merged, the docs.md build support exists.
     There needs to be a task that makes the Kochab documentation complete.
 
+audit-preempt-disable
+    Audit all disabling of preemption in the RTOS and ensure that these regions are as tight as safely possible.
+
 ppc-test-coverage
     Context switch test coverage for FP + ABI-specific functionality on PowerPC.
 
