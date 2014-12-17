@@ -11,10 +11,6 @@ useful-sem-defines
     MUTEX_ID_ZERO and MUTEX_ID_MAX are currently exposed in the RTOS user API.
     If even only for consistency, it makes sense that SEM_ID_ZERO and SEM_ID_MAX are similarly exposed.
 
-cpp-friendly-headers
-    For users calling into the RTOS from C++, function declarations in the user API header need to be surrounded by an
-    'extern "C" { }' block dependent on #ifdef __cplusplus.
-
 arm-fp-ctxt-switch
     For users who need it, floating-point registers on ARM need to be stored and restored on context switch.
 
@@ -25,6 +21,13 @@ kochab-documentation
 
 audit-preempt-disable
     Audit all disabling of preemption in the RTOS and ensure that these regions are as tight as safely possible.
+
+signal-prio-inherit
+    Currently, priority inheritance is only supported by sched-prio-inherit for mutexes.
+    Arguably it would be more intuitive if signals provided priority inheritance for the typical case where a task waits for a specific signal from another task.
+
+ppc-fp-ctxt-switch
+    For users who need it, floating-point registers on PowerPC need to be stored and restored on context switch.
 
 ppc-test-coverage
     Context switch test coverage for FP + ABI-specific functionality on PowerPC.
