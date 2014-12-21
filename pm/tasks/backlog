@@ -34,3 +34,6 @@ ppc-test-coverage
 
 ppc-toolchain
     x.py ppc support with fully-integrated ppc toolchain, qemu.
+
+message-queues
+    improve test coverage so that regression tests are run continuously
