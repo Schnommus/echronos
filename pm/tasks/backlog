@@ -4,13 +4,6 @@ arm-kochab-preempt
 kochab-mutex-timeout
     Implement a timeout version of mutex_lock available on Kochab using the existing timer framework.
 
-kochab-sem-timeout
-    Implement a timeout version of sem_wait available on Kochab using the existing timer framework.
-
-useful-sem-defines
-    MUTEX_ID_ZERO and MUTEX_ID_MAX are currently exposed in the RTOS user API.
-    If even only for consistency, it makes sense that SEM_ID_ZERO and SEM_ID_MAX are similarly exposed.
-
 arm-fp-ctxt-switch
     For users who need it, floating-point registers on ARM need to be stored and restored on context switch.
 
@@ -37,3 +30,6 @@ ppc-toolchain
 
 message-queues
     improve test coverage so that regression tests are run continuously
+
+cleanup-prefix-hardcoding
+    Get rid of the 'rtos_' prefix wherever it's hardcoded to facilitate access by other modules, once the 'rtos-config-global' feature allows us to simply determine the prefix from the RTOS module's configuration environment.
