@@ -38,3 +38,6 @@ variant-specific-doc-content
     Sometimes we have features or config options that are specific to a RTOS variant, that need to appear as a subheading of a chapter common to other variants.
     For example the tasks/task/start .prx config option should be documented in the Task Configuration chapter even though it's implemented in the RTOS component.
     Since x.py doesn't know how to gather content from multiple docs.md into the same chapter, those subsections have to be written in the docs.md of the common component, and pystache'd out of variants they're not applicable to.
+
+kochab-documentation-scheduler
+    Add missing chapters to Kochab manual on [Preemption] and [Scheduling Algorithm].
