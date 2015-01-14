@@ -7,11 +7,6 @@ kochab-mutex-timeout
 arm-fp-ctxt-switch
     For users who need it, floating-point registers on ARM need to be stored and restored on context switch.
 
-kochab-documentation
-    There is currently no documentation for the Kochab component, and possibly other components Kochab depends on.
-    Now that the Rigel documentation task has merged, the docs.md build support exists.
-    There needs to be a task that makes the Kochab documentation complete.
-
 audit-preempt-disable
     Audit all disabling of preemption in the RTOS and ensure that these regions are as tight as safely possible.
 
@@ -41,3 +36,9 @@ variant-specific-doc-content
 
 kochab-documentation-scheduler
     Add missing chapters to Kochab manual on [Preemption] and [Scheduling Algorithm].
+
+optimise-timeout-timer-usage
+    This applies to message_queue_wait_timeout, mutex_lock_timeout, and sem_wait_timeout:
+    Benno pointed out that it should be possible to simply set the oneshot timer once, rather than disabling and re-requesting it (or in the case of message-queues, calling sleep) every time the waiter is woken.
+    Apart from being more efficient, this would also reduce the code footprint.
+    However, it might also be necessary to leak variant-specific implementation (i.e. the use of timers) into the generic mq/mutex/sem component in order to achieve this.
