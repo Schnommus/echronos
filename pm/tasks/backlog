@@ -1,9 +1,6 @@
 arm-kochab-preempt
     Merge back redesigned armv7m preemption mechanism for Kochab from SMACCM development head.
 
-kochab-mutex-timeout
-    Implement a timeout version of mutex_lock available on Kochab using the existing timer framework.
-
 arm-fp-ctxt-switch
     For users who need it, floating-point registers on ARM need to be stored and restored on context switch.
 
@@ -42,3 +39,7 @@ optimise-timeout-timer-usage
     Benno pointed out that it should be possible to simply set the oneshot timer once, rather than disabling and re-requesting it (or in the case of message-queues, calling sleep) every time the waiter is woken.
     Apart from being more efficient, this would also reduce the code footprint.
     However, it might also be necessary to leak variant-specific implementation (i.e. the use of timers) into the generic mq/mutex/sem component in order to achieve this.
+
+doc-api-task-switch-behavior
+    The user documentation needs to disclose the behavior of API functions with regards to whether they may cause task switching and under what circumstances.
+    We need to audit the documentation and make sure this is done consistently across all the relevant API functions.
