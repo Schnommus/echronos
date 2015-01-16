@@ -1,3 +1,10 @@
+/*| provides |*/
+kochab
+rtos
+
+/*| requires |*/
+docs
+
 /*| doc_header |*/
 <!-- %title eChronos Manual: Kochab Variant -->
 <!-- %version 0.1 -->
