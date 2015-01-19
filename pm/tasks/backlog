@@ -43,3 +43,14 @@ optimise-timeout-timer-usage
 doc-api-task-switch-behavior
     The user documentation needs to disclose the behavior of API functions with regards to whether they may cause task switching and under what circumstances.
     We need to audit the documentation and make sure this is done consistently across all the relevant API functions.
+
+re-review-rework-requests
+    After fixing the x.py task pre-integration check, it finds a number of tasks in the pm/reviews directory for which there existed non-"accepted" reviews by a particular author that were not followed by an "accepted" review by that author in a later round.
+    Of these task branches, the following were subsequently merged to the development head:
+        review-0.benno for task chvVia-separate_timer_and_interrupt_components is not "accepted"
+        review-0.benno for task 8n1fwa-extended-client-repositories is not "accepted"
+        review-1.joseph for task ULxvv5-handle-zero-mutexes is not "accepted"
+        review-0.benno for task R7AxJQ-mutex-holder-get-none is not "accepted"
+        review-0.ihor.kuz for task g256JD-kochab-mutex-timeout is not "accepted"
+        review-0.benno for task HFMqZp-prx-includes is not "accepted"
+    These may need to be re-reviewed by the authors concerned to make sure any requests for rework were satisfied.
