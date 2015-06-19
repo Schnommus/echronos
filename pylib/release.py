@@ -1,3 +1,24 @@
+#
+# eChronos Real-Time Operating System
+# Copyright (C) 2015  National ICT Australia Limited (NICTA), ABN 62 102 206 173.
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as published by
+# the Free Software Foundation, version 3, provided that no right, title
+# or interest in or to any trade mark, service mark, logo or trade name
+# of NICTA or its licensors is granted.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Affero General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+# @TAG(NICTA_AGPL)
+#
+
 import io
 import os
 import shutil
@@ -7,8 +28,9 @@ import tarfile
 import subprocess
 from glob import glob
 from contextlib import contextmanager
-from .utils import chdir, tempdir, get_host_platform_name, BASE_TIME, top_path, base_to_top_paths, Git
+from .utils import chdir, tempdir, get_host_platform_name, BASE_TIME, top_path, base_to_top_paths, find_path, Git
 from .components import build
+from .cmdline import subcmd, Arg
 
 
 class _ReleaseMeta(type):
@@ -86,6 +108,12 @@ class _ReleasePackage:
     def get_license(self):
         return self._rls_cfg.license
 
+    def get_doc_license(self):
+        if hasattr(self._rls_cfg, 'doc_license'):
+            return self._rls_cfg.doc_license
+        else:
+            return self._rls_cfg.license
+
 
 @contextmanager
 def _tarfile_open(name, mode, **kwargs):
@@ -106,17 +134,15 @@ class _FileWithLicense:
     The original file object should not be used after passing it to the _FileWithLicense object.
 
     """
-    def __init__(self, f, lic, xml_mode):
-        XML_PROLOG = b'<?xml version="1.0" encoding="UTF-8" ?>\n'
+    def __init__(self, f, lic, old_xml_prologue_len, old_license_len):
         self._f = f
         self._read_license = True
 
-        if xml_mode:
-            lic = XML_PROLOG + lic
-            file_header = f.read(len(XML_PROLOG))
-            if file_header != XML_PROLOG:
-                raise Exception("XML File: '{}' does not contain expected prolog: {} expected {}".
-                                format(f.name, file_header, XML_PROLOG))
+        if old_xml_prologue_len:
+            f.read(old_xml_prologue_len)
+
+        if old_license_len:
+            f.read(old_license_len)
 
         if len(lic) > 0:
             self._read_license = False
@@ -155,39 +181,142 @@ class _LicenseOpener:
     The 'license' is passed to the object during construction.
 
     """
-    def __init__(self, license):
+    AGPL_TAG = '@TAG(NICTA_AGPL)'
+    AGPL_DOC_TAG = '@TAG(NICTA_DOC_AGPL)'
+    BUILD_ARTIFACT_FILETYPES = ['.pyc']
+    LICENSE_EXEMPTED_FILETYPES = ['.pdf', '.svg', '.png', '.txt', '.gdbout']
+
+    class UnknownFiletypeException(Exception):
+        """Raised when the given file type is unknown."""
+
+    def __init__(self, license, doc_license, top_dir, allow_unknown_filetypes=False, filename=None):
         self.license = license
+        self.doc_license = doc_license
+        self.top_dir = top_dir
+        self.allow_unknown_filetypes = allow_unknown_filetypes
+        self.filename = filename
+        self.XML_PROLOGUE = '<?xml version="1.0" encoding="UTF-8" ?>'
+
+    def _consume_xml_prologue(self, f):
+        xml_prologue_len = len(self.XML_PROLOGUE)
+
+        file_header = f.read(xml_prologue_len)
+        if file_header != self.XML_PROLOGUE.encode('utf8'):
+            raise Exception("XML File: '{}' does not contain expected prologue: {} expected {}".
+                            format(f.name, file_header, self.XML_PROLOGUE.encode('utf8')))
+
+        # Files in repositories are guaranteed to have LF, but generated code may have OS-specific line endings
+        if f.peek(1).startswith(b'\n'):
+            f.read(1)
+            xml_prologue_len += 1
+        else:
+            line_sep = f.read(len(os.linesep))
+            if line_sep == os.linesep.encode('utf8'):
+                xml_prologue_len += len(os.linesep)
+            else:
+                raise Exception("XML File: '{}' prologue does not end with a valid line separator: {}".
+                                format(f.name, line_sep))
+
+        return xml_prologue_len
+
+    @staticmethod
+    def _agpl_sentinel(ext):
+        if ext in ['.c', '.h', '.ld', '.s']:
+            return _LicenseOpener.AGPL_TAG + '\n */\n'
+        elif ext in ['.py', '.gdb', '.sh']:
+            return _LicenseOpener.AGPL_TAG + '\n#\n'
+        elif ext in ['.prx', '.xml', '.prj']:
+            return _LicenseOpener.AGPL_TAG + '\n  -->\n'
+        elif ext in ['.asm']:
+            return _LicenseOpener.AGPL_TAG + '\n;\n'
+        elif ext in ['.md', '.markdown', '.html']:
+            return _LicenseOpener.AGPL_DOC_TAG + '\n  -->\n'
+        elif ext in ['.css']:
+            return _LicenseOpener.AGPL_DOC_TAG + '\n */\n'
+        elif ext in _LicenseOpener.LICENSE_EXEMPTED_FILETYPES or ext in _LicenseOpener.BUILD_ARTIFACT_FILETYPES:
+            return None
+        else:
+            raise _LicenseOpener.UnknownFiletypeException('Unexpected ext: {}'.format(ext))
+
+    @staticmethod
+    def _format_lic(lic, start, perline, emptyline, end):
+        return start + os.linesep + \
+            os.linesep.join([perline + line if line else emptyline for line in lic.splitlines()]) + \
+            os.linesep + end + os.linesep
 
     def _get_lic(self, filename):
-        lic = ''
+        lic = None
+        old_xml_prologue_len = 0
+        old_license_len = 0
         ext = os.path.splitext(filename)[1]
         is_xml = False
 
-        if ext in ['.c', '.h', '.ld', '.s']:
-            lic = '/*' + self.license + '*/\n'
-        elif ext in ['.py']:
-            lic = '"""' + self.license + '"""\n'
-        elif ext in ['.prx']:
-            lic = '<!--' + self.license + '-->\n'
+        if ext in ['.c', '.h', '.ld', '.s', '.css']:
+            lic = self._format_lic(self.license, '/*', ' * ', ' *', ' */')
+        elif ext in ['.py', '.gdb']:
+            lic = self._format_lic(self.license, '#', '# ', '#', '#')
+        elif ext in ['.prx', '.xml', '.prj']:
+            lic = self._format_lic(self.license, '<!--', '', '', '  -->')
             is_xml = True
         elif ext in ['.asm']:
-            lic = "\n".join(['; ' + line for line in self.license.rsplit("\n")]) + "\n"
+            lic = self._format_lic(self.license, ';', '; ', ';', ';')
+        elif ext in ['.md', '.markdown']:
+            lic = self._format_lic(self.doc_license, '<!---', '', '', '  -->')
+        elif ext in ['.html']:
+            lic = self._format_lic(self.doc_license, '<!--', '', '', '  -->')
+        elif ext not in self.LICENSE_EXEMPTED_FILETYPES and not self.allow_unknown_filetypes:
+            raise Exception('Unexpected ext: {}, for file {}'.format(ext, filename))
+
+        if lic is None:
+            lic = ''
+        else:
+            with open(filename, 'rb') as f:
+                # Count the length of the XML prologue in the input file and standardize its line ending for output
+                if is_xml:
+                    old_xml_prologue_len = self._consume_xml_prologue(f)
+                    lic = self.XML_PROLOGUE + os.linesep + lic
+
+                # If the AGPL license is present in the original source file, count its length for deletion
+                agpl_sentinel = self._agpl_sentinel(ext)
+                assert agpl_sentinel is not None
+                old_lic_str, sentinel_found, _ = f.peek().decode('utf8').partition(agpl_sentinel)
+                if sentinel_found:
+                    old_license_len = len(old_lic_str + sentinel_found)
 
         lic = lic.encode('utf8')
 
-        return lic, is_xml
+        return lic, old_xml_prologue_len, old_license_len
 
     def open(self, filename, mode):
         assert mode == 'rb'
 
         f = open(filename, mode)
-        lic, is_xml = self._get_lic(filename)
-        return _FileWithLicense(f, lic, is_xml)
+        lic, old_xml_prologue_len, old_license_len = self._get_lic(filename)
+        return _FileWithLicense(f, lic, old_xml_prologue_len, old_license_len)
 
     def tar_info_filter(self, tarinfo):
         if tarinfo.isreg():
-            lic, _ = self._get_lic(tarinfo.name)
+            if self.filename is not None:
+                # This is used for releasing extra files potentially from outside the 'packages' dir of the repo.
+                # A LicenseOpener object must be instantiated per-file to specify the filename in this manner.
+                filename = self.filename
+            else:
+                # Infer the location of the original file in the 'packages' directory, from its destination path under
+                # 'share/packages' in the release archive.
+                assert(tarinfo.name.startswith('share/packages'))
+                filename = find_path(tarinfo.name.replace('share/packages', 'packages', 1), self.top_dir)
+
+            lic, old_xml_prologue_len, old_license_len = self._get_lic(filename)
+
+            # lic includes the XML prologue string, if there is one.
             tarinfo.size += len(lic)
+
+            if old_xml_prologue_len:
+                tarinfo.size -= old_xml_prologue_len
+
+            if old_license_len:
+                tarinfo.size -= old_license_len
+
         return _tar_info_filter(tarinfo)
 
 
@@ -216,7 +345,7 @@ def _tar_add_data(tf, arcname, data, ti_filter=None):
     tf.addfile(ti, io.BytesIO(data))
 
 
-def _tar_gz_with_license(output, tree, prefix, license):
+def _tar_gz_with_license(output, tree, prefix, license, doc_license, allow_unknown_filetypes):
 
     """Create a tar.gz file named `output` from a specified directory tree.
 
@@ -225,7 +354,7 @@ def _tar_gz_with_license(output, tree, prefix, license):
     When creating the tar.gz a standard set of meta-data will be used to help ensure things are consistent.
 
     """
-    lo = _LicenseOpener(license)
+    lo = _LicenseOpener(license, doc_license, os.getcwd(), allow_unknown_filetypes)
     try:
         with tarfile.open(output, 'w:gz', format=tarfile.GNU_FORMAT) as tf:
             tarfile.bltn_open = lo.open
@@ -236,12 +365,15 @@ def _tar_gz_with_license(output, tree, prefix, license):
         tarfile.bltn_open = open
 
 
-def _mk_partial(pkg, topdir):
+def _mk_partial(pkg, topdir, allow_unknown_filetypes):
     fn = top_path(topdir, 'release', 'partials', '{}.tar.gz'.format(pkg.get_archive_name()))
     src_prefix = 'share/packages/{}'.format(pkg.get_name())
-    _tar_gz_with_license(fn, pkg.get_path(), src_prefix, pkg.get_license())
+    _tar_gz_with_license(fn, pkg.get_path(), src_prefix, pkg.get_license(), pkg.get_doc_license(),
+                         allow_unknown_filetypes)
 
 
+@subcmd(name='partials', cmd='build', help='Build partial release files',
+        args=(Arg('--allow-unknown-filetypes', action='store_true'),))
 def build_partials(args):
     build(args)
     os.makedirs(top_path(args.topdir, 'release', 'partials'), exist_ok=True)
@@ -249,7 +381,7 @@ def build_partials(args):
     for pkg in packages:
         for config in get_release_configs():
             release_package = _ReleasePackage(pkg, config)
-            _mk_partial(release_package, args.topdir)
+            _mk_partial(release_package, args.topdir, args.allow_unknown_filetypes)
 
 
 def build_single_release(config, topdir):
@@ -273,8 +405,13 @@ def build_single_release(config, topdir):
                           config.top_level_license.encode('utf8'),
                           _tar_info_filter)
 
+        # Run license replacer on all extra files released
+        dummy_pkg = _ReleasePackage(None, config)
         for arcname, filename in config.extra_files:
-            tf.add(filename, arcname='{}/{}'.format(basename, arcname), filter=_tar_info_filter)
+            lo = _LicenseOpener(dummy_pkg.get_license(), dummy_pkg.get_doc_license(), os.getcwd(), filename=filename)
+            tarfile.bltn_open = lo.open
+            tf.add(filename, arcname='{}/{}'.format(basename, arcname), filter=lo.tar_info_filter)
+            tarfile.bltn_open = open
 
         if 'TEAMCITY_VERSION' in os.environ:
             build_info = os.environ['BUILD_VCS_NUMBER']
@@ -361,7 +498,8 @@ def release_test_one(archive):
                             raise e
 
 
-def release_test(args):
+@subcmd(name='release', cmd='test')
+def test(args):
     """Implement the test-release command.
 
     This command is used to perform sanity checks and testing of the full release.
@@ -380,7 +518,8 @@ def get_release_configs():
     return enabled_configs
 
 
-def build_release(args):
+@subcmd(name='release', cmd='build')
+def build(args):
     """Implement the build-release command.
 
     Build release takes the various partial releases, and combines them in to a single tar file.

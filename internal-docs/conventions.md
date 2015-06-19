@@ -1,7 +1,28 @@
+<!---
+eChronos Real-Time Operating System
+Copyright (C) 2015  National ICT Australia Limited (NICTA), ABN 62 102 206 173.
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as published by
+the Free Software Foundation, version 3, provided that no right, title
+or interest in or to any trade mark, service mark, logo or trade name
+of NICTA or its licensors is granted.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+@TAG(NICTA_DOC_AGPL)
+  -->
+
 lupHw1: All project (i.e., non-third-party) Python files shall be PEP8 compliant.
 Rationale: consistent code style and improved readability.
 
-u1wSS9: The command 'x.py check-pep8' shall check for compliance of all project Python files.
+u1wSS9: The command 'x.py test style' shall check for compliance of all project Python files.
 Rationale: an automated check allows to detect and resolve non-compliance efficiently.
 
 TZb0Uv: The maximum line length in project Python files is 118 characters.
@@ -27,3 +48,10 @@ Specific API assertions and internal assertions are therefore not to be document
 
 SKcASp: All documentation uses present tense.
 Other tenses are only acceptable where they are necessary grammatically for clarity.
+
+BXCwte: All C code must observe const correctness.
+Const correctness is described in more detail online in Wikipedia and in the C++ FQA lite.
+In the RTOS C code, all function arguments not modified in the scope of the function must be marked with the const keyword in the function definition.
+Function arguments that are modified within the scope of the function must not be marked as const.
+By-value arguments must not be marked as const in the function declaration.
+For example for the function definition `int foo(const int *const bar) { return *bar; }`, the declaration `int foo(const int *const bar);` is invalid whereas `int foo(const int *bar);` is the correct declaration.

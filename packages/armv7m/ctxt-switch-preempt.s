@@ -1,4 +1,25 @@
 /*
+ * eChronos Real-Time Operating System
+ * Copyright (C) 2015  National ICT Australia Limited (NICTA), ABN 62 102 206 173.
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published by
+ * the Free Software Foundation, version 3, provided that no right, title
+ * or interest in or to any trade mark, service mark, logo or trade name
+ * of NICTA or its licensors is granted.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ * @TAG(NICTA_AGPL)
+ */
+
+/*
  * This module implements context switch on ARMv7-M for RTOS variants that support task preemption by exceptions.
  *
  * RTOS variants with preemption support need, in addition to the ability to trigger a context switch internally from
@@ -112,13 +133,24 @@
 .endm
 
 /**
- * Enable preemption, and in doing so, cause any pending preemption to happen immediately.
+ * Enable preemption, and in doing so, allow any pending preemptions to occur.
+ *
+ * Since the activation of pending PendSV interrupts (after enabling by resetting BASEPRI) is subject to a delay whose
+ * length does not appear to be specified by any documentation, we explicitly await that any pending preemption has
+ * been handled (by checking that the PendSV pending bit has been cleared by our PendSV handler) before returning.
  */
 .global rtos_internal_preempt_enable
 .type rtos_internal_preempt_enable,#function
 /* void rtos_internal_preempt_enable(void); */
 rtos_internal_preempt_enable:
         asm_preempt_enable r0
+
+1:      /* Ensure PendSV bit in the ICSR (Interrupt Control & State Register) has been cleared before proceeding. */
+        ldr r0, =0xE000ED04
+        ldr r1, [r0]
+        tst r1, #0x10000000
+        bne 1b
+
         bx lr
 .size rtos_internal_preempt_enable, .-rtos_internal_preempt_enable
 

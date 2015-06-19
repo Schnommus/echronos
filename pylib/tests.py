@@ -1,3 +1,24 @@
+#
+# eChronos Real-Time Operating System
+# Copyright (C) 2015  National ICT Australia Limited (NICTA), ABN 62 102 206 173.
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as published by
+# the Free Software Foundation, version 3, provided that no right, title
+# or interest in or to any trade mark, service mark, logo or trade name
+# of NICTA or its licensors is granted.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Affero General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+# @TAG(NICTA_AGPL)
+#
+
 import os
 import sys
 import pep8
@@ -5,11 +26,28 @@ import logging
 import unittest
 import subprocess
 from contextlib import contextmanager
+import difflib
+import io
+import re
+import nose
+import inspect
 
 from .xunittest import discover_tests, TestSuite, SimpleTestNameResult, testcase_matches, testsuite_list
+from .release import _LicenseOpener
+from .utils import get_executable_extension
+from .cmdline import subcmd, Arg
 
 
-def prj_test(args):
+_std_subcmd_args = (
+    Arg('tests', metavar='TEST', nargs='*', default=[]),
+    Arg('--list', action='store_true', help="List tests (don't execute)", default=False),
+    Arg('--verbose', action='store_true', default=False),
+    Arg('--quiet', action='store_true', default=False),
+)
+
+
+@subcmd(cmd="test", args=_std_subcmd_args)
+def prj(args):
     """Run tests associated with prj modules."""
     modules = ['prj', 'util']
     directories = [os.path.join('prj', 'app'),
@@ -19,7 +57,8 @@ def prj_test(args):
     return _run_module_tests_with_args(modules, directories, args)
 
 
-def x_test(args):
+@subcmd(cmd="test", args=_std_subcmd_args)
+def x(args):
     """Run x-related tests."""
     modules = ['x']
     directories = ['.']
@@ -27,12 +66,14 @@ def x_test(args):
     return _run_module_tests_with_args(modules, directories, args)
 
 
-def pystache_test(_):
+@subcmd(cmd="test")
+def pystache(_):
     """Run tests assocaited with pystache modules."""
     return subprocess.call([sys.executable, os.path.join('prj', 'app', 'pystache', 'test_pystache.py')])
 
 
-def rtos_test(args):
+@subcmd(cmd="test", args=_std_subcmd_args)
+def units(args):
     """Run rtos unit tests."""
     modules = ['rtos']
     directories = ['.']
@@ -153,7 +194,10 @@ class _TeamcityReport(pep8.StandardReport):
             .replace("]", "|]").replace("\n", "|n").replace("\r", "|r")
 
 
-def check_pep8(args):
+@subcmd(cmd="test", help='Run PEP8 on project Python files',
+        args=(Arg('--teamcity', action='store_true', help="Provide teamcity output for tests", default=False),
+              Arg('--excludes', nargs='*', help="Exclude directories from pep8 checks", default=[])))
+def style(args):
     """Check for PEP8 compliance with the pep8 tool.
 
     This implements conventions lupHw1 and u1wSS9.
@@ -179,3 +223,253 @@ def check_pep8(args):
     if report.total_errors:
         logging.error('pep8 check found non-compliant files')  # details on stdout
         return 1
+
+
+@subcmd(cmd="test", help='Check that all files have the appropriate license header',
+        args=(Arg('--excludes', nargs='*', help="Exclude directories from license header checks", default=[]),))
+def licenses(args):
+    excludes = args.excludes + [
+        '.git',
+        '.gitignore',
+        'external_tools',
+        'tools',
+        'pm',
+        'provenance',
+        'out',
+        'release',
+    ]
+    files_without_license = []
+    files_unknown_type = []
+
+    for top_file in [f for f in os.listdir() if os.path.isfile(f) and f not in excludes]:
+        # Check setenv as a shell script and expect shell-style comment format for .pylintrc
+        if top_file == 'setenv' or top_file == '.pylintrc':
+            agpl_sentinel = _LicenseOpener._agpl_sentinel('.sh')
+        else:
+            ext = os.path.splitext(top_file)[1]
+            try:
+                agpl_sentinel = _LicenseOpener._agpl_sentinel(ext)
+            except _LicenseOpener.UnknownFiletypeException:
+                files_unknown_type.append(top_file)
+                continue
+
+        if agpl_sentinel is not None:
+            f = open(top_file, 'rb')
+            old_lic_str, sentinel_found, _ = f.peek().decode('utf8').partition(agpl_sentinel)
+            if not sentinel_found:
+                files_without_license.append(top_file)
+            f.close()
+
+    for top_subdir in [f for f in os.listdir() if os.path.isdir(f) and f not in excludes]:
+        # Ignore prj_build*
+        if top_subdir.startswith('prj_build'):
+            continue
+
+        for dirpath, subdirs, files in os.walk(top_subdir):
+            # Ignore prj/app
+            if os.path.basename(dirpath) == 'prj' and 'app' in subdirs:
+                subdirs.remove('app')
+
+            # Ignore docs/manual_template
+            if os.path.basename(dirpath) == 'docs' and 'manual_template' in subdirs:
+                subdirs.remove('manual_template')
+
+            # Ignore packages/*/rtos-*
+            if dirpath.startswith('packages') and len(dirpath.split('/')) == 2:
+                for d in [d for d in subdirs if d.startswith('rtos-')]:
+                    subdirs.remove(d)
+
+            for file_path in [os.path.join(dirpath, f) for f in files]:
+                ext = os.path.splitext(file_path)[1]
+
+                # Ignore component C, header, XML, and Markdown files that will be composed by x.py into RTOS packages
+                if top_subdir == "components" and ext in ['.c', '.h', '.xml', '.md']:
+                    continue
+
+                try:
+                    agpl_sentinel = _LicenseOpener._agpl_sentinel(ext)
+                except _LicenseOpener.UnknownFiletypeException:
+                    files_unknown_type.append(file_path)
+                    continue
+
+                if agpl_sentinel is not None:
+                    f = open(file_path, 'rb')
+                    old_lic_str, sentinel_found, _ = f.peek().decode('utf8').partition(agpl_sentinel)
+                    if not sentinel_found:
+                        files_without_license.append(file_path)
+                    f.close()
+
+    if len(files_without_license):
+        logging.error('License check found files without a license header:')
+        for file_path in files_without_license:
+            logging.error('    {}'.format(file_path))
+
+    if len(files_unknown_type):
+        logging.error('License check found files of unknown type:')
+        for file_path in files_unknown_type:
+            logging.error('    {}'.format(file_path))
+        return 1
+
+    if len(files_without_license):
+        return 1
+
+
+@subcmd(cmd="test", help='Check that all files belonging to external tools map 1-1 with provenance listings')
+def provenance(args):
+    target_dirs = ['tools', 'external_tools']
+    exemptions = [['tools', 'LICENSE.md'], ['external_tools', 'LICENSE.md']]
+    files_nonexistent = []
+    files_not_listed = []
+    files_listed = []
+
+    # Check that all files in provenance FILES listings exist.
+    for dirpath, subdirs, files in os.walk('provenance'):
+        for list_path in [os.path.join(dirpath, f) for f in files if f == 'FILES']:
+            for file_path in [line.strip() for line in open(list_path)]:
+                if os.path.exists(file_path):
+                    # FILES paths have UNIX '/' separators but we wish to compare in an OS-agnostic manner.
+                    files_listed.append(file_path.split('/'))
+                else:
+                    files_nonexistent.append((file_path, list_path))
+
+    # Check that all files in 'external_tools' and 'tools' are listed in a provenance FILES listing.
+    for target_dir in target_dirs:
+        for dirpath, subdirs, files in os.walk(target_dir):
+            # Exempt any __pycache__ dirs from the check
+            if '__pycache__' in subdirs:
+                subdirs.remove('__pycache__')
+
+            # Exempt tools/share/xyz from the check.
+            # This directory contains xyz-generated provenance information including file listings with paths relative
+            # to the 'tools' directory, sometimes including other files in tools/share/xyz, so we leave them here to
+            # preserve their paths and put a note in the relevant ORIGIN files to refer here for more info.
+            if dirpath == os.path.join('tools', 'share') and 'xyz' in subdirs:
+                subdirs.remove('xyz')
+
+            for file_path in [dirpath.split(os.sep) + [f] for f in files]:
+                if file_path not in files_listed + exemptions:
+                    files_not_listed.append(os.path.join(*file_path))
+
+    # Log all results and return 1 if there were any problematic cases
+    if len(files_nonexistent):
+        logging.error('Provenance check found files listed that don\'t exist:')
+        for file_path, list_path in files_nonexistent:
+            logging.error('    {} (listed in {})'.format(file_path, list_path))
+
+    if len(files_not_listed):
+        logging.error('Provenance check found files without provenance information:')
+        for file_path in files_not_listed:
+            logging.error('    {}'.format(file_path))
+        return 1
+
+    if len(files_nonexistent):
+        return 1
+
+
+@subcmd(cmd="test", help='Run system tests, i.e., tests that check the behavior of full RTOS systems. \
+This command supports the same options as the Python nose test framework.')
+def systems(args):
+    def find_gdb_test_py_files(path):
+        for parent, dirs, files in os.walk(path):
+            for file in files:
+                if file.endswith('.py') and os.path.splitext(file)[0] + '.gdb' in files:
+                    yield os.path.join(parent, file)
+
+    if args.unknown_args and isinstance(args.unknown_args[-1], str) and args.unknown_args[-1].endswith('.py'):
+        tests = []
+    else:
+        tests = list(find_gdb_test_py_files('packages'))
+
+    nose.core.run(argv=[''] + args.unknown_args + tests)
+
+
+class GdbTestCase(unittest.TestCase):
+    """A Pythonic interface to running an RTOS system executable against a GDB command file and checking whether the
+    output produced matches a given reference output.
+
+    The external interface of this class is that of unittest.TestCase to be accessed by the unittest or nose
+    frameworks.
+
+    To use this class for new tests, import this class in a Python file under the packages/ directory.
+    That Python file needs to have the same file name as the .prx file containing the system configuration of the
+    system to build and test, the .gdb file containing the GDB commands to execute against the system executable, and
+    the .gdbout file containing the expected GDB output.
+    The default implementation of this class then picks up these files and runs the test.
+
+    If building or running or testing a system requires additional logic beyond this default implementation, create a
+    subclass of this class and extend it accordingly.
+
+    """
+    system_name = None
+    search_path = 'packages'
+
+    def setUp(self):
+        topdir = os.path.abspath('.')
+        if self.system_name is None:
+            py_path = inspect.getfile(self.__class__)
+            self.prx_path = os.path.splitext(py_path)[0] + '.prx'
+            rel_py_path = os.path.relpath(py_path, os.path.abspath(self.search_path))
+            self.system_name = os.path.splitext(rel_py_path)[0].replace(os.sep, '.')
+        else:
+            rel_prx_path = os.path.join(self.search_path, self.system_name.replace('.', os.sep)) + '.prx'
+            self.prx_path = os.path.abspath(rel_prx_path)
+        self.executable_path = os.path.abspath(os.path.join('out', self.system_name.replace('.', os.sep),
+                                                            'system' + get_executable_extension()))
+        self.gdb_commands_path = os.path.splitext(self.prx_path)[0] + '.gdb'
+        self._build()
+
+    def test(self):
+        assert os.path.exists(self.executable_path)
+        assert os.path.exists(self.gdb_commands_path)
+        test_output = self._get_test_output()
+        reference_output = self._get_reference_output()
+        if test_output != reference_output:
+            for line in difflib.unified_diff(reference_output.splitlines(), test_output.splitlines(),
+                                             'reference', 'test'):
+                sys.stdout.write(line + '\n')
+        assert test_output == reference_output
+
+    def _build(self):
+        subprocess.check_call((sys.executable, os.path.join('prj', 'app', 'prj.py'), '--search-path',
+                              self.search_path, 'build', self.system_name))
+
+    def _get_test_output(self):
+        test_command = self._get_test_command()
+        gdb_output = subprocess.check_output(test_command)
+        return self._filter_gdb_output(gdb_output.decode())
+
+    def _get_test_command(self):
+        return ('gdb', '--batch', self.executable_path, '-x', self.gdb_commands_path)
+
+    def _get_reference_output(self):
+        reference_path = os.path.splitext(self.prx_path)[0] + '.gdbout'
+        return self._filter_gdb_output(open(reference_path).read())
+
+    @staticmethod
+    def _filter_gdb_output(gdb_output):
+        delete_patterns = (re.compile('^(\[New Thread .+)$'),)
+        replace_patterns = (re.compile('Breakpoint [0-9]+ at (0x[0-9a-f]+): file (.+), line ([0-9]+)'),
+                            re.compile('^Breakpoint .* at (.+)$'),
+                            re.compile('=(0x[0-9a-f]+)'),
+                            re.compile('Inferior( [0-9]+ )\[process( [0-9]+\]) will be killed'),
+                            re.compile('^([0-9]+\t.+)$'),
+                            re.compile('^rtos_internal_entry \(\) at (.+)$'))
+        filtered_result = io.StringIO()
+        for line in gdb_output.splitlines(True):
+            match = None
+            for pattern in delete_patterns:
+                match = pattern.search(line)
+                if match:
+                    break
+            if match:
+                continue
+            for pattern in replace_patterns:
+                while True:
+                    match = pattern.search(line)
+                    if match:
+                        for group in match.groups():
+                            line = line.replace(group, '')
+                    else:
+                        break
+            filtered_result.write(line)
+        return filtered_result.getvalue()

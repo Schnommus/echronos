@@ -1,3 +1,24 @@
+#
+# eChronos Real-Time Operating System
+# Copyright (C) 2015  National ICT Australia Limited (NICTA), ABN 62 102 206 173.
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as published by
+# the Free Software Foundation, version 3, provided that no right, title
+# or interest in or to any trade mark, service mark, logo or trade name
+# of NICTA or its licensors is granted.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Affero General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+# @TAG(NICTA_AGPL)
+#
+
 from prj import execute
 import os
 
@@ -18,8 +39,8 @@ def system_build(system):
     for c, o in zip(system.c_files, c_obj_files):
         os.makedirs(os.path.dirname(o), exist_ok=True)
         # gcc options for the PowerPC e500
-        execute(['powerpc-linux-gnu-gcc', '-mcpu=8548', '-mfloat-gprs=double', '-meabi', '-ffreestanding', '-c', c,
-                '-o', o, '-Wall', '-Werror'] +
+        execute(['powerpc-linux-gnu-gcc', '-mcpu=8548', '-mfloat-gprs=double', '-meabi', '-mno-sdata', '-G', '0',
+                '-ffreestanding', '-c', c, '-o', o, '-Wall', '-Werror'] +
                 c_flags + inc_path_args)
 
     # Assemble all asm files.
@@ -30,4 +51,4 @@ def system_build(system):
 
     # Perform final link
     obj_files = asm_obj_files + c_obj_files
-    execute(['powerpc-linux-gnu-ld', '-T', system.linker_script, '-o', system.output_file] + obj_files)
+    execute(['powerpc-linux-gnu-ld', '-G', '0', '-T', system.linker_script, '-o', system.output_file] + obj_files)

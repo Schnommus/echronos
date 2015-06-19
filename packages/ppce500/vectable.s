@@ -1,3 +1,24 @@
+/*
+ * eChronos Real-Time Operating System
+ * Copyright (C) 2015  National ICT Australia Limited (NICTA), ABN 62 102 206 173.
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published by
+ * the Free Software Foundation, version 3, provided that no right, title
+ * or interest in or to any trade mark, service mark, logo or trade name
+ * of NICTA or its licensors is granted.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ * @TAG(NICTA_AGPL)
+ */
+
 /*<module>
   <code_gen>template</code_gen>
   <schema>
@@ -85,6 +106,10 @@
  * Alternatively, setting the handler to "undefined" will generate a handler that first creates a stack frame for the
  * interrupted context and stores its registers there before looping forever at the label "undefined".
  * When an explicit handler is given, it MUST be responsible for clearing the condition that caused its interrupt.
+ *
+ * Note that the RTOS only enables and disables noncritical interrupts.
+ * Projects that define handlers for critical and machine-check interrupts are expected to enable or disable them
+ * appropriately.
  */
 
 {{#preemption}}
@@ -824,19 +849,20 @@ noncrit_irq_common:
 
 .section .text
 /* The rtos_internal_entry function initialises the C run-time and then jumps to main (which should never return!)
- * If there is a Reset_Handler function defined, then this will be invoked.
- * It should never return. */
-.weak Reset_Handler
+ * If this is not the first software to run on the board, whatever invokes this (e.g. the bootloader) must first take
+ * the necessary steps to ensure that no interrupts are allowed to happen during the vector table initialization. */
 .global rtos_internal_entry
 .type rtos_internal_entry,STT_FUNC
 rtos_internal_entry:
-        /* If there is a Reset_Handler call it - it shouldn't return. */
-        lis %r3,Reset_Handler@h
-        ori %r3,%r3,Reset_Handler@l
-        cmpi 0,%r3,0
-        beq 1f
-        b Reset_Handler
-1:
+        /* Compile with -mno-sdata and -G 0 to disable all use of small data areas.
+         * Zero the small data anchor registers for more predictable error behavior in case of use. */
+        li %r13,0
+        li %r2,0
+
+        /* Init the stack pointer */
+        lis %sp,rtos_internal_stack@ha
+        ori %sp,%sp,rtos_internal_stack@l
+
         /* IVPR, IVOR contents are indeterminate upon reset and must be initialized by system software.
          * IVPR is the 16 bit address prefix of ALL interrupt vectors */
         li %r3,0
@@ -893,13 +919,6 @@ rtos_internal_entry:
         isync
         mtspr 1008,%r3
         isync
-
-{{^preemption}}
-        /* The RTOS only enables and disables noncritical interrupts.
-         * Projects that define handlers for critical and machine-check interrupts are expected to enable or disable
-         * them appropriately. */
-        wrteei 1
-{{/preemption}}
 
         b main
 .size rtos_internal_entry, .-rtos_internal_entry

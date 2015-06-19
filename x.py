@@ -1,4 +1,25 @@
 #!/usr/bin/env python3.3
+#
+# eChronos Real-Time Operating System
+# Copyright (C) 2015  National ICT Australia Limited (NICTA), ABN 62 102 206 173.
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as published by
+# the Free Software Foundation, version 3, provided that no right, title
+# or interest in or to any trade mark, service mark, logo or trade name
+# of NICTA or its licensors is granted.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Affero General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+# @TAG(NICTA_AGPL)
+#
+
 """
 Overview
 ---------
@@ -80,12 +101,9 @@ if correct is not None and sys.executable != correct:
 import argparse
 import logging
 
-from pylib.tasks import new_review, new_task, tasks, integrate, _gen_tag
-from pylib.tests import prj_test, x_test, pystache_test, rtos_test, check_pep8
-from pylib.components import Component, build
-from pylib.release import release_test, build_release, build_partials
-from pylib.prj import prj_build
-from pylib.manuals import build_manuals
+from pylib.components import Component
+from pylib import release, components, prj, tests, tasks, cmdline, docs
+from pylib.cmdline import add_cmds_in_globals_to_parser
 
 # Set up a specific logger with our desired output level
 logger = logging.getLogger()
@@ -104,7 +122,7 @@ topdir = os.path.normpath(os.path.dirname(__file__))
 CORE_CONFIGURATIONS = {"posix": ["sched-rr-test", "sched-prio-inherit-test", "simple-mutex-test",
                                  "blocking-mutex-test", "simple-semaphore-test", "sched-prio-test",
                                  "acamar", "gatria", "kraz"],
-                       "armv7m": ["acamar", "gatria", "kraz", "acrux", "rigel", "kochab"],
+                       "armv7m": ["acamar", "gatria", "kraz", "acrux", "rigel", "kochab", "phact"],
                        "ppce500": ["acamar", "gatria", "kraz", "acrux", "kochab"]}
 
 CORE_SKELETONS = {
@@ -125,7 +143,7 @@ CORE_SKELETONS = {
                           Component('simple-mutex-test'),
                           ],
     'blocking-mutex-test': [Component('reentrant'),
-                            Component('blocking-mutex', {'lock_timeout': False}),
+                            Component('blocking-mutex', {'lock_timeout': False, 'prio_ceiling': False}),
                             Component('blocking-mutex-test'),
                             ],
     'simple-semaphore-test': [Component('reentrant'),
@@ -173,7 +191,8 @@ CORE_SKELETONS = {
               Component('task'),
               Component('acrux'),
               ],
-    'rigel': [Component('reentrant'),
+    'rigel': [Component('docs'),
+              Component('reentrant'),
               Component('stack', pkg_component=True),
               Component('context-switch', pkg_component=True),
               Component('preempt-null'),
@@ -184,7 +203,7 @@ CORE_SKELETONS = {
               Component('interrupt-event', pkg_component=True),
               Component('interrupt-event', {'timer_process': True}),
               Component('interrupt-event-signal', {'task_set': True}),
-              Component('blocking-mutex', {'lock_timeout': False, 'preemptive': False}),
+              Component('blocking-mutex', {'lock_timeout': False, 'preemptive': False, 'prio_ceiling': False}),
               Component('profiling'),
               Component('message-queue'),
               Component('error'),
@@ -193,7 +212,8 @@ CORE_SKELETONS = {
               Component('task', {'task_start_api': True}),
               Component('rigel'),
               ],
-    'kochab': [Component('reentrant'),
+    'kochab': [Component('docs'),
+               Component('reentrant'),
                Component('stack', pkg_component=True),
                Component('context-switch-preempt', pkg_component=True),
                Component('sched-prio-inherit', {'assume_runnable': False}),
@@ -203,12 +223,29 @@ CORE_SKELETONS = {
                Component('interrupt-event', pkg_component=True),
                Component('interrupt-event', {'timer_process': True}),
                Component('interrupt-event-signal', {'task_set': False}),
-               Component('blocking-mutex', {'lock_timeout': True, 'preemptive': True}),
+               Component('blocking-mutex', {'lock_timeout': True, 'preemptive': True, 'prio_ceiling': False}),
                Component('simple-semaphore', {'timeouts': True, 'preemptive': True}),
                Component('error'),
                Component('task', {'task_start_api': False}),
                Component('kochab'),
-               ]
+               ],
+    'phact': [Component('docs'),
+              Component('reentrant'),
+              Component('stack', pkg_component=True),
+              Component('context-switch-preempt', pkg_component=True),
+              Component('sched-prio-ceiling', {'assume_runnable': False}),
+              Component('signal', {'prio_inherit': False, 'yield_api': False, 'task_signals': False}),
+              Component('timer', pkg_component=True),
+              Component('timer', {'preemptive': True}),
+              Component('interrupt-event', pkg_component=True),
+              Component('interrupt-event', {'timer_process': True}),
+              Component('interrupt-event-signal', {'task_set': False}),
+              Component('blocking-mutex', {'lock_timeout': True, 'preemptive': True, 'prio_ceiling': True}),
+              Component('simple-semaphore', {'timeouts': True, 'preemptive': True}),
+              Component('error'),
+              Component('task', {'task_start_api': False}),
+              Component('phact'),
+              ],
 }
 
 # client repositories may extend or override the following variables to control which configurations are available
@@ -218,111 +255,29 @@ configurations = CORE_CONFIGURATIONS.copy()
 
 def main():
     """Application main entry point. Parse arguments, and call specified sub-command."""
-    SUBCOMMAND_TABLE = {
-        # Releases
-        'prj-build': prj_build,
-        'generate': build,
-        'build-release': build_release,
-        'build-partials': build_partials,
-        'build-manuals': build_manuals,
-
-        # Testing
-        'check-pep8': check_pep8,
-        'prj-test': prj_test,
-        'pystache-test': pystache_test,
-        'x-test': x_test,
-        'rtos-test': rtos_test,
-        'test-release': release_test,
-
-        # Tasks management
-        'review': new_review,
-        'new': new_task,
-        'list': tasks,
-        'integrate': integrate,
-        # Tempalte management
-        'gen-tag': _gen_tag,
-    }
-
-    # create the top-level parser
     parser = argparse.ArgumentParser(prog='x.py')
+    add_cmds_in_globals_to_parser(globals(), parser)
 
-    subparsers = parser.add_subparsers(title='subcommands', dest='command')
+    # parse arbitrary nose options for the 'test systems' command
+    # argparse does not seem to provide a better mechanism for this case
 
-    test_parser = subparsers.add_parser("test", help="Run tests")
-    test_subparsers = test_parser.add_subparsers(title="Test suites", dest="test_command")
+    args, unknown_args = parser.parse_known_args()
+    if args.command == 'test' and args.subcommand == 'systems':
+        args.unknown_args = unknown_args
+    else:
+        # enforce stricter parsing for other commands
+        args = parser.parse_args()
 
-    _parser = test_subparsers.add_parser('check-pep8', help='Run PEP8 on project Python files')
-    _parser.add_argument('--teamcity', action='store_true',
-                         help="Provide teamcity output for tests",
-                         default=False)
-    _parser.add_argument('--excludes', nargs='*',
-                         help="Exclude directories from pep8 checks",
-                         default=[])
-    for component_name in ['prj', 'x', 'rtos']:
-        _parser = test_subparsers.add_parser(component_name + '-test', help='Run {} unittests'.format(component_name))
-        _parser.add_argument('tests', metavar='TEST', nargs='*',
-                             help="Specific test", default=[])
-        _parser.add_argument('--list', action='store_true',
-                             help="List tests (don't execute)",
-                             default=False)
-        _parser.add_argument('--verbose', action='store_true',
-                             help="Verbose output",
-                             default=False)
-        _parser.add_argument('--quiet', action='store_true',
-                             help="Less output",
-                             default=False)
-    test_subparsers.add_parser('pystache-test', help='Test pystache')
-    test_subparsers.add_parser('test-release', help='Test final release')
-
-    build_parser = subparsers.add_parser("build", help="Build release stuff...")
-    build_subparsers = build_parser.add_subparsers(title="Build options", dest="build_command")
-
-    build_subparsers.add_parser('prj-build', help='Build prj')
-    build_subparsers.add_parser('build-release', help='Build final release')
-    build_subparsers.add_parser('build-partials', help='Build partial release files')
-    _parser = build_subparsers.add_parser('build-manuals', help='Build PDF manuals')
-    _parser.add_argument('--verbose', '-v', action='store_true')
-    build_subparsers.add_parser('generate', help='Generate packages from components')
-
-    task_parser = subparsers.add_parser("task", help="Task management")
-    task_subparsers = task_parser.add_subparsers(title="Task management operations", dest="task_command")
-
-    task_subparsers.add_parser('list', help="List tasks")
-    _parser = task_subparsers.add_parser('new', help='Create a new task')
-    _parser.add_argument('taskname', metavar='TASKNAME', help='Name of the new task')
-    _parser.add_argument('--no-fetch', dest='fetch', action='store_false', default='true', help='Disable fetchign')
-    _parser = task_subparsers.add_parser('review', help='Create a new review')
-    _parser.add_argument('reviewers', metavar='REVIEWER', nargs='+',
-                         help='Username of reviewer')
-    _parser = task_subparsers.add_parser('integrate', help='Integrate a completed development task/branch \
-into the main upstream branch.')
-    _parser.add_argument('--repo', help='Path of git repository to operate in. \
-Defaults to current working directory.')
-    _parser.add_argument('--name', help='Name of the task branch to integrate. \
-Defaults to active branch in repository.')
-    _parser.add_argument('--target', help='Name of branch to integrate task branch into. \
-Defaults to "development".', default='development')
-    _parser.add_argument('--archive', help='Prefix to add to task branch name when archiving it. \
-Defaults to "archive".', default='archive')
-
-    subparsers.add_parser('gen-tag', help='Generate a random 6-char alphanumeric string')
-
-    args = parser.parse_args()
-
-    if args.command is None:
+    if not args.command or not args.subcommand:
+        # argparse does not support required subparsers so it does not itself reject a command line that lacks a
+        # command or subcommand
         parser.print_help()
     else:
-        for cmd, subcommand in ([("test", "test_command"), ("task", "task_command"), ("build", "build_command")]):
-            if args.command == cmd:
-                if vars(args)[subcommand] is None:
-                    args = parser.parse_args([cmd, "-h"])
-                args.command = vars(args)[subcommand]
-
         args.topdir = topdir
         args.configurations = configurations
         args.skeletons = skeletons
 
-        return SUBCOMMAND_TABLE[args.command](args)
+        return args.execute(args)
 
 
 if __name__ == "__main__":

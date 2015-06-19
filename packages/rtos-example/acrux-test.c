@@ -1,27 +1,37 @@
+/*
+ * eChronos Real-Time Operating System
+ * Copyright (C) 2015  National ICT Australia Limited (NICTA), ABN 62 102 206 173.
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published by
+ * the Free Software Foundation, version 3, provided that no right, title
+ * or interest in or to any trade mark, service mark, logo or trade name
+ * of NICTA or its licensors is granted.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ * @TAG(NICTA_AGPL)
+ */
+
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 
 #include "rtos-acrux.h"
-
-extern void debug_println(const char *msg);
-
-#define SYST_CSR_REG 0xE000E010
-#define SYST_RVR_REG 0xE000E014
-#define SYST_CVR_REG 0xE000E018
-
-#define SYST_CSR_READ() (*((volatile uint32_t*)SYST_CSR_REG))
-#define SYST_CSR_WRITE(x) (*((volatile uint32_t*)SYST_CSR_REG) = x)
-
-#define SYST_RVR_READ() (*((volatile uint32_t*)SYST_RVR_REG))
-#define SYST_RVR_WRITE(x) (*((volatile uint32_t*)SYST_RVR_REG) = x)
-
-#define SYST_CVR_READ() (*((volatile uint32_t*)SYST_CVR_REG))
-#define SYST_CVR_WRITE(x) (*((volatile uint32_t*)SYST_CVR_REG) = x)
+#include "machine-timer.h"
+#include "debug.h"
 
 void
 tick_irq(void)
 {
+    machine_timer_clear();
+
     rtos_interrupt_event_raise(0);
 }
 
@@ -83,10 +93,7 @@ fn_b(void)
 int
 main(void)
 {
-    /* Set the systick reload value */
-    SYST_RVR_WRITE(0x000fffff);
-    SYST_CVR_WRITE(0);
-    SYST_CSR_WRITE((1 << 1) | 1);
+    machine_timer_init();
 
     rtos_start();
     for (;;) ;

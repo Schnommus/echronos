@@ -1,27 +1,49 @@
+#
+# eChronos Real-Time Operating System
+# Copyright (C) 2015  National ICT Australia Limited (NICTA), ABN 62 102 206 173.
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as published by
+# the Free Software Foundation, version 3, provided that no right, title
+# or interest in or to any trade mark, service mark, logo or trade name
+# of NICTA or its licensors is granted.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Affero General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+# @TAG(NICTA_AGPL)
+#
+
 import os
 import shutil
 from collections import namedtuple
 import pystache
 import xml.etree.ElementTree
 from .utils import BASE_DIR, base_path, base_to_top_paths
+from .cmdline import subcmd
 
 
 # FIXME: Use correct declaration vs definition.
 _REQUIRED_H_SECTIONS = ['public_headers',
-                        'public_type_definitions',
-                        'public_structure_definitions',
+                        'public_types',
+                        'public_structures',
                         'public_object_like_macros',
                         'public_function_like_macros',
-                        'public_extern_definitions',
-                        'public_function_definitions',
+                        'public_state',
+                        'public_function_declarations',
                         ]
 
 _REQUIRED_C_SECTIONS = ['headers',
                         'object_like_macros',
-                        'type_definitions',
-                        'structure_definitions',
-                        'extern_definitions',
-                        'function_definitions',
+                        'types',
+                        'structures',
+                        'extern_declarations',
+                        'function_declarations',
                         'state',
                         'function_like_macros',
                         'functions',
@@ -189,7 +211,8 @@ def _parse_sectioned_file(fn, config, required_sections):
 
 
 def _get_sections(bound_components, filename, sections):
-    return [_parse_sectioned_file(os.path.join(bc.path, filename), bc.config, sections) for bc in bound_components]
+    return [_parse_sectioned_file(os.path.join(bc.path, filename), bc.config, sections) for bc in bound_components
+            if os.path.exists(os.path.join(bc.path, filename))]
 
 
 _BoundComponent = namedtuple("_BoundComponent", ['path', 'config'])
@@ -242,7 +265,7 @@ def _generate(rtos_name, components, pkg_name, search_paths):
     with open(source_output, 'w') as f:
         for ss in _REQUIRED_C_SECTIONS:
             data = "\n".join(c_sections[ss] for c_sections in all_c_sections)
-            if ss == 'type_definitions':
+            if ss == 'types':
                 data = _sort_typedefs(data)
             f.write(data)
             f.write('\n')
@@ -255,28 +278,19 @@ def _generate(rtos_name, components, pkg_name, search_paths):
         f.write("#ifndef {}_H\n".format(mod_name))
         f.write("#define {}_H\n".format(mod_name))
         for ss in _REQUIRED_H_SECTIONS:
-            if ss == 'public_function_definitions':
+            if ss == 'public_function_declarations':
                 f.write("#ifdef __cplusplus\nextern \"C\" {\n#endif\n")
             f.write("\n".join(h_sections[ss] for h_sections in all_h_sections) + "\n")
-            if ss == 'public_function_definitions':
+            if ss == 'public_function_declarations':
                 f.write("#ifdef __cplusplus\n}\n#endif\n")
         f.write("\n#endif /* {}_H */".format(mod_name))
 
     # Generate docs
     if os.path.exists(os.path.join(BASE_DIR, 'components', rtos_name, 'docs.md')):
-        for search_path in search_paths:
-            if os.path.exists(os.path.join(search_path, "docs.md")):
-                bc = _BoundComponent(search_path, {})
-                break
-        else:
-            raise Exception("Docs file not found")
+        all_doc_sections = _get_sections(bound_components, "docs.md", _REQUIRED_DOC_SECTIONS + _REQUIRED_DEP_SECTIONS)
+        all_doc_sections = _sort_sections_by_dependencies(bound_components, all_doc_sections)
 
-        extended_bound_components = [bc] + bound_components
-        all_doc_sections = _get_sections(extended_bound_components, "docs.md",
-                                         _REQUIRED_DOC_SECTIONS + _REQUIRED_DEP_SECTIONS)
-        all_doc_sections = _sort_sections_by_dependencies(extended_bound_components, all_doc_sections)
-
-        doc_output = os.path.join(module_dir, 'documentation.markdown')
+        doc_output = os.path.join(module_dir, 'docs.md')
         with open(doc_output, 'w') as f:
             for ss in _REQUIRED_DOC_SECTIONS:
                 data = "\n\n".join(doc_sections[ss] for doc_sections in all_doc_sections if doc_sections is not None)
@@ -329,6 +343,9 @@ def _get_search_paths(topdir):
     return paths
 
 
+@subcmd(name='packages',
+        cmd='build',
+        help='Generate packages from components')
 def build(args):
     # Generate RTOSes
     search_paths = _get_search_paths(args.topdir)
