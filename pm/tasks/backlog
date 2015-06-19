@@ -54,3 +54,10 @@ arm-pendsv-immediacy-checks
     The verification team has suggested we may need to revisit the assumption that a pending PendSV exception is activated immediately (1) on rfi from an interrupt handler that set it pending, or (2) on re-enabling PendSV when it is disabled and pending, because the ARM documentation is not very clear on this.
     In the re-enabling case we can at least add a loop that checks it's been handled before returning to user.
     But in the case of rfi, the best we can do at this stage is add some kind of instrumentation or assertion, this will at least tell us if we can rely on our assumption that the hardware will cause PendSV immediately when we expect it.
+
+ppce500-sda-regs
+    A feature enabling eChronos use of SDAs (optimization) on PowerPC e500.
+
+fix-qemu-ppce500-irqs
+    Some builds of qemu-system-ppc (including the one on the Teamcity servers) don't seem to deliver fixed interval timer interrupts.
+    Figure out why, and once that's done, add regression tests for acrux, kochab etc. machine-qemu-ppce500 systems that rely on IRQ delivery.
