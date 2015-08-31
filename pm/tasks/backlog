@@ -14,9 +14,6 @@ ppc-test-coverage
 ppc-toolchain
     x.py ppc support with fully-integrated ppc toolchain, qemu.
 
-message-queues
-    improve test coverage so that regression tests are run continuously
-
 cleanup-prefix-hardcoding
     Get rid of the 'rtos_' prefix wherever it's hardcoded to facilitate access by other modules, once the 'rtos-config-global' feature allows us to simply determine the prefix from the RTOS module's configuration environment.
 
