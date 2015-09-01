@@ -4,9 +4,15 @@
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as published by
-# the Free Software Foundation, version 3, provided that no right, title
-# or interest in or to any trade mark, service mark, logo or trade name
-# of NICTA or its licensors is granted.
+# the Free Software Foundation, version 3, provided that these additional
+# terms apply under section 7:
+#
+#   No right, title or interest in or to any trade mark, service mark, logo or
+#   trade name of of National ICT Australia Limited, ABN 62 102 206 173
+#   ("NICTA") or its licensors is granted. Modified versions of the Program
+#   must be plainly marked as such, and must not be distributed using
+#   "eChronos" as a trade mark or product name, or misrepresented as being the
+#   original Program.
 #
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -31,6 +37,7 @@ from contextlib import contextmanager
 from .utils import chdir, tempdir, get_host_platform_name, BASE_TIME, top_path, base_to_top_paths, find_path, Git
 from .components import build
 from .cmdline import subcmd, Arg
+from .docs import is_release_doc_file, is_nonrelease_doc_file
 
 
 class _ReleaseMeta(type):
@@ -295,6 +302,10 @@ class _LicenseOpener:
         return _FileWithLicense(f, lic, old_xml_prologue_len, old_license_len)
 
     def tar_info_filter(self, tarinfo):
+        # exclude all documentation files except the final PDF
+        if is_nonrelease_doc_file(tarinfo.name):
+            return None
+
         if tarinfo.isreg():
             if self.filename is not None:
                 # This is used for releasing extra files potentially from outside the 'packages' dir of the repo.
@@ -386,6 +397,8 @@ def build_partials(args):
 
 def build_single_release(config, topdir):
     """Build a release archive for a specific release configuration."""
+    # for an unknown reason, tarfile.bltn_open is not reliably reset to the open() function in the extra files loop
+    tarfile.bltn_open = open
     basename = '{}-{}-{}'.format(config.product_name, config.release_name, config.version)
     logging.info("Building {}".format(basename))
     tarfilename = top_path(topdir, 'release', '{}.tar.gz'.format(basename))
@@ -396,6 +409,10 @@ def build_single_release(config, topdir):
                 for m in in_f.getmembers():
                     m_f = in_f.extractfile(m)
                     m.name = basename + '/' + m.name
+                    if is_release_doc_file(m.name):
+                        variant = os.path.basename(os.path.dirname(m.name)).replace('rtos-', '')
+                        m.name = '{}/{}-{}-{}-{}.pdf'.format(basename, config.product_name, config.release_name,
+                                                             variant, config.version)
                     tf.addfile(m, m_f)
         for plat in config.platforms:
             arcname = '{}/{}/bin/prj'.format(basename, plat)

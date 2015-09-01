@@ -4,9 +4,15 @@
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as published by
-# the Free Software Foundation, version 3, provided that no right, title
-# or interest in or to any trade mark, service mark, logo or trade name
-# of NICTA or its licensors is granted.
+# the Free Software Foundation, version 3, provided that these additional
+# terms apply under section 7:
+#
+#   No right, title or interest in or to any trade mark, service mark, logo or
+#   trade name of of National ICT Australia Limited, ABN 62 102 206 173
+#   ("NICTA") or its licensors is granted. Modified versions of the Program
+#   must be plainly marked as such, and must not be distributed using
+#   "eChronos" as a trade mark or product name, or misrepresented as being the
+#   original Program.
 #
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -81,28 +87,41 @@ def top_path(topdir, *path):
     return os.path.join(topdir, *path)
 
 
-def base_to_top_paths(topdir, *path):
-    """For each directory from BASE_DIR up to topdir in the directory tree, append the specified path and return the
-    resulting sequence.
+def base_to_top_paths(topdir, paths, only_existing=True):
+    """For each directory from BASE_DIR up to topdir in the directory tree, append the specified path(s) and return
+    the resulting sequence.
 
-    For example, if topdir is '/rtos/', BASE_DIR is '/rtos/core/', and *path is ['packages'], this function returns
-    ['/rtos/core/packages', '/rtos/packages']
+    Examples:
+    Assume the directory structure /rtos/core/components
+                                              packages
+                                        /packages
+    and BASE_DIR = '/rtos/core/'
+    - base_to_top_paths('/rtos/', 'packages', only_existing=False)
+        => iterator('/rtos/core/packages', '/rtos/packages')
+    - base_to_top_paths('/rtos/', ['packages'], only_existing=False)
+        => iterator('/rtos/core/packages', '/rtos/packages')
+    - base_to_top_paths('/rtos/', ['components', 'packages'], only_existing=False)
+        => iterator('/rtos/core/components', '/rtos/core/packages', '/rtos/components', '/rtos/packages')
+    - base_to_top_paths('/rtos/', ['foo', 'components', 'packages'])
+        => iterator('/rtos/core/components', '/rtos/core/packages', '/rtos/packages')
 
-    If topdir equals BASE_DIR, the result of this function is a sequence with a single element and equal to
-    [base_path(*path)]
+    - BASE_DIR = '/rtos/'; base_to_top_paths('/rtos/', 'packages')
+        => iterator('/rtos/packages')
 
     """
-    result = []
+    if isinstance(paths, str):
+        paths = (paths,)
 
     cur_dir = os.path.abspath(BASE_DIR)
     stop_dir = os.path.abspath(topdir)
     iterate = True
     while iterate:
-        result.append(os.path.join(cur_dir, *path))
+        for path in paths:
+            full_path = os.path.join(cur_dir, path)
+            if not only_existing or os.path.exists(full_path):
+                yield full_path
         iterate = (cur_dir != stop_dir)
         cur_dir = os.path.dirname(cur_dir)
-
-    return result
 
 
 def find_path(path, topdir):
@@ -131,11 +150,11 @@ def find_path(path, topdir):
     find_path('bar/baz', '/foo') -> '/foo/bar/baz'
 
     """
-    top_to_base_paths = reversed(base_to_top_paths(topdir, path))
-    for p in top_to_base_paths:
-        if os.path.exists(p):
-            return p
-    raise IOError("Unable to find the relative path '{}' in the repository hierarchy".format(path))
+    paths = list(base_to_top_paths(topdir, path))
+    if paths:
+        return paths[-1]
+    else:
+        raise IOError("Unable to find the relative path '{}' in the repository hierarchy".format(path))
 
 
 def un_base_path(path):

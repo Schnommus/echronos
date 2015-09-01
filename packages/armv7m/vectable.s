@@ -4,9 +4,15 @@
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published by
- * the Free Software Foundation, version 3, provided that no right, title
- * or interest in or to any trade mark, service mark, logo or trade name
- * of NICTA or its licensors is granted.
+ * the Free Software Foundation, version 3, provided that these additional
+ * terms apply under section 7:
+ *
+ *   No right, title or interest in or to any trade mark, service mark, logo
+ *   or trade name of of National ICT Australia Limited, ABN 62 102 206 173
+ *   ("NICTA") or its licensors is granted. Modified versions of the Program
+ *   must be plainly marked as such, and must not be distributed using
+ *   "eChronos" as a trade mark or product name, or misrepresented as being
+ *   the original Program.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -26,9 +32,9 @@
 .set reset_value, 0x05fa0004
 
 .section .vectors, "a"
-.global rtos_internal_vector_table
-rtos_internal_vector_table:
-        .word rtos_internal_stack
+.global vector_table
+vector_table:
+        .word stack
         .word entry
         .word {{nmi}}
         .word {{hardfault}}
@@ -95,9 +101,9 @@ Specifically, this loads the .data section from flash in to SRAM, and then zeros
 .type entry,#function
 entry:
         /* Load .data section */
-        ldr r0, =rtos_internal_data_load_addr
-        ldr r1, =rtos_internal_data_virt_addr
-        ldr r2, =rtos_internal_data_size
+        ldr r0, =data_load_addr
+        ldr r1, =data_virt_addr
+        ldr r2, =data_size
 1:      cbz r2, 2f
         ldm r0!, {r3}
         stm r1!, {r3}
@@ -106,8 +112,8 @@ entry:
 2:
 
         /* Zero .bss section */
-        ldr r1, =rtos_internal_bss_virt_addr
-        ldr r2, =rtos_internal_bss_size
+        ldr r1, =bss_virt_addr
+        ldr r2, =bss_size
         mov r3, #0
 1:      cbz r2, 2f
         stm r1!, {r3}

@@ -4,9 +4,15 @@
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as published by
-# the Free Software Foundation, version 3, provided that no right, title
-# or interest in or to any trade mark, service mark, logo or trade name
-# of NICTA or its licensors is granted.
+# the Free Software Foundation, version 3, provided that these additional
+# terms apply under section 7:
+#
+#   No right, title or interest in or to any trade mark, service mark, logo or
+#   trade name of of National ICT Australia Limited, ABN 62 102 206 173
+#   ("NICTA") or its licensors is granted. Modified versions of the Program
+#   must be plainly marked as such, and must not be distributed using
+#   "eChronos" as a trade mark or product name, or misrepresented as being the
+#   original Program.
 #
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -43,13 +49,13 @@ def test_empty():
 
 @teamcityskip
 def test_git_branch_hash():
-    g = Git()
+    g = Git(local_repository=os.path.dirname(os.path.abspath(__file__)))
     assert INITIAL_COMMIT == g.branch_hash(INITIAL_COMMIT)
 
 
 @teamcityskip
 def test_git_branch_date():
-    g = Git()
+    g = Git(local_repository=os.path.dirname(os.path.abspath(__file__)))
     assert INITIAL_TIME == g.branch_date(INITIAL_COMMIT)
 
 
@@ -120,7 +126,7 @@ class DummyGit:
 
 # Helper for the pre-integration check tests
 def task_dummy_create(task_name):
-    return _Task(task_name, os.getcwd(), DummyGit(task_name))
+    return _Task(task_name, os.path.dirname(os.path.abspath(__file__)), DummyGit(task_name))
 
 
 def test_task_accepted():

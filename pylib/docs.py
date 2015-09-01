@@ -4,9 +4,15 @@
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as published by
-# the Free Software Foundation, version 3, provided that no right, title
-# or interest in or to any trade mark, service mark, logo or trade name
-# of NICTA or its licensors is granted.
+# the Free Software Foundation, version 3, provided that these additional
+# terms apply under section 7:
+#
+#   No right, title or interest in or to any trade mark, service mark, logo or
+#   trade name of of National ICT Australia Limited, ABN 62 102 206 173
+#   ("NICTA") or its licensors is granted. Modified versions of the Program
+#   must be plainly marked as such, and must not be distributed using
+#   "eChronos" as a trade mark or product name, or misrepresented as being the
+#   original Program.
 #
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -138,3 +144,11 @@ def build(args):
     components.build(args)
     for pkg_dir in _get_package_dirs(set(('docs.md',))):
         _build_doc(pkg_dir, args.topdir, args.verbose)
+
+
+def is_release_doc_file(filename):
+    return 'docs.pdf' in filename
+
+
+def is_nonrelease_doc_file(filename):
+    return 'docs' in filename and 'docs.pdf' not in filename
