@@ -27,16 +27,19 @@
 
 import os
 import sys
+from subprocess import check_output
 
 from pylib.utils import get_executable_extension, BASE_DIR
 from pylib.components import _parse_sectioned_file
 import pystache
 
+documented_variants = []
+callgraphs = {}
+
 class testDocConsistency:
     @classmethod
     def setUpClass(cls):
         components_dir = os.path.join( BASE_DIR, "components" )
-        documented_variants = []
 
         # Find rtos variants that are documented
         for dirpath, subdirs, files in os.walk(components_dir):
@@ -62,6 +65,16 @@ class testDocConsistency:
         #assert r == 0
         pass
 
+    def generate_callgraphs(self):
+        for variant in documented_variants:
+            variant_dir = "out/stub/{}/rtos-{}.c".format( variant, variant)
+            try:
+                llvm_out = check_output(["clang", variant_dir, "-S", "-emit-llvm", "-o", "-"])
+                callgraphs[variant] = check_output(["opt", "-analyze", "-std-link-opts", "-basiccg"],
+                                                   input=llvm_out)
+            except:
+                assert False, "Failed to create call graph. Make sure clang & opt are available."
+
+
     def test_context_switch_consistency(self):
-        assert 1 == 0
-        pass
+        self.generate_callgraphs()
