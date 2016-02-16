@@ -25,7 +25,7 @@
 # @TAG(NICTA_AGPL)
 #
 
-__all__ = ['sched', 'simple_mutex', 'blocking_mutex', 'simple_semaphore']
+__all__ = ['doc_consistency']
 
 import ctypes
 import os
