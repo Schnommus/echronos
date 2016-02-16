@@ -27,6 +27,7 @@
 
 import os
 import sys
+import re
 from subprocess import check_output
 
 from pylib.utils import get_executable_extension, BASE_DIR
@@ -65,16 +66,73 @@ class testDocConsistency:
         #assert r == 0
         pass
 
+    # Fill up callgraphs dictionary
     def generate_callgraphs(self):
         for variant in documented_variants:
             variant_dir = "out/stub/{}/rtos-{}.c".format( variant, variant)
             try:
                 llvm_out = check_output(["clang", variant_dir, "-S", "-emit-llvm", "-o", "-"])
                 callgraphs[variant] = check_output(["opt", "-analyze", "-std-link-opts", "-basiccg"],
-                                                   input=llvm_out)
+                                                   input=llvm_out).decode()
             except:
                 assert False, "Failed to create call graph. Make sure clang & opt are available."
 
+    def find_callers_of(self, variant, target_regex):
+        this_callgraph = callgraphs[variant]
+
+        definitions = [x.split("\n") for x in this_callgraph.split("\n\n")][1:]
+
+        all_definitions = {}
+
+        for definition in definitions:
+            matches = re.match(".*node.*'(.*)'", definition[0])
+            if not matches:
+                continue
+            this_function = matches.group(1)
+            print("Found top-level function:", this_function)
+            calls = []
+            for subdefinition in definition[1:]:
+                matches = re.match(".*calls.*'(.*)'", subdefinition)
+                if not matches:
+                    print ("Non match!",  subdefinition )
+                    continue
+                calls.append(matches.group(1))
+                print ( matches.group(1) )
+            all_definitions[this_function] = calls
+
+        all_context_switchers = []
+
+        def descend(depth, callers, functions):
+
+            if depth > 15:
+                print("Exceeded maximum depth..." + "->".join(callers))
+                return
+
+            if 'rtos_yield' in functions:
+                if not callers[0] in all_context_switchers:
+                    print(
+                        "Context switch call: " +
+                        "->".join(callers) +
+                        " (Depth: " +
+                        str(depth) +
+                        ")")
+                    all_context_switchers.append(callers[0])
+                return
+
+            for function in functions:
+                if function in all_definitions.keys():
+                    descend(
+                        depth + 1,
+                        callers + [function],
+                        all_definitions[function])
+
+        for function in all_definitions.keys():
+            descend(0, [function], all_definitions[function])
+
+        print("== RTOS API functions that trigger context switches ==")
+        print('\n'.join(
+            [function for function in all_context_switchers if function[:4] == "rtos"]))
 
     def test_context_switch_consistency(self):
         self.generate_callgraphs()
+        self.find_callers_of("rigel", "^rtos_internal_context_switch.*")
