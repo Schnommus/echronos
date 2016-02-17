@@ -29,7 +29,6 @@ import os
 import sys
 import re
 from subprocess import check_output
-from collections import namedtuple
 
 from pylib.utils import get_executable_extension, BASE_DIR
 from pylib.components import _parse_sectioned_file
@@ -74,30 +73,29 @@ class testDocConsistency:
             variant_dir = "out/stub/{}/rtos-{}.c".format( variant, variant)
             try:
                 llvm_out = check_output(["clang", variant_dir, "-S", "-emit-llvm", "-o", "-"])
-                callgraphs[variant] = check_output(["opt", "-analyze", "-basiccg"],
+                callgraph_raw = check_output(["opt", "-analyze", "-basiccg"],
                                                    input=llvm_out).decode()
             except:
                 assert False, "Failed to create call graph. Make sure clang & opt are available."
 
-    def find_callers_of(self, variant, target):
-        this_callgraph = callgraphs[variant]
+            # Pull out a call heirarchy from the clang dump
+            callgraphs[variant] = {}
+            definitions = [x.split("\n") for x in callgraph_raw.split("\n\n")][1:]
 
-        definitions = [x.split("\n") for x in this_callgraph.split("\n\n")][1:]
-
-        all_definitions = {}
-
-        for definition in definitions:
-            matches = re.match(".*node.*'(.*)'", definition[0])
-            if not matches:
-                continue
-            this_function = matches.group(1)
-            calls = []
-            for subdefinition in definition[1:]:
-                matches = re.match(".*calls.*'(.*)'", subdefinition)
+            for definition in definitions:
+                matches = re.match(".*node.*'(.*)'", definition[0])
                 if not matches:
                     continue
-                calls.append(matches.group(1))
-            all_definitions[this_function] = calls
+                this_function = matches.group(1)
+                calls = []
+                for subdefinition in definition[1:]:
+                    matches = re.match(".*calls.*'(.*)'", subdefinition)
+                    if not matches:
+                        continue
+                    calls.append(matches.group(1))
+                callgraphs[variant][this_function] = calls
+
+    def find_callers_of(self, variant, target):
 
         all_targets = []
 
@@ -119,16 +117,22 @@ class testDocConsistency:
                 return
 
             for function in functions:
-                if function in all_definitions.keys():
+                if function in self.all_functions(variant):
                     descend(
                         depth + 1,
                         callers + [function],
-                        all_definitions[function])
+                        callgraphs[variant][function])
 
-        for function in all_definitions.keys():
-            descend(0, [function], all_definitions[function])
+        for function in self.all_functions(variant):
+            descend(0, [function], callgraphs[variant][function])
 
-        return [function for function in all_targets if function.startswith("rtos")]
+        return self.filter_api_functions(all_targets)
+
+    def filter_api_functions(self, functions):
+        return [function for function in functions if function.startswith("rtos")]
+
+    def all_functions(self, variant):
+        return list(callgraphs[variant].keys())
 
     def test_context_switch_consistency(self):
         self.generate_callgraphs()
@@ -142,3 +146,12 @@ class testDocConsistency:
             context_switchers = self.find_callers_of(variant, "context_switch")
             print("For {}, context switches are triggered by:".format(variant))
             print(context_switchers)
+            print("Out of all functions:")
+            print(self.filter_api_functions(self.all_functions(variant)))
+
+    def test_all_api_functions_documented(self):
+        self.generate_callgraphs()
+
+        for variant in documented_variants:
+            print("For {} all functions are:".format(variant))
+            print(self.filter_api_functions(self.all_functions(variant)))
