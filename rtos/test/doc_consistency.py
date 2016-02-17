@@ -29,10 +29,12 @@ import os
 import sys
 import re
 from subprocess import check_output
+from collections import namedtuple
 
 from pylib.utils import get_executable_extension, BASE_DIR
 from pylib.components import _parse_sectioned_file
 import pystache
+import x
 
 documented_variants = []
 callgraphs = {}
@@ -46,7 +48,7 @@ class testDocConsistency:
         for dirpath, subdirs, files in os.walk(components_dir):
             if "docs.md" in files:
                 try:
-                    sections =  _parse_sectioned_file( os.path.join( dirpath, "docs.md" ), None, [] )
+                    sections = _parse_sectioned_file( os.path.join( dirpath, "docs.md" ), None, [] )
                 except pystache.context.KeyNotFoundError:
                     # Catch rendering dependency errors, which we dont' care about
                     continue
@@ -72,12 +74,12 @@ class testDocConsistency:
             variant_dir = "out/stub/{}/rtos-{}.c".format( variant, variant)
             try:
                 llvm_out = check_output(["clang", variant_dir, "-S", "-emit-llvm", "-o", "-"])
-                callgraphs[variant] = check_output(["opt", "-analyze", "-std-link-opts", "-basiccg"],
+                callgraphs[variant] = check_output(["opt", "-analyze", "-basiccg"],
                                                    input=llvm_out).decode()
             except:
                 assert False, "Failed to create call graph. Make sure clang & opt are available."
 
-    def find_callers_of(self, variant, target_regex):
+    def find_callers_of(self, variant, target):
         this_callgraph = callgraphs[variant]
 
         definitions = [x.split("\n") for x in this_callgraph.split("\n\n")][1:]
@@ -89,18 +91,15 @@ class testDocConsistency:
             if not matches:
                 continue
             this_function = matches.group(1)
-            print("Found top-level function:", this_function)
             calls = []
             for subdefinition in definition[1:]:
                 matches = re.match(".*calls.*'(.*)'", subdefinition)
                 if not matches:
-                    print ("Non match!",  subdefinition )
                     continue
                 calls.append(matches.group(1))
-                print ( matches.group(1) )
             all_definitions[this_function] = calls
 
-        all_context_switchers = []
+        all_targets = []
 
         def descend(depth, callers, functions):
 
@@ -108,15 +107,15 @@ class testDocConsistency:
                 print("Exceeded maximum depth..." + "->".join(callers))
                 return
 
-            if 'rtos_yield' in functions:
-                if not callers[0] in all_context_switchers:
+            if target in functions:
+                if not callers[0] in all_targets:
                     print(
-                        "Context switch call: " +
+                        target + " call: " +
                         "->".join(callers) +
                         " (Depth: " +
                         str(depth) +
                         ")")
-                    all_context_switchers.append(callers[0])
+                    all_targets.append(callers[0])
                 return
 
             for function in functions:
@@ -129,10 +128,17 @@ class testDocConsistency:
         for function in all_definitions.keys():
             descend(0, [function], all_definitions[function])
 
-        print("== RTOS API functions that trigger context switches ==")
-        print('\n'.join(
-            [function for function in all_context_switchers if function[:4] == "rtos"]))
+        return [function for function in all_targets if function.startswith("rtos")]
 
     def test_context_switch_consistency(self):
         self.generate_callgraphs()
-        self.find_callers_of("rigel", "^rtos_internal_context_switch.*")
+
+        non_preemptive_documented_variants = \
+            [variant for variant in documented_variants
+                if "context-switch-preempt" not in
+                     [c.name for c in x.CORE_SKELETONS[variant]]]
+
+        for variant in non_preemptive_documented_variants:
+            context_switchers = self.find_callers_of(variant, "context_switch")
+            print("For {}, context switches are triggered by:".format(variant))
+            print(context_switchers)
