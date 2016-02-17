@@ -129,7 +129,8 @@ class testDocConsistency:
         return self.filter_api_functions(all_targets)
 
     def filter_api_functions(self, functions):
-        return [function for function in functions if function.startswith("rtos")]
+        return [function for function in functions
+                    if function.startswith("rtos") and not function.startswith("rtos_internal")]
 
     def all_functions(self, variant):
         return list(callgraphs[variant].keys())
@@ -146,12 +147,48 @@ class testDocConsistency:
             context_switchers = self.find_callers_of(variant, "context_switch")
             print("For {}, context switches are triggered by:".format(variant))
             print(context_switchers)
-            print("Out of all functions:")
-            print(self.filter_api_functions(self.all_functions(variant)))
+
+    def get_docs_for(self, variant):
+
+        all_docs = {}
+        packages_dir = os.path.join( BASE_DIR, "packages" )
+
+        for dirpath, subdirs, files in os.walk(packages_dir):
+            # Variant name in it's path seems to work reliably for now
+            if "docs.md" in files and variant in dirpath:
+                doc_path = os.path.join(dirpath, "docs.md")
+                with open(doc_path, 'r') as doc:
+                    all_docs[doc_path] = doc.read()
+
+        return all_docs
 
     def test_all_api_functions_documented(self):
         self.generate_callgraphs()
 
         for variant in documented_variants:
-            print("For {} all functions are:".format(variant))
-            print(self.filter_api_functions(self.all_functions(variant)))
+            implemented_functions = \
+                    self.filter_api_functions(self.all_functions(variant))
+
+            all_docs = self.get_docs_for(variant)
+            for docfile in all_docs.keys():
+                print("Analyzing {}...".format(docfile))
+
+                # Get API functions that are documented
+                documented_functions = []
+                for line in all_docs[docfile].split("\n"):
+                    matches = re.match('###.*"api">\s*([a-z_]*)\s*<', line)
+                    if matches:
+                        # Noting documentation does not include rtos prefix
+                        documented_functions.append("rtos_"+matches.group(1))
+
+                undocumented_functions = set(implemented_functions) - set(documented_functions)
+                if len( undocumented_functions ) != 0:
+                    assert False, "Undocumented API functions found: {} " \
+                                  "whilst analyzing {} with respect to the implementation of {}." \
+                                  .format(undocumented_functions, docfile, variant)
+
+                irrelevant_functions = set(documented_functions) - set(implemented_functions)
+                if len( irrelevant_functions ) != 0:
+                    assert False, "Irrelevant API documentation found: {} " \
+                                  "whilst analyzing {} with respect to the implementation of {}." \
+                                  .format(irrelevant_functions, docfile, variant)
