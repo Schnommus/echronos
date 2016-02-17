@@ -65,10 +65,31 @@ class testDocConsistency:
         # Build all documentation
         #r = os.system(sys.executable + " ./x.py build docs")
         #assert r == 0
+
+        cls.generate_callgraphs(cls.build_aliases())
         pass
 
+    # Finds aliases for rtos functions used in macros
+    @classmethod
+    def build_aliases(cls):
+        aliases = {}
+        for variant in documented_variants:
+            variant_header_dir = "out/stub/{}/rtos-{}.h".format( variant, variant)
+            # Works for multi & single line macros also definitions without an alias
+            api_alias = "#define (rtos_[a-z_]*)(?:.*(?:\\\n)?.*(rtos_[a-z_]*))?"
+            aliases[variant] = {}
+            with open(variant_header_dir, 'r') as header:
+                for match in re.finditer(api_alias, header.read()):
+                    if match.group(1) in aliases[variant].keys():
+                        aliases[variant][match.group(1)].append(match.group(2))
+                    else:
+                        aliases[variant][match.group(1)] = [match.group(2)]
+
+        return aliases
+
     # Fill up callgraphs dictionary
-    def generate_callgraphs(self):
+    @classmethod
+    def generate_callgraphs(cls, aliases):
         for variant in documented_variants:
             variant_dir = "out/stub/{}/rtos-{}.c".format( variant, variant)
             try:
@@ -78,8 +99,9 @@ class testDocConsistency:
             except:
                 assert False, "Failed to create call graph. Make sure clang & opt are available."
 
-            # Pull out a call heirarchy from the clang dump
-            callgraphs[variant] = {}
+            # Pull out a call heirarchy from the clang dump, starting with existing aliases
+            callgraphs[variant] = aliases[variant]
+            print(callgraphs[variant])
             definitions = [x.split("\n") for x in callgraph_raw.split("\n\n")][1:]
 
             for definition in definitions:
@@ -95,10 +117,11 @@ class testDocConsistency:
                     calls.append(matches.group(1))
                 callgraphs[variant][this_function] = calls
 
+    # Searches for functions that can indirectly call a target function
+    # (Given the callgraph has already been constructed)
     def find_callers_of(self, variant, target):
 
         all_targets = []
-
         def descend(depth, callers, functions):
 
             if depth > 15:
@@ -118,10 +141,8 @@ class testDocConsistency:
 
             for function in functions:
                 if function in self.all_functions(variant):
-                    descend(
-                        depth + 1,
-                        callers + [function],
-                        callgraphs[variant][function])
+                    descend(depth + 1, callers + [function],
+                            callgraphs[variant][function])
 
         for function in self.all_functions(variant):
             descend(0, [function], callgraphs[variant][function])
@@ -136,8 +157,6 @@ class testDocConsistency:
         return list(callgraphs[variant].keys())
 
     def test_context_switch_consistency(self):
-        self.generate_callgraphs()
-
         non_preemptive_documented_variants = \
             [variant for variant in documented_variants
                 if "context-switch-preempt" not in
@@ -149,7 +168,6 @@ class testDocConsistency:
             print(context_switchers)
 
     def get_docs_for(self, variant):
-
         all_docs = {}
         packages_dir = os.path.join( BASE_DIR, "packages" )
 
@@ -163,8 +181,6 @@ class testDocConsistency:
         return all_docs
 
     def test_all_api_functions_documented(self):
-        self.generate_callgraphs()
-
         for variant in documented_variants:
             implemented_functions = \
                     self.filter_api_functions(self.all_functions(variant))
