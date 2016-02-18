@@ -56,7 +56,7 @@ class testDocConsistency:
                 variant.name = variant.arch + '-' + variant.rtos
                 documented_variants.append(variant)
 
-        print( "Documented variants found:", documented_variants )
+        print( "Documented variants found:", [v.name for v in documented_variants] )
 
         # Set up directories for creating prx stubs
         doctest_dir = os.path.join(packages_dir, "unittest/doc_consistency")
@@ -111,7 +111,8 @@ class testDocConsistency:
             variant_dir = "out/unittest/doc_consistency/stubs/{}/{}.c"\
                           .format( variant.name, variant.rtos)
             try:
-                llvm_out = check_output(["clang", variant_dir, "-S", "-emit-llvm", "-o", "-"])
+                llvm_out = check_output(["clang", variant_dir, "-S", "-emit-llvm", "-o", "-",
+                                        "-Ipackages/" + variant.arch ])
                 callgraph_raw = check_output(["opt", "-analyze", "-basiccg"],
                                                    input=llvm_out).decode()
             except:
@@ -119,7 +120,6 @@ class testDocConsistency:
 
             # Pull out a call heirarchy from the clang dump, starting with existing aliases
             callgraphs[variant] = aliases[variant]
-            print(callgraphs[variant])
             definitions = [x.split("\n") for x in callgraph_raw.split("\n\n")][1:]
 
             for definition in definitions:
@@ -148,13 +148,13 @@ class testDocConsistency:
 
             if target in functions:
                 if not callers[0] in all_targets:
-                    print(
-                        target + " call: " +
-                        "->".join(callers) +
-                        " (Depth: " +
-                        str(depth) +
-                        ")")
-                    all_targets.append(callers[0])
+                   #print(
+                   #    target + " call: " +
+                   #    "->".join(callers) +
+                   #    " (Depth: " +
+                   #    str(depth) +
+                   #    ")")
+                   all_targets.append(callers[0])
                 return
 
             for function in functions:
