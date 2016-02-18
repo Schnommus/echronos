@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<system>
+    <modules>
+        <module name="unittest.doc_consistency.build"/>
+        <module name="{{architecture}}.rtos-kochab">
+            <prefix>rtos</prefix>
+            <fatal_error>fatal</fatal_error>
+            <tasks>
+                <task>
+                    <name>dummy_task</name>
+                    <function>dummy_task_function</function>
+                    <stack_size>64</stack_size>
+                    <priority>1</priority>
+                </task>
+            </tasks>
+            <mutex>
+                <stats>true</stats>
+            </mutex>
+        </module>
+    </modules>
+</system>

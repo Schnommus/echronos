@@ -10,6 +10,7 @@ release
 __pycache__
 out
 packages/*/rtos-*
+packages/unittest/doc_consistency/stubs
 prj.errors
 prj_build*
 
