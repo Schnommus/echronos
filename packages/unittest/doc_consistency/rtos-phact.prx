@@ -3,19 +3,51 @@
     <modules>
         <module name="unittest.doc_consistency.build"/>
         <module name="{{architecture}}.rtos-phact">
-            <prefix>rtos</prefix>
+            <api_asserts>true</api_asserts>
+            <internal_asserts>true</internal_asserts>
             <fatal_error>fatal</fatal_error>
+            <prefix>rtos</prefix>
+            <taskid_size>8</taskid_size>
+            <signalset_size>8</signalset_size>
+            <signal_labels>
+                <signal_label>
+                    <name>s0</name>
+                </signal_label>
+            </signal_labels>
             <tasks>
                 <task>
-                    <name>dummy_task</name>
-                    <function>dummy_task_function</function>
-                    <stack_size>64</stack_size>
-                    <priority>1</priority>
+                    <name>t0</name>
+                    <function>t0</function>
+                    <priority>30</priority>
+                    <stack_size>4096</stack_size>
                 </task>
             </tasks>
+            <mutexes>
+                <mutex>
+                    <name>m0</name>
+                    <priority>42</priority>
+                </mutex>
+            </mutexes>
             <mutex>
-                <stats>true</stats>
+                <stats>false</stats>
             </mutex>
+            <semaphores>
+                <semaphore>
+                    <name>s0</name>
+                </semaphore>
+            </semaphores>
+            <interrupt_events>
+                <interrupt_event>
+                    <name>i0</name>
+                    <task>t0</task>
+                    <sig_set>s0</sig_set>
+                </interrupt_event>
+            </interrupt_events>
+            <timers>
+                <timer>
+                    <name>t0</name>
+                </timer>
+            </timers>
         </module>
     </modules>
 </system>

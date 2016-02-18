@@ -3,19 +3,63 @@
     <modules>
         <module name="unittest.doc_consistency.build"/>
         <module name="{{architecture}}.rtos-kochab">
-            <prefix>rtos</prefix>
+            <internal_asserts>true</internal_asserts>
             <fatal_error>fatal</fatal_error>
+            <prefix>rtos</prefix>
+            <taskid_size>8</taskid_size>
+            <signalset_size>8</signalset_size>
             <tasks>
+
                 <task>
-                    <name>dummy_task</name>
-                    <function>dummy_task_function</function>
-                    <stack_size>64</stack_size>
-                    <priority>1</priority>
+                    <name>a</name>
+                    <function>fn_a</function>
+                    <priority>30</priority>
+                    <stack_size>8192</stack_size>
                 </task>
+
+                <task>
+                    <name>b</name>
+                    <function>fn_b</function>
+                    <priority>10</priority>
+                    <stack_size>8192</stack_size>
+                </task>
+
             </tasks>
+
+            <signal_labels>
+
+                <signal_label>
+                    <name>timer</name>
+                </signal_label>
+
+                <signal_label>
+                    <name>test</name>
+                </signal_label>
+
+            </signal_labels>
+
+            <interrupt_events>
+                <interrupt_event>
+                    <name>tick</name>
+                    <task>a</task>
+                    <sig_set>timer</sig_set>
+                </interrupt_event>
+            </interrupt_events>
+
+            <mutexes>
+                <mutex>
+                    <name>m0</name>
+                </mutex>
+            </mutexes>
             <mutex>
-                <stats>true</stats>
+                <stats>false</stats>
             </mutex>
+
+            <semaphores>
+                <semaphore>
+                    <name>sem0</name>
+                </semaphore>
+            </semaphores>
         </module>
     </modules>
 </system>
