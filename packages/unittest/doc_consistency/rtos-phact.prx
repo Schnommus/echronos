@@ -36,6 +36,7 @@
                     <name>s0</name>
                 </semaphore>
             </semaphores>
+            <semaphore_enable_max>true</semaphore_enable_max>
             <interrupt_events>
                 <interrupt_event>
                     <name>i0</name>

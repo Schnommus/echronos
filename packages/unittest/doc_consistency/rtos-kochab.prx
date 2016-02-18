@@ -55,6 +55,7 @@
                 <stats>false</stats>
             </mutex>
 
+            <semaphore_enable_max>true</semaphore_enable_max>
             <semaphores>
                 <semaphore>
                     <name>sem0</name>
