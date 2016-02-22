@@ -31,7 +31,6 @@ import re
 from subprocess import check_output
 
 from pylib.utils import get_executable_extension, BASE_DIR
-from pylib.components import _parse_sectioned_file
 import pystache
 import x
 from collections import namedtuple
@@ -108,6 +107,9 @@ class testDocConsistency:
     @classmethod
     def generate_callgraphs(cls, aliases):
         for variant in documented_variants:
+            # Pull out a call heirarchy from the clang dump, starting with existing aliases
+            callgraphs[variant] = aliases[variant]
+
             variant_dir = "out/unittest/doc_consistency/stubs/{}/{}.c"\
                           .format( variant.name, variant.rtos)
             try:
@@ -118,8 +120,7 @@ class testDocConsistency:
             except:
                 assert False, "Failed to create call graph. Make sure clang & opt are available."
 
-            # Pull out a call heirarchy from the clang dump, starting with existing aliases
-            callgraphs[variant] = aliases[variant]
+            # 2 linebreaks delineate a definition, 1 linebreak delineates subdefinitions
             definitions = [x.split("\n") for x in callgraph_raw.split("\n\n")][1:]
 
             for definition in definitions:
@@ -146,14 +147,10 @@ class testDocConsistency:
                 print("Exceeded maximum depth..." + "->".join(callers))
                 return
 
-            if target in functions:
+            if any( [re.match(target, f) for f in filter(None, functions)] ):
                 if not callers[0] in all_targets:
-                   #print(
-                   #    target + " call: " +
-                   #    "->".join(callers) +
-                   #    " (Depth: " +
-                   #    str(depth) +
-                   #    ")")
+                  #print(target + " call: " + "->".join(callers) +
+                  #      " (Depth: " + str(depth) + ")")
                    all_targets.append(callers[0])
                 return
 
@@ -181,19 +178,16 @@ class testDocConsistency:
                      [c.name for c in x.CORE_SKELETONS[variant.rtos.split('-')[1]]]]
 
         for variant in non_preemptive_documented_variants:
-            context_switchers = self.find_callers_of(variant, "context_switch")
+            context_switchers = self.find_callers_of(variant, "[a-z_]*context_switch")
             print("For {}, context switches are triggered by:".format(variant.name))
             print(context_switchers)
 
     def get_docs_for(self, variant):
         packages_dir = os.path.join( BASE_DIR, "packages" )
-
         doc_path = os.path.join(packages_dir, variant.arch, variant.rtos, "docs.md")
-        docs = None
         with open(doc_path, 'r') as doc:
-            docs = doc.read()
-
-        return docs
+            return doc.read()
+        return None
 
     def test_all_api_functions_documented(self):
         for variant in documented_variants:
@@ -202,7 +196,6 @@ class testDocConsistency:
 
             print("Analyzing {} for documentation exhaustiveness...".format(variant.name))
             docs = self.get_docs_for(variant)
-
 
             # Get API functions that are documented
             # Criteria: correct header size, within api tags
