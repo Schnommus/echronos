@@ -28,24 +28,26 @@
 import os
 import sys
 import re
-from subprocess import check_output
-
-from pylib.utils import get_executable_extension, BASE_DIR
 import pystache
 import x
+
+from subprocess import check_output
 from collections import namedtuple
+from pylib.utils import get_executable_extension, BASE_DIR
 
 documented_variants = []
 callgraphs = {}
 
+
 class testDocConsistency:
+
     @classmethod
     def setUpClass(cls):
         # Build all documentation
         #r = os.system(sys.executable + " ./x.py build docs")
         #assert r == 0
 
-        packages_dir = os.path.join( BASE_DIR, "packages" )
+        packages_dir = os.path.join(BASE_DIR, "packages")
 
         # Find rtos variants that are documented
         for dirpath, subdirs, files in os.walk(packages_dir):
@@ -55,7 +57,7 @@ class testDocConsistency:
                 variant.name = variant.arch + '-' + variant.rtos
                 documented_variants.append(variant)
 
-        print( "Documented variants found:", [v.name for v in documented_variants] )
+        print("Documented variants found:", [v.name for v in documented_variants])
 
         # Set up directories for creating prx stubs
         doctest_dir = os.path.join(packages_dir, "unittest/doc_consistency")
@@ -66,20 +68,19 @@ class testDocConsistency:
         # Build rtos variants that are documented
         for variant in documented_variants:
             minimal_prx_stub = None
-            with open( os.path.join(doctest_dir, variant.rtos+".prx"), 'r' ) as prx_stub:
+            with open(os.path.join(doctest_dir, variant.rtos + ".prx"), 'r') as prx_stub:
                 minimal_prx_stub = prx_stub.read()
-            #exception? No doc_consistency prx stub available for the variant!
+            # exception? No doc_consistency prx stub available for the variant!
 
-            this_prx_stub = pystache.render( minimal_prx_stub,
-                                     {'architecture': variant.arch})
+            this_prx_stub = pystache.render(minimal_prx_stub,
+                                            {'architecture': variant.arch})
 
-            with open( os.path.join(prx_stub_dir, variant.name + ".prx"), 'w' ) as stub:
-                stub.write( this_prx_stub )
+            with open(os.path.join(prx_stub_dir, variant.name + ".prx"), 'w') as stub:
+                stub.write(this_prx_stub)
 
             r = os.system(sys.executable +
-                    " ./prj/app/prj.py build unittest.doc_consistency.stubs." + variant.name)
+                          " ./prj/app/prj.py build unittest.doc_consistency.stubs." + variant.name)
             assert r == 0
-
 
         cls.generate_callgraphs(cls.build_aliases())
         pass
@@ -90,7 +91,7 @@ class testDocConsistency:
         aliases = {}
         for variant in documented_variants:
             variant_header_dir = "out/unittest/doc_consistency/stubs/{}/{}.h"\
-                                 .format( variant.name, variant.rtos)
+                                 .format(variant.name, variant.rtos)
             # Works for multi & single line macros also definitions without an alias
             api_alias = "#define (rtos_[a-z_]*)(?:.*(?:\\\n)?.*(rtos_[a-z_]*))?"
             aliases[variant] = {}
@@ -111,12 +112,12 @@ class testDocConsistency:
             callgraphs[variant] = aliases[variant]
 
             variant_dir = "out/unittest/doc_consistency/stubs/{}/{}.c"\
-                          .format( variant.name, variant.rtos)
+                          .format(variant.name, variant.rtos)
             try:
                 llvm_out = check_output(["clang", variant_dir, "-S", "-emit-llvm", "-o", "-",
-                                        "-Ipackages/" + variant.arch ])
+                                         "-Ipackages/" + variant.arch])
                 callgraph_raw = check_output(["opt", "-analyze", "-basiccg"],
-                                                   input=llvm_out).decode()
+                                             input=llvm_out).decode()
             except:
                 assert False, "Failed to create call graph. Make sure clang & opt are available."
 
@@ -141,17 +142,18 @@ class testDocConsistency:
     def find_callers_of(self, variant, target):
 
         all_targets = []
+
         def descend(depth, callers, functions):
 
             if depth > 15:
                 print("Exceeded maximum depth..." + "->".join(callers))
                 return
 
-            if any( [re.match(target, f) for f in filter(None, functions)] ):
+            if any([re.match(target, f) for f in filter(None, functions)]):
                 if not callers[0] in all_targets:
-                  #print(target + " call: " + "->".join(callers) +
+                  # print(target + " call: " + "->".join(callers) +
                   #      " (Depth: " + str(depth) + ")")
-                   all_targets.append(callers[0])
+                    all_targets.append(callers[0])
                 return
 
             for function in functions:
@@ -166,7 +168,7 @@ class testDocConsistency:
 
     def filter_api_functions(self, functions):
         return [function for function in functions
-                    if function.startswith("rtos") and not function.startswith("rtos_internal")]
+                if function.startswith("rtos") and not function.startswith("rtos_internal")]
 
     def all_functions(self, variant):
         return list(callgraphs[variant].keys())
@@ -175,7 +177,7 @@ class testDocConsistency:
         non_preemptive_documented_variants = \
             [variant for variant in documented_variants
                 if "context-switch-preempt" not in
-                     [c.name for c in x.CORE_SKELETONS[variant.rtos.split('-')[1]]]]
+             [c.name for c in x.CORE_SKELETONS[variant.rtos.split('-')[1]]]]
 
         for variant in non_preemptive_documented_variants:
             context_switchers = self.find_callers_of(variant, "[a-z_]*context_switch")
@@ -183,7 +185,7 @@ class testDocConsistency:
             print(context_switchers)
 
     def get_docs_for(self, variant):
-        packages_dir = os.path.join( BASE_DIR, "packages" )
+        packages_dir = os.path.join(BASE_DIR, "packages")
         doc_path = os.path.join(packages_dir, variant.arch, variant.rtos, "docs.md")
         with open(doc_path, 'r') as doc:
             return doc.read()
@@ -192,7 +194,7 @@ class testDocConsistency:
     def test_all_api_functions_documented(self):
         for variant in documented_variants:
             implemented_functions = \
-                    self.filter_api_functions(self.all_functions(variant))
+                self.filter_api_functions(self.all_functions(variant))
 
             print("Analyzing {} for documentation exhaustiveness...".format(variant.name))
             docs = self.get_docs_for(variant)
@@ -203,16 +205,16 @@ class testDocConsistency:
             documented_functions = []
             api_function_regex = '###.*"api">\s*([a-z_]*)\s*<.*\n\n.*"codebox">[a-zA-Z _]*\(.*\)'
             for match in re.finditer(api_function_regex, docs):
-                documented_functions.append("rtos_"+match.group(1))
+                documented_functions.append("rtos_" + match.group(1))
 
             undocumented_functions = set(implemented_functions) - set(documented_functions)
-            if len( undocumented_functions ) != 0:
-                print( "Undocumented API functions found: {} " \
-                              "whilst analyzing {} docs with respect to implementation." \
-                              .format(undocumented_functions, variant.name))
+            if len(undocumented_functions) != 0:
+                print("Undocumented API functions found: {} "
+                      "whilst analyzing {} docs with respect to implementation."
+                      .format(undocumented_functions, variant.name))
 
             irrelevant_functions = set(documented_functions) - set(implemented_functions)
-            if len( irrelevant_functions ) != 0:
-                print( "Irrelevant API documentation found: {} " \
-                              "whilst analyzing {} docs with respect to implementation." \
-                              .format(irrelevant_functions, variant.name))
+            if len(irrelevant_functions) != 0:
+                print("Irrelevant API documentation found: {} "
+                      "whilst analyzing {} docs with respect to implementation."
+                      .format(irrelevant_functions, variant.name))
