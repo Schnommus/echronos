@@ -39,8 +39,10 @@ class EntryModule(Module):
     xml_schema = """
 <schema>
     <entry name="flash_load_addr" type="int" default="0" />
+    <entry name="flash_size" type="int" default="0x100000" />
     <entry name="code_addr" type="int" default="0" />
     <entry name="data_addr" type="int" default="0x20000000" />
+    <entry name="ram_size" type="int" default="0x20000" />
     <entry name="stack_size" type="int" default="0x1000" />
     <entry name="bitband_base" type="int" default="0x20000000" />
     <entry name="bitband_size" type="int" default="0x100000" />
@@ -68,7 +70,7 @@ class EntryModule(Module):
     files = [
         {'input': 'bitband.h'},
         {'input': 'vectable.s', 'render': True, 'type': 'asm'},
-        {'input': 'default.ld', 'render': True, 'type': 'linker_script', 'stage': 'post_prepare'},
+        {'input': 'new.ld', 'render': True, 'type': 'linker_script', 'stage': 'post_prepare'},
     ]
 
     def configure(self, xml_config):
