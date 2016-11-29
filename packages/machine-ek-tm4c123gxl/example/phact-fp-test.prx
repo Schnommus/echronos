@@ -44,6 +44,8 @@
     <module name="generic.debug" />
 
     <module name="armv7m.rtos-phact">
+      <svcall_priority>192</svcall_priority>
+      <pendsv_priority>224</pendsv_priority>
       <internal_asserts>true</internal_asserts>
       <fatal_error>fatal</fatal_error>
       <prefix>rtos</prefix>
