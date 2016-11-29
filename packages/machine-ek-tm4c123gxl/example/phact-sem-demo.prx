@@ -39,7 +39,7 @@
       </trampolines>
     </module>
     <module name="armv7m.vectable">
-      <flash_load_addr>0x8000000</flash_load_addr>
+      <flash_load_addr>0x0000000</flash_load_addr>
       <flash_size>0x40000</flash_size>
       <sram_size>0x8000</sram_size>
       <preemption>true</preemption>
