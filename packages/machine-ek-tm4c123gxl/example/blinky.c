@@ -51,7 +51,7 @@ main(void)
 
     for (i = 0; ; i++)
     {
-        switch (i % 8)
+        switch (i % 6)
         {
         case 0:
             led_green_on();
@@ -63,19 +63,13 @@ main(void)
             led_red_on();
             break;
         case 3:
-            led_orange_on();
-            break;
-        case 4:
             led_green_off();
             break;
-        case 5:
+        case 4:
             led_blue_off();
             break;
-        case 6:
+        case 5:
             led_red_off();
-            break;
-        case 7:
-            led_orange_off();
             break;
         }
         delay();
