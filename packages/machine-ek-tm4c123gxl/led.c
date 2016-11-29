@@ -28,80 +28,75 @@
 #include <stdint.h>
 #include "led.h"
 
-#define RCC_BASE 0x40023800
-#define RCC_REG(x) (RCC_BASE + (x))
-#define RCC_AHB1ENR RCC_REG(0x30)
+#define ROM_API_TABLE            ((uint32_t *)0x01000010)
+#define ROM_GPIO_TABLE           ((uint32_t *)(ROM_API_TABLE[4]))
+#define ROM_SYSCTL_TABLE         ((uint32_t *)(ROM_API_TABLE[13]))
 
-#define RCC_AHB1ENR_WRITE(x) (*((volatile uint32_t*)RCC_AHB1ENR) = x)
+#define PERIPH_ENABLE \
+        ((void (*)(uint32_t peripheral))ROM_SYSCTL_TABLE[6])
 
-#define GPIO_D_BASE 0x40020C00
-#define GPIO_D_REG(x) (GPIO_D_BASE + (x))
+#define PERIPH_READY \
+        ((int (*)(uint32_t peripheral))ROM_SYSCTL_TABLE[35])
 
-#define GPIO_D_BSRR GPIO_D_REG(0x18)
-#define GPIO_D_MODER GPIO_D_REG(0x0)
+#define GPIO_PORT_IS_OUTPUT \
+        ((void (*)(uint32_t port, \
+                   uint8_t pins))ROM_GPIO_TABLE[15])
 
-#define DISABLE_OFFSET_BITS 16
+#define GPIO_PORT_WRITE \
+        ((void (*)(uint32_t port, \
+                   uint8_t pins, \
+                   uint8_t val))ROM_GPIO_TABLE[0])
 
-#define GPIO_D_BSRR_WRITE(x) (*((volatile uint32_t*)GPIO_D_BSRR) = x)
-#define GPIO_D_MODER_WRITE(x) (*((volatile uint32_t*)GPIO_D_MODER) = x)
+#define PERIPH_GPIOF            0xf0000805  // GPIO F (Peripheral)
+#define GPIO_PORTF              0x40025000  // GPIO F (GPIO reference)
 
-#define GPIO_D_ON(x) GPIO_D_BSRR_WRITE((x))
-#define GPIO_D_OFF(x) GPIO_D_BSRR_WRITE((x) << DISABLE_OFFSET_BITS)
+#define RED_LED                 0x00000002
+#define BLUE_LED                0x00000004
+#define GREEN_LED               0x00000008
 
-#define GREEN_LED_MASK (0x1 << 12)
-#define ORANGE_LED_MASK (0x1 << 13)
-#define RED_LED_MASK (0x1 << 14)
-#define BLUE_LED_MASK (0x1 << 15)
-
-#define ALL_LED_MASK (GREEN_LED_MASK | ORANGE_LED_MASK | RED_LED_MASK | BLUE_LED_MASK)
-
-#define GREEN_LED_ENABLE_MASK (0x1U << (12 * 2))
-#define ORANGE_LED_ENABLE_MASK (0x1U << (13 * 2))
-#define RED_LED_ENABLE_MASK (0x1U << (14 * 2))
-#define BLUE_LED_ENABLE_MASK (0x1U << (15 * 2))
-
-#define ALL_LED_ENABLE_MASK (GREEN_LED_ENABLE_MASK | ORANGE_LED_ENABLE_MASK | RED_LED_ENABLE_MASK | BLUE_LED_ENABLE_MASK)
+#define ALL_LEDS (RED_LED|BLUE_LED|GREEN_LED)
 
 void
 led_green_on(void)
 {
-    GPIO_D_ON(GREEN_LED_MASK);
+    GPIO_PORT_WRITE(GPIO_PORTF, GREEN_LED, GREEN_LED);
 }
 
 void
 led_green_off(void)
 {
-    GPIO_D_OFF(GREEN_LED_MASK);
+    GPIO_PORT_WRITE(GPIO_PORTF, GREEN_LED, 0);
 }
 
 void
 led_blue_on(void)
 {
-    GPIO_D_ON(BLUE_LED_MASK);
+    GPIO_PORT_WRITE(GPIO_PORTF, BLUE_LED, BLUE_LED);
 }
 
 void
 led_blue_off(void)
 {
-    GPIO_D_OFF(BLUE_LED_MASK);
+    GPIO_PORT_WRITE(GPIO_PORTF, BLUE_LED, 0);
 }
 
 void
 led_red_on(void)
 {
-    GPIO_D_ON(RED_LED_MASK);
+    GPIO_PORT_WRITE(GPIO_PORTF, RED_LED, RED_LED);
 }
 
 void
 led_red_off(void)
 {
-    GPIO_D_OFF(RED_LED_MASK);
+    GPIO_PORT_WRITE(GPIO_PORTF, RED_LED, 0);
 }
 
 void
 led_init(void)
 {
-    RCC_AHB1ENR_WRITE(0x00100009); /* Enable GPIO clock */
-    GPIO_D_MODER_WRITE(ALL_LED_ENABLE_MASK); /* Enable LED gpios as output */
-    GPIO_D_BSRR_WRITE(ALL_LED_MASK << DISABLE_OFFSET_BITS); /* Turn off all LEDs */
+    PERIPH_ENABLE(PERIPH_GPIOF); /* Initialize the GPIO peripheral */
+    while(!PERIPH_READY(PERIPH_GPIOF)); /* Wait for it to be ready */
+    GPIO_PORT_IS_OUTPUT(GPIO_PORTF, ALL_LEDS); /* Set the LED pins to outputs */
+    GPIO_PORT_WRITE(GPIO_PORTF, ALL_LEDS, 0); /* Turn all the LEDs off */
 }
