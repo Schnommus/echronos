@@ -1,4 +1,5 @@
 /*| headers |*/
+#include "debug.h"
 
 /*| object_like_macros |*/
 
@@ -286,10 +287,15 @@ mpu_initialize(void) {
 bool
 {{prefix_func}}handle_memmanage(void) {
     /* Grab fault address and status */
-    __attribute__((unused))
     uint32_t fault_address = HWREG(NVIC_MM_ADDR);
-    __attribute__((unused))
     uint32_t fault_status  = HWREG(NVIC_FAULT_STAT);
+
+    /* Print these to make debugging easier */
+    debug_print("ADR: ");
+    debug_printhex32(fault_address);
+    debug_print(" ST: ");
+    debug_printhex32(fault_status);
+    debug_println("");
 
     /* Clear the fault status register */
     HWREG(NVIC_FAULT_STAT) = fault_status;
