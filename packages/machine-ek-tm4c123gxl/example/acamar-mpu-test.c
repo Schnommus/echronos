@@ -53,18 +53,21 @@ fn_a(void)
 {
     for (;;)
     {
-        rtos_yield_to(1);
         debug_println("task a");
+        rtos_yield_to(1);
     }
 }
+
+#define HWREG(x) (*((volatile uint32_t *)(x)))
 
 void
 fn_b(void)
 {
     for (;;)
     {
-        rtos_yield_to(0);
         debug_println("task b");
+        rtos_yield_to(0);
+        HWREG(0x100) = 0;
     }
 }
 
