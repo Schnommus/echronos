@@ -11,3 +11,4 @@
 /*| public_state |*/
 
 /*| public_function_declarations |*/
+bool {{prefix_func}}handle_memmanage(void);

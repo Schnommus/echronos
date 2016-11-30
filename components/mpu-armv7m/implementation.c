@@ -104,6 +104,31 @@
 #define MPU_RGN_SIZE_2G             (30 << 1)
 #define MPU_RGN_SIZE_4G             (31 << 1)
 
+/* Registers used for enabling the MPU interrupt */
+#define SYS_HND_CTRL                0xE000ED24  /* System Handler Control and State */
+#define SYS_HND_CTRL_MEM            0x00010000  /* Memory Management Fault Enable   */
+
+/* Registers used to handle the MPU interrupt */
+#define NVIC_FAULT_STAT             0xE000ED28  /* Configurable Fault Status        */
+#define NVIC_MM_ADDR                0xE000ED34  /* Memory Management Fault Address  */
+
+/* Armv7m system address map (from TRM) */
+#define CODE_BASE                   0x00000000  /* 512 MB */
+#define SRAM_BASE                   0x20000000  /* 512 MB */
+#define SRAM_BITBAND_END            0x20100000  /* ^      */
+#define SRAM_BITBAND_ALIAS_BASE     0x22000000  /* ^      */
+#define SRAM_BITBAND_ALIAS_END      0x24000000  /* ^      */
+#define PERIPH_BASE                 0x40000000  /* 512 MB */
+#define PERIPH_BITBAND_END          0x40100000  /* ^      */
+#define PERIPH_BITBAND_ALIAS_BASE   0x42000000  /* ^      */
+#define PERIPH_BITBAND_ALIAS_END    0x44000000  /* ^      */
+#define EXTERNAL_RAM_BASE           0x60000000  /* 1 GB   */
+#define EXTERNAL_DEVICE_BASE        0xA0000000  /* 1 GB   */
+#define INT_PERIPH_BASE             0xE0000000  /* 256 KB */
+#define INT_PERIPH_NVIC             0xE000E000  /* ^      */
+#define EXT_PERIPH_BASE             0xE0040000  /* 768 KB */
+#define SYSTEM_RESERVED_BASE        0xE0100000  /* rest   */
+
 /*| types |*/
 
 /*| structures |*/
@@ -118,6 +143,8 @@ void mpu_region_enable(uint32_t mpu_region);
 void mpu_region_disable(uint32_t mpu_region);
 void mpu_region_set(uint32_t mpu_region, uint32_t mpu_addr, uint32_t mpu_flags);
 void mpu_region_get(uint32_t mpu_region, uint32_t *mpu_addr_ptr, uint32_t *mpu_flags_ptr);
+void mpu_memmanage_interrupt_enable(void);
+void mpu_memmanage_interrupt_disable(void);
 
 /*| state |*/
 
@@ -206,4 +233,64 @@ mpu_region_get(uint32_t mpu_region, uint32_t *mpu_addr_ptr, uint32_t *mpu_flags)
     *mpu_flags_ptr = HWREG(MPU_ATTR);
 }
 
+void
+mpu_memmanage_interrupt_enable(void) {
+    /* Clear the NVIC FSR as it starts off as junk */
+    uint32_t fault_stat = HWREG(NVIC_FAULT_STAT);
+    HWREG(NVIC_FAULT_STAT) = fault_stat;
+
+    /* Enable the interrupt */
+    HWREG(SYS_HND_CTRL) |= SYS_HND_CTRL_MEM;
+}
+
+void
+mpu_memmanage_interrupt_disable(void) {
+    HWREG(SYS_HND_CTRL) &= ~SYS_HND_CTRL_MEM;
+}
+
+void
+mpu_initialize(void) {
+
+    /* TODO: Instead of doing this, only give tasks access to their own stack!
+     * We shouldn't really be protecting the RTOS from itself, that's not necessary. */
+
+    /* Create a read-only executable region of size 256K -> FLASH */
+    mpu_region_set(0, CODE_BASE,
+                   MPU_RGN_SIZE_256K | MPU_RGN_PERM_EXEC |
+                   MPU_RGN_PERM_PRV_RO_USR_RO |
+                   MPU_RGN_ENABLE);
+
+    /* Create an RW non-executable SRAM region of size 32K -> SRAM */
+    mpu_region_set(1, SRAM_BASE,
+                   MPU_RGN_SIZE_32K | MPU_RGN_PERM_NOEXEC |
+                   MPU_RGN_PERM_PRV_RW_USR_RW | MPU_SUB_RGN_DISABLE_4 |
+                   MPU_RGN_ENABLE);
+
+
+    /* Enable the memmanage interrupt */
+    mpu_memmanage_interrupt_enable(void);
+
+    /* The MPU itself will only enforce memory protection rules
+     * whilst it is enabled. We only enable the MPU when we are
+     * inside a task - it is not enabled here. */
+}
+
 /*| public_functions |*/
+
+bool
+{{prefix_func}}handle_memmanage(void) {
+    /* Grab fault address and status */
+    uint32_t fault_address = HWREG(NVIC_MM_ADDR);
+    uint32_t fault_status  = HWREG(NVIC_FAULT_STAT);
+
+    /* Clear the fault status register */
+    HWREG(NVIC_FAULT_STAT) = fault_status;
+
+    /* Turn off the MPU so that the RTOS (outside this handler)
+     * is able to operate normally */
+    mpu_disable();
+
+    /* An MPU policy violation is a fatal error (for now) */
+    {{fatal_error}}(ERROR_ID_MPU_VIOLATION);
+}
+

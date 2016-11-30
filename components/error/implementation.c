@@ -38,6 +38,7 @@
 #define ERROR_ID_MPU_INTERNAL_INVALID_REGION_INDEX (({{prefix_type}}ErrorId) UINT8_C(33))
 #define ERROR_ID_MPU_INTERNAL_MISALIGNED_ADDR (({{prefix_type}}ErrorId) UINT8_C(34))
 #define ERROR_ID_MPU_INTERNAL_INVALID_PTR (({{prefix_type}}ErrorId) UINT8_C(35))
+#define ERROR_ID_MPU_VIOLATION (({{prefix_type}}ErrorId) UINT8_C(36))
 
 /*| types |*/
 
