@@ -136,7 +136,7 @@
 /*| extern_declarations |*/
 
 /*| function_declarations |*/
-void mpu_enable(uint32_t mpu_config);
+void mpu_enable(void);
 void mpu_disable(void);
 uint32_t mpu_regions_supported_get(void) {
 void mpu_region_enable(uint32_t mpu_region);
@@ -154,16 +154,22 @@ void mpu_memmanage_interrupt_disable(void);
 
 /*| functions |*/
 void
-mpu_enable(uint32_t mpu_config) {
-    /* Check we configure the MPU to use one of the correct flags */
-    api_assert(!(mpu_config & ~(MPU_CONFIG_PRIV_DEFAULT | MPU_CONFIG_HARDFLT_NMI)),
-               ERROR_ID_MPU_INTERNAL_INVALID_ENABLE_ARGUMENTS );
+mpu_enable(void) {
+    api_assert( !(HWREG(MPU_CTRL) & MPU_CTRL_ENABLE),
+                ERROR_ID_MPU_ALREADY_ENABLED );
 
+    /* Make the MPU fault in privileged mode, but disable it during a hard fault */
+    HWREG(MPU_CTRL) &= ~(MPU_CONFIG_PRIV_DEFAULT | MPU_CONFIG_HARDFLT_NMI)
+
+    /* Turn on the MPU */
     HWREG(MPU_CTRL) = mpu_config | MPU_CTRL_ENABLE;
 }
 
 void
 mpu_disable(void) {
+    api_assert( HWREG(MPU_CTRL) & MPU_CTRL_ENABLE,
+                ERROR_ID_MPU_ALREADY_DISABLED );
+
     HWREG(MPU_CTRL) &= ~MPU_CTRL_ENABLE;
 }
 
