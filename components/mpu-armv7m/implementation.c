@@ -258,8 +258,13 @@ mpu_memmanage_interrupt_disable(void) {
 void
 mpu_initialize(void) {
 
-    /* TODO: Instead of doing this, only give tasks access to their own stack!
-     * We shouldn't really be protecting the RTOS from itself, that's not necessary. */
+    /* TODO: Instead of doing this, only give tasks access to:
+     * - Their own stack
+     * - Any specifically annotated shared memory
+     * We make code read-only, however we do not protect tasks
+     * from reading/executing code that is not theirs. This
+     * model of protecting data but not the code is standard.
+     * See AUTOSAR OS specifications v5.0.0 */
 
     /* Create a read-only executable region of size 256K -> FLASH */
     mpu_region_set(0, CODE_BASE,
@@ -270,7 +275,7 @@ mpu_initialize(void) {
     /* Create an RW non-executable SRAM region of size 32K -> SRAM */
     mpu_region_set(1, SRAM_BASE,
                    MPU_RGN_SIZE_32K | MPU_RGN_PERM_NOEXEC |
-                   MPU_RGN_PERM_PRV_RW_USR_RW | MPU_SUB_RGN_DISABLE_4 |
+                   MPU_RGN_PERM_PRV_RW_USR_RW |
                    MPU_RGN_ENABLE);
 
 
