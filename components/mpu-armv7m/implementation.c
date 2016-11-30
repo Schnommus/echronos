@@ -72,6 +72,7 @@
 
 /* Allowed MPU region sizes */
 #define MPU_ATTR_SIZE_M             0x0000003E  /* Region Size Mask */
+#define MPU_ATTR_ENABLE             0x00000001  /* Region Enable    */
 #define MPU_RGN_SIZE_32B            (4 << 1)
 #define MPU_RGN_SIZE_64B            (5 << 1)
 #define MPU_RGN_SIZE_128B           (6 << 1)
@@ -138,7 +139,7 @@
 /*| function_declarations |*/
 void mpu_enable(void);
 void mpu_disable(void);
-uint32_t mpu_regions_supported_get(void) {
+uint32_t mpu_regions_supported_get(void);
 void mpu_region_enable(uint32_t mpu_region);
 void mpu_region_disable(uint32_t mpu_region);
 void mpu_region_set(uint32_t mpu_region, uint32_t mpu_addr, uint32_t mpu_flags);
@@ -149,8 +150,7 @@ void mpu_memmanage_interrupt_disable(void);
 /*| state |*/
 
 /*| function_like_macros |*/
-#define HWREG(x) \
-        (*((volatile uint32_t *)(x)))
+#define HWREG(x) (*((volatile uint32_t *)(x)))
 
 /*| functions |*/
 void
@@ -159,10 +159,10 @@ mpu_enable(void) {
                 ERROR_ID_MPU_ALREADY_ENABLED );
 
     /* Make the MPU fault in privileged mode, but disable it during a hard fault */
-    HWREG(MPU_CTRL) &= ~(MPU_CONFIG_PRIV_DEFAULT | MPU_CONFIG_HARDFLT_NMI)
+    HWREG(MPU_CTRL) &= ~(MPU_CONFIG_PRIV_DEFAULT | MPU_CONFIG_HARDFLT_NMI);
 
     /* Turn on the MPU */
-    HWREG(MPU_CTRL) = mpu_config | MPU_CTRL_ENABLE;
+    HWREG(MPU_CTRL) = MPU_CTRL_ENABLE;
 }
 
 void
@@ -226,11 +226,11 @@ mpu_region_set(uint32_t mpu_region, uint32_t mpu_addr, uint32_t mpu_flags) {
 }
 
 void
-mpu_region_get(uint32_t mpu_region, uint32_t *mpu_addr_ptr, uint32_t *mpu_flags) {
+mpu_region_get(uint32_t mpu_region, uint32_t *mpu_addr_ptr, uint32_t *mpu_flags_ptr) {
     api_assert(mpu_region < MPU_MAX_REGIONS,
                ERROR_ID_MPU_INTERNAL_INVALID_REGION_INDEX);
 
-    api_assert(mpu_addr && mpu_flags,
+    api_assert(mpu_addr_ptr && mpu_flags_ptr,
                ERROR_ID_MPU_INTERNAL_INVALID_PTR);
 
     /* Set the MPU region and then grab our data */
@@ -274,7 +274,7 @@ mpu_initialize(void) {
 
 
     /* Enable the memmanage interrupt */
-    mpu_memmanage_interrupt_enable(void);
+    mpu_memmanage_interrupt_enable();
 
     /* The MPU itself will only enforce memory protection rules
      * whilst it is enabled. We only enable the MPU when we are
@@ -286,7 +286,9 @@ mpu_initialize(void) {
 bool
 {{prefix_func}}handle_memmanage(void) {
     /* Grab fault address and status */
+    __attribute__((unused))
     uint32_t fault_address = HWREG(NVIC_MM_ADDR);
+    __attribute__((unused))
     uint32_t fault_status  = HWREG(NVIC_FAULT_STAT);
 
     /* Clear the fault status register */
@@ -298,5 +300,7 @@ bool
 
     /* An MPU policy violation is a fatal error (for now) */
     {{fatal_error}}(ERROR_ID_MPU_VIOLATION);
+
+    return true;
 }
 

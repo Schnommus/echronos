@@ -1,5 +1,4 @@
 /*| public_headers |*/
-#include <stdbool.h>
 
 /*| public_types |*/
 
@@ -12,4 +11,5 @@
 /*| public_state |*/
 
 /*| public_function_declarations |*/
-bool {{prefix_func}}handle_memmanage(void);
+void {{prefix_func}}yield_to({{prefix_type}}TaskId) {{prefix_const}}REENTRANT;
+void {{prefix_func}}start(void);

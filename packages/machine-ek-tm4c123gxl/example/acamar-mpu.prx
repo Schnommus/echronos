@@ -38,8 +38,9 @@
     <module name="armv7m.semihost-debug" />
     <module name="generic.debug" />
 
-    <module name="armv7m.rtos-acamar">
+    <module name="armv7m.rtos-acamar-mpu">
       <prefix>rtos</prefix>
+      <fatal_error>fatal</fatal_error>
       <taskid_size>8</taskid_size>
       <tasks>
 
@@ -58,7 +59,7 @@
       </tasks>
     </module>
 
-    <module name="rtos-example.acamar-test" />
+    <module name="machine-ek-tm4c123gxl.example.acamar-mpu-test" />
 
   </modules>
 </system>
