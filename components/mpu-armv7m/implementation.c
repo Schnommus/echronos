@@ -151,27 +151,27 @@ void mpu_memmanage_interrupt_disable(void);
 /*| state |*/
 
 /*| function_like_macros |*/
-#define HWREG(x) (*((volatile uint32_t *)(x)))
+#define REGISTER(x) (*((volatile uint32_t *)(x)))
 
 /*| functions |*/
 void
 mpu_enable(void) {
-    api_assert( !(HWREG(MPU_CTRL) & MPU_CTRL_ENABLE),
+    api_assert( !(REGISTER(MPU_CTRL) & MPU_CTRL_ENABLE),
                 ERROR_ID_MPU_ALREADY_ENABLED );
 
     /* Make the MPU fault in privileged mode, but disable it during a hard fault */
-    HWREG(MPU_CTRL) &= ~(MPU_CONFIG_PRIV_DEFAULT | MPU_CONFIG_HARDFLT_NMI);
+    REGISTER(MPU_CTRL) &= ~(MPU_CONFIG_PRIV_DEFAULT | MPU_CONFIG_HARDFLT_NMI);
 
     /* Turn on the MPU */
-    HWREG(MPU_CTRL) = MPU_CTRL_ENABLE;
+    REGISTER(MPU_CTRL) = MPU_CTRL_ENABLE;
 }
 
 void
 mpu_disable(void) {
-    api_assert( HWREG(MPU_CTRL) & MPU_CTRL_ENABLE,
+    api_assert( REGISTER(MPU_CTRL) & MPU_CTRL_ENABLE,
                 ERROR_ID_MPU_ALREADY_DISABLED );
 
-    HWREG(MPU_CTRL) &= ~MPU_CTRL_ENABLE;
+    REGISTER(MPU_CTRL) &= ~MPU_CTRL_ENABLE;
 }
 
 /* Gets the number of hardware regions supported by this MPU */
@@ -179,7 +179,7 @@ uint32_t
 mpu_regions_supported_get(void) {
     /* Read the DREGION field of the MPU type register and mask off   */
     /* the bits of interest to get the count of regions.              */
-    return((HWREG(MPU_TYPE) & MPU_TYPE_DREGION_M) >> MPU_TYPE_DREGION_S);
+    return((REGISTER(MPU_TYPE) & MPU_TYPE_DREGION_M) >> MPU_TYPE_DREGION_S);
 }
 
 void
@@ -188,10 +188,10 @@ mpu_region_enable(uint32_t mpu_region) {
                ERROR_ID_MPU_INTERNAL_INVALID_REGION_INDEX);
 
     /* Pick the region we want to modify */
-    HWREG(MPU_NUMBER) = mpu_region;
+    REGISTER(MPU_NUMBER) = mpu_region;
 
     /* Enable this region */
-    HWREG(MPU_ATTR) |= MPU_ATTR_ENABLE;
+    REGISTER(MPU_ATTR) |= MPU_ATTR_ENABLE;
 }
 
 void
@@ -199,8 +199,8 @@ mpu_region_disable(uint32_t mpu_region) {
     api_assert(mpu_region < MPU_MAX_REGIONS,
                ERROR_ID_MPU_INTERNAL_INVALID_REGION_INDEX);
 
-    HWREG(MPU_NUMBER) = mpu_region;
-    HWREG(MPU_ATTR) &= ~MPU_ATTR_ENABLE;
+    REGISTER(MPU_NUMBER) = mpu_region;
+    REGISTER(MPU_ATTR) &= ~MPU_ATTR_ENABLE;
 }
 
 void
@@ -213,7 +213,7 @@ mpu_region_set(uint32_t mpu_region, uint32_t mpu_addr, uint32_t mpu_flags) {
                ERROR_ID_MPU_INTERNAL_MISALIGNED_ADDR);
 
     /* Select the region and set the base address at the same time */
-    HWREG(MPU_BASE) = mpu_addr | mpu_region | MPU_BASE_VALID;
+    REGISTER(MPU_BASE) = mpu_addr | mpu_region | MPU_BASE_VALID;
 
     /* Set region attributes, with fixed values for:
      * Type Extension Mask = 0
@@ -222,7 +222,7 @@ mpu_region_set(uint32_t mpu_region, uint32_t mpu_addr, uint32_t mpu_flags) {
      * Bufferable = 1
      * These options should be fine on most devices, with a performance
      * penalty on armv7m processors that have a cache. This is rare though. */
-    HWREG(MPU_ATTR) = ((mpu_flags & ~(MPU_ATTR_TEX_M | MPU_ATTR_CACHEABLE)) |
+    REGISTER(MPU_ATTR) = ((mpu_flags & ~(MPU_ATTR_TEX_M | MPU_ATTR_CACHEABLE)) |
                         MPU_ATTR_SHAREABLE | MPU_ATTR_BUFFRABLE);
 }
 
@@ -235,24 +235,24 @@ mpu_region_get(uint32_t mpu_region, uint32_t *mpu_addr_ptr, uint32_t *mpu_flags_
                ERROR_ID_MPU_INTERNAL_INVALID_PTR);
 
     /* Set the MPU region and then grab our data */
-    HWREG(MPU_NUMBER) = mpu_region;
-    *mpu_addr_ptr = HWREG(MPU_BASE) & MPU_BASE_ADDR_M;
-    *mpu_flags_ptr = HWREG(MPU_ATTR);
+    REGISTER(MPU_NUMBER) = mpu_region;
+    *mpu_addr_ptr = REGISTER(MPU_BASE) & MPU_BASE_ADDR_M;
+    *mpu_flags_ptr = REGISTER(MPU_ATTR);
 }
 
 void
 mpu_memmanage_interrupt_enable(void) {
     /* Clear the NVIC FSR as it starts off as junk */
-    uint32_t fault_stat = HWREG(NVIC_FAULT_STAT);
-    HWREG(NVIC_FAULT_STAT) = fault_stat;
+    uint32_t fault_stat = REGISTER(NVIC_FAULT_STAT);
+    REGISTER(NVIC_FAULT_STAT) = fault_stat;
 
     /* Enable the interrupt */
-    HWREG(SYS_HND_CTRL) |= SYS_HND_CTRL_MEM;
+    REGISTER(SYS_HND_CTRL) |= SYS_HND_CTRL_MEM;
 }
 
 void
 mpu_memmanage_interrupt_disable(void) {
-    HWREG(SYS_HND_CTRL) &= ~SYS_HND_CTRL_MEM;
+    REGISTER(SYS_HND_CTRL) &= ~SYS_HND_CTRL_MEM;
 }
 
 void
@@ -287,8 +287,8 @@ mpu_initialize(void) {
 bool
 {{prefix_func}}handle_memmanage(void) {
     /* Grab fault address and status */
-    uint32_t fault_address = HWREG(NVIC_MM_ADDR);
-    uint32_t fault_status  = HWREG(NVIC_FAULT_STAT);
+    uint32_t fault_address = REGISTER(NVIC_MM_ADDR);
+    uint32_t fault_status  = REGISTER(NVIC_FAULT_STAT);
 
     /* Print these to make debugging easier */
     debug_print("ADR: ");
@@ -298,7 +298,7 @@ bool
     debug_println("");
 
     /* Clear the fault status register */
-    HWREG(NVIC_FAULT_STAT) = fault_status;
+    REGISTER(NVIC_FAULT_STAT) = fault_status;
 
     /* Turn off the MPU so that the RTOS (outside this handler)
      * is able to operate normally */
