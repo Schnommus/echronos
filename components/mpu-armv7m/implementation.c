@@ -202,8 +202,8 @@ mpu_region_get(uint32_t mpu_region, uint32_t *mpu_addr_ptr, uint32_t *mpu_flags)
 
     /* Set the MPU region and then grab our data */
     HWREG(MPU_NUMBER) = mpu_region;
-    *mpu_addr_ptr = HWREG(NVIC_MPU_BASE) & NVIC_MPU_BASE_ADDR_M;
-    *mpu_flags_ptr = HWREG(NVIC_MPU_ATTR);
+    *mpu_addr_ptr = HWREG(MPU_BASE) & MPU_BASE_ADDR_M;
+    *mpu_flags_ptr = HWREG(MPU_ATTR);
 }
 
 /*| public_functions |*/
