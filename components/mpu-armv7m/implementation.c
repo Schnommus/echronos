@@ -147,11 +147,14 @@ void mpu_region_set(uint32_t mpu_region, uint32_t mpu_addr, uint32_t mpu_flags);
 void mpu_region_get(uint32_t mpu_region, uint32_t *mpu_addr_ptr, uint32_t *mpu_flags_ptr);
 void mpu_memmanage_interrupt_enable(void);
 void mpu_memmanage_interrupt_disable(void);
+uint32_t mpu_bytes_to_region_size_flag(uint32_t bytes);
+void mpu_configure_for_task(const {{prefix_type}}TaskId to);
 
 /*| state |*/
 
 /*| function_like_macros |*/
 #define REGISTER(x) (*((volatile uint32_t *)(x)))
+#define is_power_of_2(x) (x && !(x & (x - 1)))
 
 /*| functions |*/
 void
@@ -272,19 +275,46 @@ mpu_initialize(void) {
                    MPU_RGN_PERM_PRV_RO_USR_RO |
                    MPU_RGN_ENABLE);
 
-    /* Create an RW non-executable SRAM region of size 32K -> SRAM */
-    mpu_region_set(1, SRAM_BASE,
-                   MPU_RGN_SIZE_32K | MPU_RGN_PERM_NOEXEC |
-                   MPU_RGN_PERM_PRV_RW_USR_RW |
-                   MPU_RGN_ENABLE);
-
-
     /* Enable the memmanage interrupt */
     mpu_memmanage_interrupt_enable();
 
     /* The MPU itself will only enforce memory protection rules
      * whilst it is enabled. We only enable the MPU when we are
      * inside a task - it is not enabled here. */
+}
+
+uint32_t mpu_bytes_to_region_size_flag(uint32_t bytes) {
+    /* armv7m MPU only supports regions of 2^n size, above 32 bytes */
+    api_assert(is_power_of_2(bytes), ERROR_ID_MPU_INVALID_REGION_SIZE);
+    api_assert(bytes >= 32, ERROR_ID_MPU_INVALID_REGION_SIZE);
+
+    /* MPU region size flag for 2^x bytes is (x-1)<<1
+     * Count trailing zeros to get log2(x), valid as x is a power of 2 */
+    return ((__builtin_ctz(bytes) - 1) << 1);
+}
+
+void
+mpu_configure_for_task(const {{prefix_type}}TaskId to) {
+
+    uint32_t stack_region_size_flag = 0;
+    uint32_t stack_region_base_addr = 0;
+
+    /* Grab attributes relevant to our task */
+    switch(to) {
+    {{#tasks}}
+        case {{idx}}:
+            stack_region_size_flag =
+                mpu_bytes_to_region_size_flag({{stack_size}}*sizeof(uint32_t));
+            stack_region_base_addr =
+                (uint32_t)&stack_{{idx}};
+        break;
+    {{/tasks}}
+    }
+
+    /* Set up a stack region for this task */
+    mpu_region_set(1, stack_region_base_addr,
+                   stack_region_size_flag | MPU_RGN_PERM_NOEXEC |
+                   MPU_RGN_PERM_PRV_RW_USR_RW | MPU_RGN_ENABLE);
 }
 
 /*| public_functions |*/

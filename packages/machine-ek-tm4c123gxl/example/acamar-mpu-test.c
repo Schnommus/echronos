@@ -48,26 +48,35 @@ fatal(const RtosErrorId error_id)
     }
 }
 
+#define REGISTER(x) (*((volatile uint32_t *)(x)))
+
 void
 fn_a(void)
 {
     for (;;)
     {
+        int x = 0;
         debug_println("task a");
+        debug_print("ptr: ");
+        debug_printhex32((uint32_t)&x);
+        debug_println("");
         rtos_yield_to(1);
+        int read_b = REGISTER(0x20000fec);
+        ++read_b;
     }
 }
-
-#define HWREG(x) (*((volatile uint32_t *)(x)))
 
 void
 fn_b(void)
 {
     for (;;)
     {
+        int x = 0;
         debug_println("task b");
+        debug_print("ptr: ");
+        debug_printhex32((uint32_t)&x);
+        debug_println("");
         rtos_yield_to(0);
-        HWREG(0x100) = 0;
     }
 }
 

@@ -40,6 +40,7 @@
 #define ERROR_ID_MPU_VIOLATION (({{prefix_type}}ErrorId) UINT8_C(35))
 #define ERROR_ID_MPU_ALREADY_ENABLED (({{prefix_type}}ErrorId) UINT8_C(36))
 #define ERROR_ID_MPU_ALREADY_DISABLED (({{prefix_type}}ErrorId) UINT8_C(37))
+#define ERROR_ID_MPU_INVALID_REGION_SIZE (({{prefix_type}}ErrorId) UINT8_C(38))
 
 /*| types |*/
 
