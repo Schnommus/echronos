@@ -101,6 +101,11 @@ SECTIONS
         {{.}}_bitband = {{bitband_alias}} + (({{.}} - {{bitband_base}}) * 32);
         {{/bit_aliases}}
 
+        /* Constants used by the MPU for run-time assertions. Necessary here
+         * because these are properties of the vectable module, not the RTOS */
+        linker_flash_size = {{flash_size}};
+        linker_sram_size = {{sram_size}};
+
         /* Debug sections */
 
         .debug_aranges  0 : { *(.debug_aranges) }

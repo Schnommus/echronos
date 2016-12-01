@@ -43,6 +43,7 @@
       <prefix>rtos</prefix>
       <fatal_error>fatal</fatal_error>
       <internal_asserts>true</internal_asserts>
+      <api_asserts>true</api_asserts>
       <taskid_size>8</taskid_size>
       <tasks>
 

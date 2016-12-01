@@ -74,37 +74,6 @@
 /* Allowed MPU region sizes */
 #define MPU_ATTR_SIZE_M             0x0000003E  /* Region Size Mask */
 #define MPU_ATTR_ENABLE             0x00000001  /* Region Enable    */
-#define MPU_RGN_SIZE_32B            (4 << 1)
-#define MPU_RGN_SIZE_64B            (5 << 1)
-#define MPU_RGN_SIZE_128B           (6 << 1)
-#define MPU_RGN_SIZE_256B           (7 << 1)
-#define MPU_RGN_SIZE_512B           (8 << 1)
-
-#define MPU_RGN_SIZE_1K             (9 << 1)
-#define MPU_RGN_SIZE_2K             (10 << 1)
-#define MPU_RGN_SIZE_4K             (11 << 1)
-#define MPU_RGN_SIZE_8K             (12 << 1)
-#define MPU_RGN_SIZE_16K            (13 << 1)
-#define MPU_RGN_SIZE_32K            (14 << 1)
-#define MPU_RGN_SIZE_64K            (15 << 1)
-#define MPU_RGN_SIZE_128K           (16 << 1)
-#define MPU_RGN_SIZE_256K           (17 << 1)
-#define MPU_RGN_SIZE_512K           (18 << 1)
-
-#define MPU_RGN_SIZE_1M             (19 << 1)
-#define MPU_RGN_SIZE_2M             (20 << 1)
-#define MPU_RGN_SIZE_4M             (21 << 1)
-#define MPU_RGN_SIZE_8M             (22 << 1)
-#define MPU_RGN_SIZE_16M            (23 << 1)
-#define MPU_RGN_SIZE_32M            (24 << 1)
-#define MPU_RGN_SIZE_64M            (25 << 1)
-#define MPU_RGN_SIZE_128M           (26 << 1)
-#define MPU_RGN_SIZE_256M           (27 << 1)
-#define MPU_RGN_SIZE_512M           (28 << 1)
-
-#define MPU_RGN_SIZE_1G             (29 << 1)
-#define MPU_RGN_SIZE_2G             (30 << 1)
-#define MPU_RGN_SIZE_4G             (31 << 1)
 
 /* Registers used for enabling the MPU interrupt */
 #define SYS_HND_CTRL                0xE000ED24  /* System Handler Control and State */
@@ -136,6 +105,8 @@
 /*| structures |*/
 
 /*| extern_declarations |*/
+extern uint32_t linker_flash_size;
+extern uint32_t linker_sram_size;
 
 /*| function_declarations |*/
 void mpu_enable(void);
@@ -155,11 +126,12 @@ void mpu_configure_for_task(const {{prefix_type}}TaskId to);
 /*| function_like_macros |*/
 #define REGISTER(x) (*((volatile uint32_t *)(x)))
 #define is_power_of_2(x) (x && !(x & (x - 1)))
+#define linker_symbol_value(x) ((uint32_t)&x)
 
 /*| functions |*/
 void
 mpu_enable(void) {
-    api_assert( !(REGISTER(MPU_CTRL) & MPU_CTRL_ENABLE),
+    internal_assert( !(REGISTER(MPU_CTRL) & MPU_CTRL_ENABLE),
                 ERROR_ID_MPU_ALREADY_ENABLED );
 
     /* Make the MPU fault in privileged mode, but disable it during a hard fault */
@@ -171,7 +143,7 @@ mpu_enable(void) {
 
 void
 mpu_disable(void) {
-    api_assert( REGISTER(MPU_CTRL) & MPU_CTRL_ENABLE,
+    internal_assert( REGISTER(MPU_CTRL) & MPU_CTRL_ENABLE,
                 ERROR_ID_MPU_ALREADY_DISABLED );
 
     REGISTER(MPU_CTRL) &= ~MPU_CTRL_ENABLE;
@@ -187,7 +159,7 @@ mpu_regions_supported_get(void) {
 
 void
 mpu_region_enable(uint32_t mpu_region) {
-    api_assert(mpu_region < MPU_MAX_REGIONS,
+    internal_assert(mpu_region < MPU_MAX_REGIONS,
                ERROR_ID_MPU_INTERNAL_INVALID_REGION_INDEX);
 
     /* Pick the region we want to modify */
@@ -199,7 +171,7 @@ mpu_region_enable(uint32_t mpu_region) {
 
 void
 mpu_region_disable(uint32_t mpu_region) {
-    api_assert(mpu_region < MPU_MAX_REGIONS,
+    internal_assert(mpu_region < MPU_MAX_REGIONS,
                ERROR_ID_MPU_INTERNAL_INVALID_REGION_INDEX);
 
     REGISTER(MPU_NUMBER) = mpu_region;
@@ -208,11 +180,11 @@ mpu_region_disable(uint32_t mpu_region) {
 
 void
 mpu_region_set(uint32_t mpu_region, uint32_t mpu_addr, uint32_t mpu_flags) {
-    api_assert(mpu_region < MPU_MAX_REGIONS,
+    internal_assert(mpu_region < MPU_MAX_REGIONS,
                ERROR_ID_MPU_INTERNAL_INVALID_REGION_INDEX);
 
     /* Check that the address is size-aligned as required */
-    api_assert(mpu_addr == (mpu_addr & ~0 << (((mpu_flags & MPU_ATTR_SIZE_M) >> 1) + 1)),
+    internal_assert(mpu_addr == (mpu_addr & ~0 << (((mpu_flags & MPU_ATTR_SIZE_M) >> 1) + 1)),
                ERROR_ID_MPU_INTERNAL_MISALIGNED_ADDR);
 
     /* Select the region and set the base address at the same time */
@@ -231,10 +203,10 @@ mpu_region_set(uint32_t mpu_region, uint32_t mpu_addr, uint32_t mpu_flags) {
 
 void
 mpu_region_get(uint32_t mpu_region, uint32_t *mpu_addr_ptr, uint32_t *mpu_flags_ptr) {
-    api_assert(mpu_region < MPU_MAX_REGIONS,
+    internal_assert(mpu_region < MPU_MAX_REGIONS,
                ERROR_ID_MPU_INTERNAL_INVALID_REGION_INDEX);
 
-    api_assert(mpu_addr_ptr && mpu_flags_ptr,
+    internal_assert(mpu_addr_ptr && mpu_flags_ptr,
                ERROR_ID_MPU_INTERNAL_INVALID_PTR);
 
     /* Set the MPU region and then grab our data */
@@ -261,19 +233,19 @@ mpu_memmanage_interrupt_disable(void) {
 void
 mpu_initialize(void) {
 
-    /* TODO: Instead of doing this, only give tasks access to:
+    /* We will only give tasks access to:
      * - Their own stack
      * - Any specifically annotated shared memory
+     * - Any specifically annotated peripheral memory
      * We make code read-only, however we do not protect tasks
      * from reading/executing code that is not theirs. This
      * model of protecting data but not the code is standard.
      * See AUTOSAR OS specifications v5.0.0 */
 
-    /* Create a read-only executable region of size 256K -> FLASH */
-    mpu_region_set(0, CODE_BASE,
-                   MPU_RGN_SIZE_256K | MPU_RGN_PERM_EXEC |
-                   MPU_RGN_PERM_PRV_RO_USR_RO |
-                   MPU_RGN_ENABLE);
+    /* Create a read-only executable region for our FLASH */
+    uint32_t flash_size = linker_symbol_value(linker_flash_size);
+    mpu_region_set(0, CODE_BASE, mpu_bytes_to_region_size_flag(flash_size) |
+                   MPU_RGN_PERM_EXEC | MPU_RGN_PERM_PRV_RO_USR_RO | MPU_RGN_ENABLE);
 
     /* Enable the memmanage interrupt */
     mpu_memmanage_interrupt_enable();
@@ -285,8 +257,8 @@ mpu_initialize(void) {
 
 uint32_t mpu_bytes_to_region_size_flag(uint32_t bytes) {
     /* armv7m MPU only supports regions of 2^n size, above 32 bytes */
-    api_assert(is_power_of_2(bytes), ERROR_ID_MPU_INVALID_REGION_SIZE);
-    api_assert(bytes >= 32, ERROR_ID_MPU_INVALID_REGION_SIZE);
+    internal_assert(is_power_of_2(bytes), ERROR_ID_MPU_INVALID_REGION_SIZE);
+    internal_assert(bytes >= 32, ERROR_ID_MPU_INVALID_REGION_SIZE);
 
     /* MPU region size flag for 2^x bytes is (x-1)<<1
      * Count trailing zeros to get log2(x), valid as x is a power of 2 */
@@ -311,10 +283,21 @@ mpu_configure_for_task(const {{prefix_type}}TaskId to) {
     {{/tasks}}
     }
 
+    /* Note: region 0 is always the RX-only flash protection region
+     * as set up during MPU initialization */
+
     /* Set up a stack region for this task */
     mpu_region_set(1, stack_region_base_addr,
                    stack_region_size_flag | MPU_RGN_PERM_NOEXEC |
                    MPU_RGN_PERM_PRV_RW_USR_RW | MPU_RGN_ENABLE);
+
+    uint32_t last_region = 1;
+
+    /* Disable all the regions we aren't using */
+    int i = last_region+1;
+    for(; i != MPU_MAX_REGIONS; ++i) {
+        mpu_region_disable(i);
+    }
 }
 
 /*| public_functions |*/
