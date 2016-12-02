@@ -13,14 +13,6 @@ if [ -z "$1" ]
     exit
 fi
 
-if [ ${1: -4} == ".elf" ]
-  then
-    echo "$1 is an elf file."
-  else
-    echo "File to flash must be an elf file!"
-    exit
-fi
-
 if [ -e "$1" ]
 then
     echo "$1 exists."
