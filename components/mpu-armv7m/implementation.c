@@ -1,8 +1,10 @@
 /*| headers |*/
+{{#memory_protection}}
 #include "debug.h"
+{{/memory_protection}}
 
 /*| object_like_macros |*/
-
+{{#memory_protection}}
 /* MPU control registers */
 #define MPU_TYPE                    0xE000ED90  /* MPU Type                        */
 #define MPU_CTRL                    0xE000ED94  /* MPU Control                     */
@@ -99,16 +101,20 @@
 #define INT_PERIPH_NVIC             0xE000E000  /* ^      */
 #define EXT_PERIPH_BASE             0xE0040000  /* 768 KB */
 #define SYSTEM_RESERVED_BASE        0xE0100000  /* rest   */
+{{/memory_protection}}
 
 /*| types |*/
 
 /*| structures |*/
 
 /*| extern_declarations |*/
+{{#memory_protection}}
 extern uint32_t linker_flash_size;
 extern uint32_t linker_sram_size;
+{{/memory_protection}}
 
 /*| function_declarations |*/
+{{#memory_protection}}
 void mpu_enable(void);
 void mpu_disable(void);
 uint32_t mpu_regions_supported_get(void);
@@ -120,15 +126,19 @@ void mpu_memmanage_interrupt_enable(void);
 void mpu_memmanage_interrupt_disable(void);
 uint32_t mpu_bytes_to_region_size_flag(uint32_t bytes);
 void mpu_configure_for_task(const {{prefix_type}}TaskId to);
+{{/memory_protection}}
 
 /*| state |*/
 
 /*| function_like_macros |*/
+{{#memory_protection}}
 #define REGISTER(x) (*((volatile uint32_t *)(x)))
 #define is_power_of_2(x) (x && !(x & (x - 1)))
 #define linker_symbol_value(x) ((uint32_t)&x)
+{{/memory_protection}}
 
 /*| functions |*/
+{{#memory_protection}}
 void
 mpu_enable(void) {
     internal_assert( !(REGISTER(MPU_CTRL) & MPU_CTRL_ENABLE),
@@ -299,9 +309,10 @@ mpu_configure_for_task(const {{prefix_type}}TaskId to) {
         mpu_region_disable(i);
     }
 }
+{{/memory_protection}}
 
 /*| public_functions |*/
-
+{{#memory_protection}}
 bool
 {{prefix_func}}handle_memmanage(void) {
     /* Grab fault address and status */
@@ -327,4 +338,4 @@ bool
 
     return true;
 }
-
+{{/memory_protection}}

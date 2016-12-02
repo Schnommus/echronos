@@ -119,7 +119,7 @@ topdir = os.path.normpath(os.path.dirname(__file__))
 CORE_CONFIGURATIONS = {"posix": ["sched-rr-test", "sched-prio-inherit-test", "simple-mutex-test",
                                  "blocking-mutex-test", "simple-semaphore-test", "sched-prio-test",
                                  "acamar", "gatria", "kraz", "acrux", "rigel"],
-                       "armv7m": ["acamar", "acamar-mpu", "gatria", "kraz", "acrux", "rigel", "kochab", "phact"],
+                       "armv7m": ["acamar", "gatria", "kraz", "acrux", "rigel", "kochab", "phact"],
                        "ppce500": ["acamar", "gatria", "kraz", "acrux", "kochab", "phact"],
                        "stub": ["acamar", "gatria", "kraz", "acrux", "rigel", "kochab", "phact"]}
 
@@ -151,13 +151,6 @@ CORE_SKELETONS = {
                               ],
     'acamar': [Component('reentrant'),
                Component('acamar'),
-               Component('stack', pkg_component=True),
-               Component('context-switch', pkg_component=True),
-               Component('error'),
-               Component('task'),
-               ],
-    'acamar-mpu': [Component('reentrant'),
-               Component('acamar-mpu'),
                Component('stack', pkg_component=True),
                Component('context-switch', pkg_component=True),
                Component('error'),

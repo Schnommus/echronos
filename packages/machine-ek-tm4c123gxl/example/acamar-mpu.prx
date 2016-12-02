@@ -29,7 +29,7 @@
 <system>
   <modules>
     <module name="armv7m.build" />
-    <module name="armv7m.ctxt-switch-mpu" />
+    <module name="armv7m.ctxt-switch" />
     <module name="armv7m.vectable">
       <flash_load_addr>0x0000000</flash_load_addr>
       <flash_size>0x40000</flash_size>
@@ -39,7 +39,8 @@
     <module name="armv7m.semihost-debug" />
     <module name="generic.debug" />
 
-    <module name="armv7m.rtos-acamar-mpu">
+    <module name="armv7m.rtos-acamar">
+      <memory_protection>true</memory_protection>
       <prefix>rtos</prefix>
       <fatal_error>fatal</fatal_error>
       <internal_asserts>true</internal_asserts>

@@ -14,7 +14,13 @@
 
 /*| state |*/
 {{#tasks}}
+/* We need to align stack addresses on their size to create a valid MPU region */
+{{#memory_protection}}
 static uint32_t stack_{{idx}}[{{stack_size}}] __attribute__((aligned({{stack_size}})));
+{{/memory_protection}}
+{{^memory_protection}}
+static uint32_t stack_{{idx}}[{{stack_size}}] __attribute__((aligned(8)));
+{{/memory_protection}}
 {{/tasks}}
 
 /*| function_like_macros |*/

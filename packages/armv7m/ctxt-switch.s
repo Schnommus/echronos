@@ -25,6 +25,11 @@
  * @TAG(NICTA_AGPL)
  */
 
+/*<module>
+  <code_gen>template</code_gen>
+</module>*/
+
+
 .syntax unified
 .section .text
 
@@ -48,6 +53,9 @@ rtos_internal_context_switch:
 /* void rtos_internal_context_switch_first(context_t *to); */
 rtos_internal_context_switch_first:
         ldr sp, [r0]
+        {{#rtos.memory_protection}}
+        bl mpu_enable
+        {{/rtos.memory_protection}}
         pop {r4-r12,pc}
 .size rtos_internal_context_switch_first, .-rtos_internal_context_switch_first
 .size rtos_internal_context_switch, .-rtos_internal_context_switch

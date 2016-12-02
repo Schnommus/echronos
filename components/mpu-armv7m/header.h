@@ -1,5 +1,7 @@
 /*| public_headers |*/
+{{#memory_protection}}
 #include <stdbool.h>
+{{/memory_protection}}
 
 /*| public_types |*/
 
@@ -12,4 +14,6 @@
 /*| public_state |*/
 
 /*| public_function_declarations |*/
+{{#memory_protection}}
 bool {{prefix_func}}handle_memmanage(void);
+{{/memory_protection}}
