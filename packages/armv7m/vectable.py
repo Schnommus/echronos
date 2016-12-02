@@ -70,7 +70,7 @@ class EntryModule(Module):
     files = [
         {'input': 'bitband.h'},
         {'input': 'vectable.s', 'render': True, 'type': 'asm'},
-        {'input': 'default.ld', 'render': True, 'type': 'linker_script', 'stage': 'post_prepare'},
+        {'input': 'mpu.ld', 'render': True, 'type': 'linker_script', 'stage': 'post_prepare'},
     ]
 
     def configure(self, xml_config):

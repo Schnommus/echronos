@@ -51,7 +51,7 @@
         <task>
           <name>a</name>
           <function>fn_a</function>
-          <stack_size>512</stack_size>
+          <stack_size>256</stack_size>
         </task>
 
         <task>
