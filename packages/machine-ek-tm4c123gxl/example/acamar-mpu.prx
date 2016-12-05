@@ -41,6 +41,26 @@
 
     <module name="armv7m.rtos-acamar">
       <memory_protection>true</memory_protection>
+      <protection_domains>
+          <protection_domain>
+              <name>dom1</name>
+              <domain_size>256</domain_size>
+              <symbols>
+                  <symbol>dom1_variable_1</symbol>
+                  <symbol>dom1_variable_2</symbol>
+              </symbols>
+          </protection_domain>
+          <protection_domain>
+              <name>dom2</name>
+              <domain_size>256</domain_size>
+              <symbols>
+                  <symbol>dom2_variable_1</symbol>
+                  <symbol>dom2_variable_2</symbol>
+              </symbols>
+          </protection_domain>
+      </protection_domains>
+
+
       <prefix>rtos</prefix>
       <fatal_error>fatal</fatal_error>
       <internal_asserts>true</internal_asserts>

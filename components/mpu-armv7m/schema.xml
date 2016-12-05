@@ -1,1 +1,10 @@
 <entry name="memory_protection" type="bool" default="false"/>
+<entry name="protection_domains" type="list" default="[]" auto_index_field="idx">
+    <entry name="protection_domain" type="dict">
+        <entry name="name" type="ident" />
+        <entry name="domain_size" type="int" optional="false" />
+        <entry name="symbols" type="list" default="[]">
+            <entry name="symbol" type="c_ident" />
+        </entry>
+    </entry>
+</entry>

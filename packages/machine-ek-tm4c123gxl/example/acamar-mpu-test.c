@@ -37,7 +37,11 @@ void fn_a(void);
 void fn_b(void);
 void fatal(RtosErrorId error_id);
 
-uint32_t global_variable = 42;
+uint32_t dom1_variable_1;
+uint32_t dom1_variable_2 = 42;
+
+uint32_t dom2_variable_1;
+uint32_t dom2_variable_2 = 7;
 
 void
 fatal(const RtosErrorId error_id)
@@ -60,10 +64,10 @@ fn_a(void)
         int x = 0;
         debug_println("task a");
         debug_print("ptr: ");
-        debug_printhex32((uint32_t)&global_variable);
+        debug_printhex32((uint32_t)&dom1_variable_1);
         debug_printhex32((uint32_t)&x);
         debug_println("");
-        x = global_variable;
+        x = dom1_variable_1;
         rtos_yield_to(1);
         int read_b = REGISTER(0x20000fec);
         ++read_b;

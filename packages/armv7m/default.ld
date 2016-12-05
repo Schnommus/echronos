@@ -72,9 +72,49 @@ SECTIONS
             . = ALIGN(4);
         } > sram_region AT > flash_region
 
+        {{#rtos.memory_protection}}
+        /* Sections that encapsulate protection domains.
+         * This includes symbols that would normally occupy the .bss or .data
+         * segment. They are combined into one section as separating the two
+         * would give us half as many simultaneous protection domains. We
+         * accept the flash usage tradeoff here as memory is cheaper than MPU
+         * regions on this architecture. (normally .bss symbols do not use up
+         * any flash as they are zeroed on initialization)
+         *
+         * We must align to the power-of-2 domain size at the beginning
+         * and at the end of each domain to ensure that the MPU region we set up
+         * encompasses the entire protection region, and nothing else. */
+        {{#rtos.protection_domains}}
+
+        .domain_{{name}} (COPY):
+        {
+            . = ALIGN({{domain_size}});
+            {{#symbols}}
+            dummy = ASSERT(DEFINED({{.}}), "{{.}} not defined");
+            *(*.{{.}})
+            {{/symbols}}
+            . = ALIGN({{domain_size}});
+        } > sram_region AT > flash_region
+
+        linker_domain_{{name}}_start = ADDR(.domain_{{name}});
+        linker_domain_{{name}}_size = SIZEOF(.domain_{{name}});
+
+        dummy = ASSERT(linker_domain_{{name}}_size == {{domain_size}}, "Failed to fit symbols in protection domain: {{name}}");
+
+        {{/rtos.protection_domains}}
+        {{/rtos.memory_protection}}
+
         data_load_addr = LOADADDR(.data.bitband);
         data_virt_addr = ADDR(.data.bitband);
-        data_size = SIZEOF(.data.bitband) + SIZEOF(.data);
+        data_size = SIZEOF(.data.bitband) + SIZEOF(.data)
+            {{#rtos.memory_protection}}
+            /* We must increase the .data size by our protection domain sizes
+             * so that they are appropriately initialized when the RTOS starts */
+            {{#rtos.protection_domains}}
+            + SIZEOF(.domain_{{name}})
+            {{/rtos.protection_domains}}
+            {{/rtos.memory_protection}}
+            ;
 
         /* Check addresses are correct */
         dummy = ASSERT(data_load_addr % 4 == 0, "data_load_addr not word aligned");
@@ -86,8 +126,7 @@ SECTIONS
             {{#rtos.memory_protection}}
             *(.bss.stack.task_*)
             {{/rtos.memory_protection}}
-            *(.bss)
-            *(COMMON)
+            *(.bss*)
             . = ALIGN(4);
         } > sram_region
 
