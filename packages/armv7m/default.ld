@@ -83,6 +83,9 @@ SECTIONS
 
         .bss :
         {
+            {{#rtos.memory_protection}}
+            *(.bss.stack.task_*)
+            {{/rtos.memory_protection}}
             *(.bss)
             *(COMMON)
             . = ALIGN(4);
@@ -101,10 +104,12 @@ SECTIONS
         {{.}}_bitband = {{bitband_alias}} + (({{.}} - {{bitband_base}}) * 32);
         {{/bit_aliases}}
 
+        {{#rtos.memory_protection}}
         /* Constants used by the MPU for run-time assertions. Necessary here
          * because these are properties of the vectable module, not the RTOS */
         linker_flash_size = {{flash_size}};
         linker_sram_size = {{sram_size}};
+        {{/rtos.memory_protection}}
 
         /* Debug sections */
 
