@@ -86,6 +86,8 @@ SECTIONS
          * encompasses the entire protection region, and nothing else. */
         {{#rtos.protection_domains}}
 
+        dummy = ASSERT({{domain_size}} == (1 << LOG2CEIL({{domain_size}})), "Protection domain {{name}} has size that is not power-of-2.");
+
         .domain_{{name}} (COPY):
         {
             . = ALIGN({{domain_size}});
