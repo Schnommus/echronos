@@ -34,6 +34,8 @@
 
 /* More MPU-related constants */
 #define MPU_MAX_REGIONS             8
+#define MPU_BUILTIN_REGIONS         2           /* Stack & flash regions           */
+#define MPU_MAX_ASSOCIATED_DOMAINS  MPU_MAX_REGIONS-MPU_BUILTIN_REGIONS
 
 /* MPU control flags */
 #define MPU_CTRL_ENABLE             0x00000001  /* MPU Enable                      */
@@ -271,6 +273,9 @@ mpu_populate_regions() {
      * as it sits in the .bss section */
 
     {{#tasks}}
+    #if {{associated_domains.length}} > MPU_MAX_ASSOCIATED_DOMAINS
+    #error "Too many associated domains for task: {{name}}"
+    #endif
     /* Protection domains for task: {{name}} */
     {{#associated_domains}}
     mpu_regions[{{idx}}][{{domx}}].base_addr = linker_symbol_value(linker_domain_{{name}}_start);
