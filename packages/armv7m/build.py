@@ -38,6 +38,7 @@ def system_build(system):
     common_flags = ['-mthumb', '-march=armv7-m', '-g']
     a_flags = common_flags
     c_flags = common_flags + ['-O0']
+    ld_flags = ['--print-memory-usage']
 
     # Compile all C files.
     c_obj_files = [os.path.join(system.output, os.path.basename(c.replace('.c', '.o'))) for c in system.c_files]
@@ -55,4 +56,4 @@ def system_build(system):
 
     # Perform final link
     obj_files = asm_obj_files + c_obj_files
-    execute(['arm-none-eabi-ld', '-T', system.linker_script, '-o', system.output_file] + obj_files)
+    execute(['arm-none-eabi-ld', '-T', system.linker_script, '-o', system.output_file] + ld_flags + obj_files)
