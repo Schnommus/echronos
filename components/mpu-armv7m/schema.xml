@@ -3,8 +3,13 @@
     <entry name="protection_domain" type="dict">
         <entry name="name" type="ident" />
         <entry name="domain_size" type="int" optional="false" />
-        <entry name="symbols" type="list" default="[]">
+        <entry name="symbols" type="list" optional="true">
             <entry name="symbol" type="c_ident" />
         </entry>
+        <entry name="base_address" type="int" optional="true" />
+        <constraint name="constraint0" type="one_of">
+            <entry name="symbols">symbols</entry>
+            <entry name="base_address">base_address</entry>
+        </constraint>
     </entry>
 </entry>

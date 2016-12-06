@@ -58,6 +58,11 @@
                   <symbol>dom2_variable_2</symbol>
               </symbols>
           </protection_domain>
+          <protection_domain>
+              <name>peripherals</name>
+              <domain_size>0x20000000</domain_size>
+              <base_address>0x40000000</base_address>
+          </protection_domain>
       </protection_domains>
 
 
@@ -80,6 +85,10 @@
               <domain>
                   <name>dom2</name>
                   <write_access>false</write_access>
+              </domain>
+              <domain>
+                  <name>peripherals</name>
+                  <write_access>true</write_access>
               </domain>
           </associated_domains>
         </task>

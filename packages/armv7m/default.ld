@@ -74,6 +74,8 @@ SECTIONS
 
         {{#rtos.memory_protection}}
         /* Sections that encapsulate protection domains.
+         *
+         * SYMBOL DOMAINS:
          * This includes symbols that would normally occupy the .bss or .data
          * segment. They are combined into one section as separating the two
          * would give us half as many simultaneous protection domains. We
@@ -83,11 +85,22 @@ SECTIONS
          *
          * We must align to the power-of-2 domain size at the beginning
          * and at the end of each domain to ensure that the MPU region we set up
-         * encompasses the entire protection region, and nothing else. */
+         * encompasses the entire protection region, and nothing else.
+         *
+         * ADDRESS DOMAINS:
+         * These simply use a base address and size to declare a domain. */
         {{#rtos.protection_domains}}
 
         dummy = ASSERT({{domain_size}} == (1 << LOG2CEIL({{domain_size}})), "Protection domain {{name}} has size that is not power-of-2.");
 
+        {{#base_address}}
+        /* Address domain */
+        linker_domain_{{name}}_start = {{base_address}};
+        linker_domain_{{name}}_size = {{domain_size}};
+        {{/base_address}}
+
+        {{^base_address}}
+        /* Symbol domain */
         .domain_{{name}} (COPY):
         {
             . = ALIGN({{domain_size}});
@@ -102,6 +115,7 @@ SECTIONS
         linker_domain_{{name}}_size = SIZEOF(.domain_{{name}});
 
         dummy = ASSERT(linker_domain_{{name}}_size == {{domain_size}}, "Failed to fit symbols in protection domain: {{name}}");
+        {{/base_address}}
 
         {{/rtos.protection_domains}}
         {{/rtos.memory_protection}}
@@ -110,10 +124,12 @@ SECTIONS
         data_virt_addr = ADDR(.data.bitband);
         data_size = SIZEOF(.data.bitband) + SIZEOF(.data)
             {{#rtos.memory_protection}}
-            /* We must increase the .data size by our protection domain sizes
+            /* We must increase the .data size by our symbol protection domain sizes
              * so that they are appropriately initialized when the RTOS starts */
             {{#rtos.protection_domains}}
+            {{^base_address}}
             + SIZEOF(.domain_{{name}})
+            {{/base_address}}
             {{/rtos.protection_domains}}
             {{/rtos.memory_protection}}
             ;
