@@ -61,16 +61,12 @@ fn_a(void)
 {
     for (;;)
     {
-        int x = 0;
         debug_println("task a");
         debug_print("ptr: ");
         debug_printhex32((uint32_t)&dom1_variable_1);
-        debug_printhex32((uint32_t)&x);
         debug_println("");
-        x = dom1_variable_1;
+        dom1_variable_1 = 3;
         rtos_yield_to(1);
-        int read_b = REGISTER(0x20000fec);
-        ++read_b;
     }
 }
 
@@ -82,8 +78,10 @@ fn_b(void)
         int x = 0;
         debug_println("task b");
         debug_print("ptr: ");
-        debug_printhex32((uint32_t)&x);
+        debug_printhex32((uint32_t)&dom1_variable_1);
         debug_println("");
+        x = dom1_variable_1;
+        ++x;
         rtos_yield_to(0);
     }
 }

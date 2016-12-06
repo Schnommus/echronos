@@ -106,11 +106,31 @@
 /*| types |*/
 
 /*| structures |*/
+struct mpu_region {
+    uint32_t base_addr;
+    uint32_t flags;
+};
+
+{{#tasks}}
+static struct mpu_region mpu_regions_task_{{idx}}[MPU_MAX_REGIONS-1];
+{{/tasks}}
 
 /*| extern_declarations |*/
 {{#memory_protection}}
+/* These declarations allow us to use symbols that were declared inside the
+ * linker script. For flash & sram this is necessary as these parameters
+ * are part of the vectable module. For protection domains, this is necessary
+ * as the location of protection domains is computed at link-time.
+ *
+ * Note the *address* of these symbols must be taken to get their value */
 extern uint32_t linker_flash_size;
 extern uint32_t linker_sram_size;
+
+{{#protection_domains}}
+extern uint32_t linker_domain_{{name}}_start;
+extern uint32_t linker_domain_{{name}}_size;
+
+{{/protection_domains}}
 {{/memory_protection}}
 
 /*| function_declarations |*/
@@ -241,6 +261,48 @@ mpu_memmanage_interrupt_disable(void) {
 }
 
 void
+mpu_populate_regions() {
+
+    /* Note: region 0 is always the RX-only flash protection region
+     * as set up during MPU initialization, so we use index 0 to
+     * actually store region 1 */
+
+    int i;
+    uint32_t current_region;
+    {{#tasks}}
+    /* Wipe all the region flags */
+    for(i = 0; i != MPU_MAX_REGIONS-1; ++i) {
+        mpu_regions_task_{{idx}}[i].flags = 0;
+    }
+
+    current_region = 0;
+
+    /* Set up the stack region for this task */
+    mpu_regions_task_{{idx}}[current_region].flags =
+        mpu_bytes_to_region_size_flag({{stack_size}}*sizeof(uint32_t)) |
+        MPU_RGN_PERM_NOEXEC | MPU_RGN_PERM_PRV_RW_USR_RW | MPU_RGN_ENABLE;
+    mpu_regions_task_{{idx}}[current_region].base_addr =
+        (uint32_t)&stack_{{idx}};
+
+    /* Initialize the protection domain regions for this task */
+    {{#associated_domains}}
+    ++current_region;
+    mpu_regions_task_{{idx}}[current_region].base_addr =
+        linker_symbol_value(linker_domain_{{name}}_start);
+    mpu_regions_task_{{idx}}[current_region].flags =
+        mpu_bytes_to_region_size_flag(
+            linker_symbol_value(linker_domain_{{name}}_size)) |
+            MPU_RGN_PERM_NOEXEC |
+            {{#write_access}}MPU_RGN_PERM_PRV_RW_USR_RW |{{/write_access}}
+            {{^write_access}}MPU_RGN_PERM_PRV_RO_USR_RO |{{/write_access}}
+            MPU_RGN_ENABLE;
+
+    {{/associated_domains}}
+    {{/tasks}}
+}
+
+
+void
 mpu_initialize(void) {
 
     /* We will only give tasks access to:
@@ -256,6 +318,8 @@ mpu_initialize(void) {
     uint32_t flash_size = linker_symbol_value(linker_flash_size);
     mpu_region_set(0, CODE_BASE, mpu_bytes_to_region_size_flag(flash_size) |
                    MPU_RGN_PERM_EXEC | MPU_RGN_PERM_PRV_RO_USR_RO | MPU_RGN_ENABLE);
+
+    mpu_populate_regions();
 
     /* Enable the memmanage interrupt */
     mpu_memmanage_interrupt_enable();
@@ -275,20 +339,17 @@ uint32_t mpu_bytes_to_region_size_flag(uint32_t bytes) {
     return ((__builtin_ctz(bytes) - 1) << 1);
 }
 
+
 void
 mpu_configure_for_task(const {{prefix_type}}TaskId to) {
 
-    uint32_t stack_region_size_flag = 0;
-    uint32_t stack_region_base_addr = 0;
-
     /* Grab attributes relevant to our task */
+    struct mpu_region *this_regions = 0;
+
     switch(to) {
     {{#tasks}}
         case {{idx}}:
-            stack_region_size_flag =
-                mpu_bytes_to_region_size_flag({{stack_size}}*sizeof(uint32_t));
-            stack_region_base_addr =
-                (uint32_t)&stack_{{idx}};
+            this_regions = mpu_regions_task_{{idx}};
         break;
     {{/tasks}}
     }
@@ -296,17 +357,13 @@ mpu_configure_for_task(const {{prefix_type}}TaskId to) {
     /* Note: region 0 is always the RX-only flash protection region
      * as set up during MPU initialization */
 
-    /* Set up a stack region for this task */
-    mpu_region_set(1, stack_region_base_addr,
-                   stack_region_size_flag | MPU_RGN_PERM_NOEXEC |
-                   MPU_RGN_PERM_PRV_RW_USR_RW | MPU_RGN_ENABLE);
-
-    uint32_t last_region = 1;
-
-    /* Disable all the regions we aren't using */
-    int i = last_region+1;
-    for(; i != MPU_MAX_REGIONS; ++i) {
-        mpu_region_disable(i);
+    int i = 0;
+    for(; i != MPU_MAX_REGIONS-1; ++i) {
+        if(this_regions[i].flags) {
+            mpu_region_set(i+1, this_regions[i].base_addr, this_regions[i].flags);
+        } else {
+            mpu_region_disable(i+1);
+        }
     }
 }
 {{/memory_protection}}

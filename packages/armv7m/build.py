@@ -35,9 +35,9 @@ def run(system, configuration=None):
 
 def system_build(system):
     inc_path_args = ['-I%s' % i for i in system.include_paths]
-    common_flags = ['-mthumb', '-march=armv7-m', '-g3']
+    common_flags = ['-mthumb', '-march=armv7-m', '-g']
     a_flags = common_flags
-    c_flags = common_flags + ['-Os']
+    c_flags = common_flags + ['-O0']
 
     # Compile all C files.
     c_obj_files = [os.path.join(system.output, os.path.basename(c.replace('.c', '.o'))) for c in system.c_files]

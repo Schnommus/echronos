@@ -72,6 +72,16 @@
           <name>a</name>
           <function>fn_a</function>
           <stack_size>256</stack_size>
+          <associated_domains>
+              <domain>
+                  <name>dom1</name>
+                  <write_access>true</write_access>
+              </domain>
+              <domain>
+                  <name>dom2</name>
+                  <write_access>false</write_access>
+              </domain>
+          </associated_domains>
         </task>
 
         <task>
