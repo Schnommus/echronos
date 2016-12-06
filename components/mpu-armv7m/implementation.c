@@ -106,14 +106,14 @@
 /*| types |*/
 
 /*| structures |*/
+{{#memory_protection}}
 struct mpu_region {
     uint32_t base_addr;
     uint32_t flags;
 };
 
-{{#tasks}}
-static struct mpu_region mpu_regions_task_{{idx}}[MPU_MAX_REGIONS-1];
-{{/tasks}}
+static struct mpu_region mpu_regions[{{tasks.length}}][MPU_MAX_REGIONS-1];
+{{/memory_protection}}
 
 /*| extern_declarations |*/
 {{#memory_protection}}
@@ -267,37 +267,24 @@ mpu_populate_regions() {
      * as set up during MPU initialization, so we use index 0 to
      * actually store region 1 */
 
-    int i;
-    uint32_t current_region;
+    /* We assume that mpu_regions has been initialized to zero
+     * as it sits in the .bss section */
+
     {{#tasks}}
-    /* Wipe all the region flags */
-    for(i = 0; i != MPU_MAX_REGIONS-1; ++i) {
-        mpu_regions_task_{{idx}}[i].flags = 0;
-    }
-
-    current_region = 0;
-
-    /* Set up the stack region for this task */
-    mpu_regions_task_{{idx}}[current_region].flags =
+    /* Protection domains for task: {{name}} */
+    {{#associated_domains}}
+    mpu_regions[{{idx}}][{{domx}}].base_addr = linker_symbol_value(linker_domain_{{name}}_start);
+    mpu_regions[{{idx}}][{{domx}}].flags =
+        mpu_bytes_to_region_size_flag(linker_symbol_value(linker_domain_{{name}}_size)) |
+            MPU_RGN_PERM_NOEXEC | {{#write_access}}MPU_RGN_PERM_PRV_RW_USR_RW |{{/write_access}}
+            {{^write_access}}MPU_RGN_PERM_PRV_RO_USR_RO |{{/write_access}} MPU_RGN_ENABLE;
+    {{/associated_domains}}
+    /* Stack region for task: {{name}} */
+    mpu_regions[{{idx}}][{{associated_domains.length}}].flags =
         mpu_bytes_to_region_size_flag({{stack_size}}*sizeof(uint32_t)) |
         MPU_RGN_PERM_NOEXEC | MPU_RGN_PERM_PRV_RW_USR_RW | MPU_RGN_ENABLE;
-    mpu_regions_task_{{idx}}[current_region].base_addr =
-        (uint32_t)&stack_{{idx}};
+    mpu_regions[{{idx}}][{{associated_domains.length}}].base_addr = (uint32_t)&stack_{{idx}};
 
-    /* Initialize the protection domain regions for this task */
-    {{#associated_domains}}
-    ++current_region;
-    mpu_regions_task_{{idx}}[current_region].base_addr =
-        linker_symbol_value(linker_domain_{{name}}_start);
-    mpu_regions_task_{{idx}}[current_region].flags =
-        mpu_bytes_to_region_size_flag(
-            linker_symbol_value(linker_domain_{{name}}_size)) |
-            MPU_RGN_PERM_NOEXEC |
-            {{#write_access}}MPU_RGN_PERM_PRV_RW_USR_RW |{{/write_access}}
-            {{^write_access}}MPU_RGN_PERM_PRV_RO_USR_RO |{{/write_access}}
-            MPU_RGN_ENABLE;
-
-    {{/associated_domains}}
     {{/tasks}}
 }
 
@@ -319,6 +306,7 @@ mpu_initialize(void) {
     mpu_region_set(0, CODE_BASE, mpu_bytes_to_region_size_flag(flash_size) |
                    MPU_RGN_PERM_EXEC | MPU_RGN_PERM_PRV_RO_USR_RO | MPU_RGN_ENABLE);
 
+    /* fill up our region table for each task */
     mpu_populate_regions();
 
     /* Enable the memmanage interrupt */
@@ -343,24 +331,19 @@ uint32_t mpu_bytes_to_region_size_flag(uint32_t bytes) {
 void
 mpu_configure_for_task(const {{prefix_type}}TaskId to) {
 
-    /* Grab attributes relevant to our task */
-    struct mpu_region *this_regions = 0;
-
-    switch(to) {
-    {{#tasks}}
-        case {{idx}}:
-            this_regions = mpu_regions_task_{{idx}};
-        break;
-    {{/tasks}}
-    }
-
     /* Note: region 0 is always the RX-only flash protection region
-     * as set up during MPU initialization */
+     * as set up during MPU initialization, so we do not touch that.
+     * To save space, mpu_regions[x][0] corresponds to MPU region 1.*/
+
+    /* We simply enable and set parameters for the regions we are using
+     * and then disable all the regions that we aren't */
 
     int i = 0;
     for(; i != MPU_MAX_REGIONS-1; ++i) {
-        if(this_regions[i].flags) {
-            mpu_region_set(i+1, this_regions[i].base_addr, this_regions[i].flags);
+        if(mpu_regions[to][i].flags) {
+            mpu_region_set(i+1,
+                    mpu_regions[to][i].base_addr,
+                    mpu_regions[to][i].flags);
         } else {
             mpu_region_disable(i+1);
         }

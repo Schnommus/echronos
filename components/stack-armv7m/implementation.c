@@ -13,8 +13,12 @@
 /*| function_declarations |*/
 
 /*| state |*/
+{{#memory_protection}}
+/* We need to align stack addresses on their size to create a valid MPU region.
+ * Additionally, we place the stack in a specially named section so that
+ * we are able to see where the linker places it and configure the MPU accordingly. */
+{{/memory_protection}}
 {{#tasks}}
-/* We need to align stack addresses on their size to create a valid MPU region */
 {{#memory_protection}}
 static uint32_t stack_{{idx}}[{{stack_size}}]
     __attribute__(( aligned({{stack_size}}*sizeof(uint32_t)) ))

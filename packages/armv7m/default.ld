@@ -126,7 +126,11 @@ SECTIONS
         .bss :
         {
             {{#rtos.memory_protection}}
-            *(.bss.stack.task_*)
+            {{#rtos.tasks}}
+            dummy = ASSERT({{stack_size}} == (1 << LOG2CEIL({{stack_size}})),
+                           "Stack size for task: {{name}} is not a power-of-2.");
+            *(.bss.stack.task_{{idx}})
+            {{/rtos.tasks}}
             {{/rtos.memory_protection}}
             *(.bss*)
             . = ALIGN(4);
