@@ -39,3 +39,15 @@ debug_putc:
         pop {r0, pc}
 
 .size debug_putc, .-debug_putc
+
+.global debug_puts
+.type debug_puts,#function
+
+debug_puts:
+        mov r1, r0
+        push {r0, lr}
+        mov r0, #4
+        bkpt 0xab
+        pop {r0, pc}
+
+.size debug_puts, .-debug_puts
