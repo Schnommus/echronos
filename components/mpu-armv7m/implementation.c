@@ -276,19 +276,19 @@ mpu_populate_regions() {
     #if {{associated_domains.length}} > MPU_MAX_ASSOCIATED_DOMAINS
     #error "Too many associated domains for task: {{name}}"
     #endif
+    /* Stack region for task: {{name}} */
+    mpu_regions[{{idx}}][0].flags =
+        mpu_bytes_to_region_size_flag({{stack_size}}*sizeof(uint32_t)) |
+        MPU_RGN_PERM_NOEXEC | MPU_RGN_PERM_PRV_RW_USR_RW | MPU_RGN_ENABLE;
+    mpu_regions[{{idx}}][0].base_addr = (uint32_t)&stack_{{idx}};
     /* Protection domains for task: {{name}} */
     {{#associated_domains}}
-    mpu_regions[{{idx}}][{{domx}}].base_addr = linker_symbol_value(linker_domain_{{name}}_start);
-    mpu_regions[{{idx}}][{{domx}}].flags =
+    mpu_regions[{{idx}}][{{domx}}+1].base_addr = linker_symbol_value(linker_domain_{{name}}_start);
+    mpu_regions[{{idx}}][{{domx}}+1].flags =
         mpu_bytes_to_region_size_flag(linker_symbol_value(linker_domain_{{name}}_size)) |
             MPU_RGN_PERM_NOEXEC | {{#write_access}}MPU_RGN_PERM_PRV_RW_USR_RW |{{/write_access}}
             {{^write_access}}MPU_RGN_PERM_PRV_RO_USR_RO |{{/write_access}} MPU_RGN_ENABLE;
     {{/associated_domains}}
-    /* Stack region for task: {{name}} */
-    mpu_regions[{{idx}}][{{associated_domains.length}}].flags =
-        mpu_bytes_to_region_size_flag({{stack_size}}*sizeof(uint32_t)) |
-        MPU_RGN_PERM_NOEXEC | MPU_RGN_PERM_PRV_RW_USR_RW | MPU_RGN_ENABLE;
-    mpu_regions[{{idx}}][{{associated_domains.length}}].base_addr = (uint32_t)&stack_{{idx}};
 
     {{/tasks}}
 }

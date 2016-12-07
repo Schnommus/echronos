@@ -91,10 +91,14 @@ SECTIONS
          * These simply use a base address and size to declare a domain. */
         {{#rtos.protection_domains}}
 
-        dummy = ASSERT({{domain_size}} == (1 << LOG2CEIL({{domain_size}})), "Protection domain {{name}} has size that is not power-of-2.");
+        dummy = ASSERT({{domain_size}} == (1 << LOG2CEIL({{domain_size}})),
+            "Protection domain {{name}} has size that is not power-of-2.");
 
         {{#base_address}}
         /* Address domain */
+        dummy = ASSERT({{base_address}} % {{domain_size}} == 0,
+            "Address protection domain {{name}} has base address not aligned to its size");
+
         linker_domain_{{name}}_start = {{base_address}};
         linker_domain_{{name}}_size = {{domain_size}};
         {{/base_address}}
@@ -105,7 +109,7 @@ SECTIONS
         {
             . = ALIGN({{domain_size}});
             {{#symbols}}
-            dummy = ASSERT(DEFINED({{.}}), "{{.}} not defined");
+            dummy = ASSERT(DEFINED({{.}}), "Domain symbol {{.}} not defined");
             *(*.{{.}})
             {{/symbols}}
             . = ALIGN({{domain_size}});
@@ -114,7 +118,8 @@ SECTIONS
         linker_domain_{{name}}_start = ADDR(.domain_{{name}});
         linker_domain_{{name}}_size = SIZEOF(.domain_{{name}});
 
-        dummy = ASSERT(linker_domain_{{name}}_size == {{domain_size}}, "Failed to fit symbols in protection domain: {{name}}");
+        dummy = ASSERT(linker_domain_{{name}}_size == {{domain_size}},
+            "Failed to fit symbols in protection domain: {{name}}");
         {{/base_address}}
 
         {{/rtos.protection_domains}}
