@@ -90,6 +90,11 @@ SECTIONS
          * and at the end of each domain to ensure that the MPU region we set up
          * encompasses the entire protection region, and nothing else.
          *
+         * One can include symbols by specifying either a c identifier or
+         * an object file. In practice, it should be very difficult to get
+         * these confused as an object file is an invalid c identifier, and
+         * a c identifier is much more narrow-grained then an object file.
+         *
          * ADDRESS DOMAINS:
          * These simply use a base address and size to declare a domain. */
         {{#rtos.protection_domains}}
@@ -112,8 +117,8 @@ SECTIONS
         {
             . = ALIGN({{domain_size}});
             {{#symbols}}
-            dummy = ASSERT(DEFINED({{.}}), "Domain symbol {{.}} not defined");
-            *(*.{{.}})
+            *(.data.{{.}} .bss.{{.}}) /* C identifier? put here */
+            *{{.}} (.data* .bss*)     /* Object file? put here */
             {{/symbols}}
             . = ALIGN({{domain_size}});
         } > sram_region AT > flash_region
