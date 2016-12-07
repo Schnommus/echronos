@@ -37,6 +37,9 @@ MEMORY
 
 SECTIONS
 {
+        dummy = ASSERT({{flash_size}} == (1 << LOG2CEIL({{flash_size}})),
+            "Flash region has size that is not power-of-2.");
+
         . = {{code_addr}};
 
         .vectors :
