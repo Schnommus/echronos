@@ -11,12 +11,9 @@
 #define MPU_NUMBER                  0xE000ED98  /* MPU Region Number               */
 #define MPU_BASE                    0xE000ED9C  /* MPU Region Base Address         */
 #define MPU_ATTR                    0xE000EDA0  /* MPU Region Attribute and Size   */
-#define MPU_BASE1                   0xE000EDA4  /* MPU Region Base Address Alias 1 */
-#define MPU_ATTR1                   0xE000EDA8  /* MPU Region Attribute and Size ^ */
-#define MPU_BASE2                   0xE000EDAC  /* MPU Region Base Address Alias 2 */
-#define MPU_ATTR2                   0xE000EDB0  /* MPU Region Attribute and Size ^ */
-#define MPU_BASE3                   0xE000EDB4  /* MPU Region Base Address Alias 3 */
-#define MPU_ATTR3                   0xE000EDB8  /* MPU Region Attribute and Size ^ */
+                                                /* We exclude the additional alias
+                                                 * regions as they are unavailable
+                                                 * on some processors */
 
 /* MPU type bitfields */
 #define MPU_TYPE_IREGION_M          0x00FF0000  /* Number of I Regions             */
@@ -50,14 +47,11 @@
 #define MPU_RGN_DISABLE             0
 
 /* MPU region permission flags */
-#define MPU_RGN_PERM_EXEC           0x00000000
-#define MPU_RGN_PERM_NOEXEC         0x10000000
-#define MPU_RGN_PERM_PRV_NO_USR_NO  0x00000000
-#define MPU_RGN_PERM_PRV_RW_USR_NO  0x01000000
-#define MPU_RGN_PERM_PRV_RW_USR_RO  0x02000000
-#define MPU_RGN_PERM_PRV_RW_USR_RW  0x03000000
-#define MPU_RGN_PERM_PRV_RO_USR_NO  0x05000000
-#define MPU_RGN_PERM_PRV_RO_USR_RO  0x06000000
+#define MPU_P_EXEC                  0x00000000
+#define MPU_P_NOEXEC                0x10000000
+#define MPU_P_NO                    0x00000000  /* No access for privileged or user access */
+#define MPU_P_RO                    0x06000000  /* Read-only for privileged or user access */
+#define MPU_P_RW                    0x03000000  /* Read-Write for privileged or user access */
 
 /* MPU special region permission flags */
 #define MPU_ATTR_TEX_M              0x00380000
@@ -124,14 +118,13 @@ static struct mpu_region mpu_regions[{{tasks.length}}][MPU_MAX_REGIONS-1];
  * are part of the vectable module. For protection domains, this is necessary
  * as the location of protection domains is computed at link-time.
  *
- * Note the *address* of these symbols must be taken to get their value */
+ * Note the *address* of these symbols must be taken to get their value.
+ * This should always be through the 'linker_value' macro defined below.*/
 extern uint32_t linker_flash_size;
 extern uint32_t linker_sram_size;
-
 {{#protection_domains}}
 extern uint32_t linker_domain_{{name}}_start;
 extern uint32_t linker_domain_{{name}}_size;
-
 {{/protection_domains}}
 {{/memory_protection}}
 
@@ -146,7 +139,7 @@ void mpu_region_set(uint32_t mpu_region, uint32_t mpu_addr, uint32_t mpu_flags);
 void mpu_region_get(uint32_t mpu_region, uint32_t *mpu_addr_ptr, uint32_t *mpu_flags_ptr);
 void mpu_memmanage_interrupt_enable(void);
 void mpu_memmanage_interrupt_disable(void);
-uint32_t mpu_bytes_to_region_size_flag(uint32_t bytes);
+uint32_t mpu_region_size_flag(uint32_t bytes);
 void mpu_configure_for_task(const {{prefix_type}}TaskId to);
 {{/memory_protection}}
 
@@ -156,7 +149,7 @@ void mpu_configure_for_task(const {{prefix_type}}TaskId to);
 {{#memory_protection}}
 #define REGISTER(x) (*((volatile uint32_t *)(x)))
 #define is_power_of_2(x) (x && !(x & (x - 1)))
-#define linker_symbol_value(x) ((uint32_t)&x)
+#define linker_value(x) ((uint32_t)&x)
 {{/memory_protection}}
 
 /*| functions |*/
@@ -272,25 +265,31 @@ mpu_populate_regions() {
     /* We assume that mpu_regions has been initialized to zero
      * as it sits in the .bss section */
 
-    {{#tasks}}
+{{#tasks}}
     #if {{associated_domains.length}} > MPU_MAX_ASSOCIATED_DOMAINS
     #error "Too many associated domains for task: {{name}}"
     #endif
+
     /* Stack region for task: {{name}} */
     mpu_regions[{{idx}}][0].flags =
-        mpu_bytes_to_region_size_flag({{stack_size}}*sizeof(uint32_t)) |
-        MPU_RGN_PERM_NOEXEC | MPU_RGN_PERM_PRV_RW_USR_RW | MPU_RGN_ENABLE;
+        mpu_region_size_flag({{stack_size}}*sizeof(uint32_t)) |
+        MPU_P_NOEXEC | MPU_P_RW | MPU_RGN_ENABLE;
     mpu_regions[{{idx}}][0].base_addr = (uint32_t)&stack_{{idx}};
-    /* Protection domains for task: {{name}} */
-    {{#associated_domains}}
-    mpu_regions[{{idx}}][{{domx}}+1].base_addr = linker_symbol_value(linker_domain_{{name}}_start);
-    mpu_regions[{{idx}}][{{domx}}+1].flags =
-        mpu_bytes_to_region_size_flag(linker_symbol_value(linker_domain_{{name}}_size)) |
-            MPU_RGN_PERM_NOEXEC | {{#write_access}}MPU_RGN_PERM_PRV_RW_USR_RW |{{/write_access}}
-            {{^write_access}}MPU_RGN_PERM_PRV_RO_USR_RO |{{/write_access}} MPU_RGN_ENABLE;
-    {{/associated_domains}}
 
-    {{/tasks}}
+    /* Protection domains for task: {{name}} */
+{{#associated_domains}}
+{{#writeable}}{{^readable}}
+   #error "Write-only permissions unsupported on armv7m. Domain: {{name}}"
+{{/readable}}{{/writeable}}
+    mpu_regions[{{idx}}][{{domx}}+1].base_addr = linker_value(linker_domain_{{name}}_start);
+    mpu_regions[{{idx}}][{{domx}}+1].flags =
+        mpu_region_size_flag(linker_value(linker_domain_{{name}}_size)) | MPU_RGN_ENABLE |
+            {{#readable}}{{^writeable}}MPU_P_RO |{{/writeable}}{{/readable}} /* Read-only? */
+            {{#writeable}}{{#readable}}MPU_P_RW |{{/readable}}{{/writeable}} /* Read-write? */
+            {{^executable}}MPU_P_NOEXEC{{/executable}}; /* Executable? (no flag = executable) */
+
+{{/associated_domains}}
+{{/tasks}}
 }
 
 
@@ -307,9 +306,9 @@ mpu_initialize(void) {
      * See AUTOSAR OS specifications v5.0.0 */
 
     /* Create a read-only executable region for our FLASH */
-    uint32_t flash_size = linker_symbol_value(linker_flash_size);
-    mpu_region_set(0, CODE_BASE, mpu_bytes_to_region_size_flag(flash_size) |
-                   MPU_RGN_PERM_EXEC | MPU_RGN_PERM_PRV_RO_USR_RO | MPU_RGN_ENABLE);
+    uint32_t flash_size = linker_value(linker_flash_size);
+    mpu_region_set(0, CODE_BASE, mpu_region_size_flag(flash_size) |
+                   MPU_P_EXEC | MPU_P_RO | MPU_RGN_ENABLE);
 
     /* fill up our region table for each task */
     mpu_populate_regions();
@@ -322,7 +321,7 @@ mpu_initialize(void) {
      * inside a task - it is not enabled here. */
 }
 
-uint32_t mpu_bytes_to_region_size_flag(uint32_t bytes) {
+uint32_t mpu_region_size_flag(uint32_t bytes) {
     /* armv7m MPU only supports regions of 2^n size, above 32 bytes */
     internal_assert(is_power_of_2(bytes), ERROR_ID_MPU_INVALID_REGION_SIZE);
     internal_assert(bytes >= 32, ERROR_ID_MPU_INVALID_REGION_SIZE);

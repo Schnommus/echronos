@@ -80,15 +80,14 @@
           <associated_domains>
               <domain>
                   <name>dom1</name>
-                  <write_access>true</write_access>
               </domain>
               <domain>
                   <name>dom2</name>
-                  <write_access>false</write_access>
+                  <writeable>true</writeable>
               </domain>
               <domain>
                   <name>peripherals</name>
-                  <write_access>true</write_access>
+                  <writeable>true</writeable>
               </domain>
           </associated_domains>
         </task>
