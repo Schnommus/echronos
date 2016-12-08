@@ -147,79 +147,87 @@ void mpu_configure_for_task(const {{prefix_type}}TaskId to);
 
 /*| function_like_macros |*/
 {{#memory_protection}}
-#define REGISTER(x) (*((volatile uint32_t *)(x)))
-#define is_power_of_2(x) (x && !(x & (x - 1)))
+#define hardware_register(x) (*((volatile uint32_t *)(x)))
+#define is_pow2(x) (x && !(x & (x - 1)))
 #define linker_value(x) ((uint32_t)&x)
 {{/memory_protection}}
 
 /*| functions |*/
 {{#memory_protection}}
-void
-mpu_enable(void) {
-    internal_assert( !(REGISTER(MPU_CTRL) & MPU_CTRL_ENABLE),
-                ERROR_ID_MPU_ALREADY_ENABLED );
-
-    /* Make the MPU fault in privileged mode, but disable it during a hard fault */
-    REGISTER(MPU_CTRL) &= ~(MPU_CONFIG_PRIV_DEFAULT | MPU_CONFIG_HARDFLT_NMI);
-
-    /* Turn on the MPU */
-    REGISTER(MPU_CTRL) = MPU_CTRL_ENABLE;
+bool
+mpu_is_enabled(void)
+{
+    return (hardware_register(MPU_CTRL) & MPU_CTRL_ENABLE);
 }
 
 void
-mpu_disable(void) {
-    internal_assert( REGISTER(MPU_CTRL) & MPU_CTRL_ENABLE,
-                ERROR_ID_MPU_ALREADY_DISABLED );
+mpu_enable(void)
+{
+    internal_assert(!mpu_is_enabled(), ERROR_ID_MPU_ALREADY_ENABLED );
 
-    REGISTER(MPU_CTRL) &= ~MPU_CTRL_ENABLE;
+    /* Turn on the MPU */
+    hardware_register(MPU_CTRL) = MPU_CTRL_ENABLE;
+}
+
+void
+mpu_disable(void)
+{
+    internal_assert(mpu_is_enabled(), ERROR_ID_MPU_ALREADY_DISABLED);
+
+    hardware_register(MPU_CTRL) &= ~MPU_CTRL_ENABLE;
 }
 
 /* Gets the number of hardware regions supported by this MPU */
 uint32_t
-mpu_hardware_regions_supported(void) {
+mpu_hardware_regions_supported(void)
+{
     /* Read the DREGION field of the MPU type register and mask off   */
     /* the bits of interest to get the count of regions.              */
-    return ((REGISTER(MPU_TYPE) & MPU_TYPE_DREGION_M) >> MPU_TYPE_DREGION_S);
+    return ((hardware_register(MPU_TYPE) & MPU_TYPE_DREGION_M) >> MPU_TYPE_DREGION_S);
 }
 
 /* Does our hardware have unified I & D regions? */
 uint32_t
-mpu_hardware_is_unified(void) {
-    return !((REGISTER(MPU_TYPE) & MPU_TYPE_SEPARATE);
+mpu_hardware_is_unified(void)
+{
+    return !((hardware_register(MPU_TYPE) & MPU_TYPE_SEPARATE);
 }
 
 void
-mpu_region_enable(uint32_t mpu_region) {
+mpu_region_enable(uint32_t mpu_region)
+{
     internal_assert(mpu_region < MPU_MAX_REGIONS,
-               ERROR_ID_MPU_INTERNAL_INVALID_REGION_INDEX);
+                    ERROR_ID_MPU_INTERNAL_INVALID_REGION_INDEX);
 
     /* Pick the region we want to modify */
-    REGISTER(MPU_NUMBER) = mpu_region;
+    hardware_register(MPU_NUMBER) = mpu_region;
 
     /* Enable this region */
-    REGISTER(MPU_ATTR) |= MPU_ATTR_ENABLE;
+    hardware_register(MPU_ATTR) |= MPU_ATTR_ENABLE;
 }
 
 void
-mpu_region_disable(uint32_t mpu_region) {
+mpu_region_disable(uint32_t mpu_region)
+{
     internal_assert(mpu_region < MPU_MAX_REGIONS,
-               ERROR_ID_MPU_INTERNAL_INVALID_REGION_INDEX);
+                    ERROR_ID_MPU_INTERNAL_INVALID_REGION_INDEX);
 
-    REGISTER(MPU_NUMBER) = mpu_region;
-    REGISTER(MPU_ATTR) &= ~MPU_ATTR_ENABLE;
+    hardware_register(MPU_NUMBER) = mpu_region;
+    hardware_register(MPU_ATTR) &= ~MPU_ATTR_ENABLE;
 }
 
 void
-mpu_region_set(uint32_t mpu_region, uint32_t mpu_addr, uint32_t mpu_flags) {
+mpu_region_set(uint32_t mpu_region, uint32_t mpu_addr, uint32_t mpu_flags)
+{
     internal_assert(mpu_region < MPU_MAX_REGIONS,
-               ERROR_ID_MPU_INTERNAL_INVALID_REGION_INDEX);
+                    ERROR_ID_MPU_INTERNAL_INVALID_REGION_INDEX);
 
     /* Check that the address is size-aligned as required */
     internal_assert(mpu_addr == (mpu_addr & ~0 << (((mpu_flags & MPU_ATTR_SIZE_M) >> 1) + 1)),
-               ERROR_ID_MPU_INTERNAL_MISALIGNED_ADDR);
+                    ERROR_ID_MPU_INTERNAL_MISALIGNED_ADDR);
 
     /* Select the region and set the base address at the same time */
-    REGISTER(MPU_BASE) = mpu_addr | mpu_region | MPU_BASE_VALID;
+    hardware_register(MPU_BASE) = mpu_addr | mpu_region | MPU_BASE_VALID;
 
     /* Set region attributes, with fixed values for:
      * Type Extension Mask = 0
@@ -228,42 +236,45 @@ mpu_region_set(uint32_t mpu_region, uint32_t mpu_addr, uint32_t mpu_flags) {
      * Bufferable = 1
      * These options should be fine on most devices, with a performance
      * penalty on armv7m processors that have a cache. This is rare though. */
-    REGISTER(MPU_ATTR) = ((mpu_flags & ~(MPU_ATTR_TEX_M | MPU_ATTR_CACHEABLE)) |
-                        MPU_ATTR_SHAREABLE | MPU_ATTR_BUFFRABLE);
+    hardware_register(MPU_ATTR) = ((mpu_flags & ~(MPU_ATTR_TEX_M | MPU_ATTR_CACHEABLE)) |
+                                  MPU_ATTR_SHAREABLE | MPU_ATTR_BUFFRABLE);
 }
 
 void
-mpu_region_get(uint32_t mpu_region, uint32_t *mpu_addr_ptr, uint32_t *mpu_flags_ptr) {
+mpu_region_get(uint32_t mpu_region, uint32_t *mpu_addr_ptr, uint32_t *mpu_flags_ptr)
+{
     internal_assert(mpu_region < MPU_MAX_REGIONS,
-               ERROR_ID_MPU_INTERNAL_INVALID_REGION_INDEX);
+                    ERROR_ID_MPU_INTERNAL_INVALID_REGION_INDEX);
 
     internal_assert(mpu_addr_ptr && mpu_flags_ptr,
-               ERROR_ID_MPU_INTERNAL_INVALID_PTR);
+                    ERROR_ID_MPU_INTERNAL_INVALID_PTR);
 
     /* Set the MPU region and then grab our data */
-    REGISTER(MPU_NUMBER) = mpu_region;
-    *mpu_addr_ptr = REGISTER(MPU_BASE) & MPU_BASE_ADDR_M;
-    *mpu_flags_ptr = REGISTER(MPU_ATTR);
+    hardware_register(MPU_NUMBER) = mpu_region;
+    *mpu_addr_ptr = hardware_register(MPU_BASE) & MPU_BASE_ADDR_M;
+    *mpu_flags_ptr = hardware_register(MPU_ATTR);
 }
 
 void
-mpu_memmanage_interrupt_enable(void) {
+mpu_memmanage_interrupt_enable(void)
+{
     /* Clear the NVIC FSR as it starts off as junk */
-    uint32_t fault_stat = REGISTER(NVIC_FAULT_STAT);
-    REGISTER(NVIC_FAULT_STAT) = fault_stat;
+    uint32_t fault_stat = hardware_register(NVIC_FAULT_STAT);
+    hardware_register(NVIC_FAULT_STAT) = fault_stat;
 
     /* Enable the interrupt */
-    REGISTER(SYS_HND_CTRL) |= SYS_HND_CTRL_MEM;
+    hardware_register(SYS_HND_CTRL) |= SYS_HND_CTRL_MEM;
 }
 
 void
-mpu_memmanage_interrupt_disable(void) {
-    REGISTER(SYS_HND_CTRL) &= ~SYS_HND_CTRL_MEM;
+mpu_memmanage_interrupt_disable(void)
+{
+    hardware_register(SYS_HND_CTRL) &= ~SYS_HND_CTRL_MEM;
 }
 
 void
-mpu_populate_regions() {
-
+mpu_populate_regions(void)
+{
     /* Note: region 0 is always the RX-only flash protection region
      * as set up during MPU initialization, so we use index 0 to
      * actually store region 1 */
@@ -302,8 +313,8 @@ mpu_populate_regions() {
 
 
 void
-mpu_initialize(void) {
-
+mpu_initialize(void)
+{
     /* Check hardware registers to see if this processor actually has
      * any MPU hardware. We support MPUs with >= 8 regions and a unified
      * memory model. From the ARM TRM for the Cortex-M series, this
@@ -317,6 +328,9 @@ mpu_initialize(void) {
                     ERROR_ID_MPU_NON_STANDARD);
 
     internal_assert(mpu_hardware_is_unified(), ERROR_ID_MPU_NON_STANDARD);
+
+    /* Make the MPU fault in privileged mode, but disable it during a hard fault */
+    hardware_register(MPU_CTRL) &= ~(MPU_CONFIG_PRIV_DEFAULT | MPU_CONFIG_HARDFLT_NMI);
 
     /* Initially, we will only give tasks access to:
      * - Their own stack
@@ -342,9 +356,11 @@ mpu_initialize(void) {
      * inside a task - it is not enabled here. */
 }
 
-uint32_t mpu_region_size_flag(uint32_t bytes) {
+uint32_t
+mpu_region_size_flag(uint32_t bytes)
+{
     /* armv7m MPU only supports regions of 2^n size, above 32 bytes */
-    internal_assert(is_power_of_2(bytes), ERROR_ID_MPU_INVALID_REGION_SIZE);
+    internal_assert(is_pow2(bytes), ERROR_ID_MPU_INVALID_REGION_SIZE);
     internal_assert(bytes >= 32, ERROR_ID_MPU_INVALID_REGION_SIZE);
 
     /* MPU region size flag for 2^x bytes is (x-1)<<1
@@ -354,8 +370,8 @@ uint32_t mpu_region_size_flag(uint32_t bytes) {
 
 
 void
-mpu_configure_for_task(const {{prefix_type}}TaskId to) {
-
+mpu_configure_for_task(const {{prefix_type}}TaskId to)
+{
     /* Note: region 0 is always the RX-only flash protection region
      * as set up during MPU initialization, so we do not touch that.
      * To save space, mpu_regions[x][0] corresponds to MPU region 1.*/
@@ -374,15 +390,13 @@ mpu_configure_for_task(const {{prefix_type}}TaskId to) {
         }
     }
 }
-{{/memory_protection}}
 
-/*| public_functions |*/
-{{#memory_protection}}
 bool
-{{prefix_func}}handle_memmanage(void) {
+{{prefix_func}}handle_memmanage(void)
+{
     /* Grab fault address and status */
-    uint32_t fault_address = REGISTER(NVIC_MM_ADDR);
-    uint32_t fault_status  = REGISTER(NVIC_FAULT_STAT);
+    uint32_t fault_address = hardware_register(NVIC_MM_ADDR);
+    uint32_t fault_status  = hardware_register(NVIC_FAULT_STAT);
 
     /* Print these to make debugging easier */
     debug_print("ADR: ");
@@ -392,7 +406,7 @@ bool
     debug_println("");
 
     /* Clear the fault status register */
-    REGISTER(NVIC_FAULT_STAT) = fault_status;
+    hardware_register(NVIC_FAULT_STAT) = fault_status;
 
     /* Turn off the MPU so that the RTOS (outside this handler)
      * is able to operate normally */
@@ -404,3 +418,5 @@ bool
     return true;
 }
 {{/memory_protection}}
+
+/*| public_functions |*/
