@@ -176,10 +176,16 @@ mpu_disable(void) {
 
 /* Gets the number of hardware regions supported by this MPU */
 uint32_t
-mpu_regions_supported_get(void) {
+mpu_hardware_regions_supported(void) {
     /* Read the DREGION field of the MPU type register and mask off   */
     /* the bits of interest to get the count of regions.              */
-    return((REGISTER(MPU_TYPE) & MPU_TYPE_DREGION_M) >> MPU_TYPE_DREGION_S);
+    return ((REGISTER(MPU_TYPE) & MPU_TYPE_DREGION_M) >> MPU_TYPE_DREGION_S);
+}
+
+/* Does our hardware have unified I & D regions? */
+uint32_t
+mpu_hardware_is_unified(void) {
+    return !((REGISTER(MPU_TYPE) & MPU_TYPE_SEPARATE);
 }
 
 void
@@ -263,7 +269,9 @@ mpu_populate_regions() {
      * actually store region 1 */
 
     /* We assume that mpu_regions has been initialized to zero
-     * as it sits in the .bss section */
+     * as it sits in the .bss section. This is important as
+     * we use null regions to check whether to disable them
+     * altogether when switching tasks. */
 
 {{#tasks}}
     #if {{associated_domains.length}} > MPU_MAX_ASSOCIATED_DOMAINS
@@ -279,7 +287,7 @@ mpu_populate_regions() {
     /* Protection domains for task: {{name}} */
 {{#associated_domains}}
 {{#writeable}}{{^readable}}
-   #error "Write-only permissions unsupported on armv7m. Domain: {{name}}"
+    #error "Write-only permissions unsupported on armv7m. Domain: {{name}}"
 {{/readable}}{{/writeable}}
     mpu_regions[{{idx}}][{{domx}}+1].base_addr = linker_value(linker_domain_{{name}}_start);
     mpu_regions[{{idx}}][{{domx}}+1].flags =
@@ -296,14 +304,27 @@ mpu_populate_regions() {
 void
 mpu_initialize(void) {
 
-    /* We will only give tasks access to:
+    /* Check hardware registers to see if this processor actually has
+     * any MPU hardware. We support MPUs with >= 8 regions and a unified
+     * memory model. From the ARM TRM for the Cortex-M series, this
+     * encompasses the Cortex M0+, M3, M4 & M7 series processors.
+     *
+     * The M7 is a bit of a special case in that it has a non-unified
+     * option, however I have not found any silicon vendors that actually
+     * manufacture a chip using a non-unified MPU. */
+
+    internal_assert(mpu_hardware_regions_supported() >= MPU_MAX_REGIONS,
+                    ERROR_ID_MPU_NON_STANDARD);
+
+    internal_assert(mpu_hardware_is_unified(), ERROR_ID_MPU_NON_STANDARD);
+
+    /* Initially, we will only give tasks access to:
      * - Their own stack
-     * - Any specifically annotated shared memory
-     * - Any specifically annotated peripheral memory
+     * - Any specifically annotated extra memory regions.
      * We make code read-only, however we do not protect tasks
      * from reading/executing code that is not theirs. This
      * model of protecting data but not the code is standard.
-     * See AUTOSAR OS specifications v5.0.0 */
+     * See SLOTH, or AUTOSAR OS specifications v5.0.0 */
 
     /* Create a read-only executable region for our FLASH */
     uint32_t flash_size = linker_value(linker_flash_size);
