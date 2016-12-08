@@ -165,6 +165,7 @@ CORE_SKELETONS = {
                Component('simple-mutex'),
                Component('error'),
                Component('task'),
+               Component('mpu', pkg_component=True),
                Component('gatria'),
                ],
     'kraz': [Component('reentrant'),

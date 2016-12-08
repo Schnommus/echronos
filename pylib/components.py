@@ -26,6 +26,7 @@
 #
 
 import os
+import re
 import shutil
 from collections import namedtuple
 import pystache
@@ -117,6 +118,15 @@ def _merge_schema_files(xml_files):
 
     return xml.etree.ElementTree.tostring(merged_schema).decode()
 
+def _annotate_api_functions(public_api_functions):
+    """Given a string containing a bunch of public API functions, will annotate
+    their internals so that the first thing the function does is call an
+    api begin macro, and the last thing it does is call an api end macro."""
+    public_api_functions = re.sub(r'(\{\{prefix_func}}.*\n(\ +.*\n)?\{\n)',
+                                  r'\1    rtos_api_begin();\n', public_api_functions)
+    public_api_functions = re.sub(r'(\n}\n)',
+                                  r'\n    rtos_api_end();\1', public_api_functions)
+    return public_api_functions
 
 def _sort_typedefs(typedef_lines):
     """Given a string containing multiple lines of typedefs, sort the lines so that the typedefs are in the 'correct'
@@ -273,6 +283,8 @@ def _generate(rtos_name, components, pkg_name, search_paths):
             data = "\n".join(c_sections[ss] for c_sections in all_c_sections)
             if ss == 'types':
                 data = _sort_typedefs(data)
+            if ss == 'public_functions':
+                data = _annotate_api_functions(data)
             f.write(data)
             f.write('\n')
 

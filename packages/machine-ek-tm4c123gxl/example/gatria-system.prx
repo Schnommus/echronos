@@ -39,8 +39,6 @@
     <module name="generic.debug" />
 
     <module name="armv7m.rtos-gatria">
-      <svcall_priority>192</svcall_priority>
-      <pendsv_priority>224</pendsv_priority>
       <prefix>rtos</prefix>
       <taskid_size>8</taskid_size>
       <tasks>
@@ -48,13 +46,13 @@
         <task>
           <name>a</name>
           <function>fn_a</function>
-          <stack_size>8192</stack_size>
+          <stack_size>512</stack_size>
         </task>
 
         <task>
           <name>b</name>
           <function>fn_b</function>
-          <stack_size>8192</stack_size>
+          <stack_size>512</stack_size>
         </task>
 
       </tasks>
