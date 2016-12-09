@@ -212,6 +212,8 @@ CORE_SKELETONS = {
               # Please note that the task_start_api pystache tag is used solely to block out a rigel-specific section
               # of the Task Configuration chapter.
               Component('task', {'task_start_api': True}),
+              Component('api-conditions'),
+              Component('mpu', pkg_component=True),
               Component('rigel'),
               ],
     'kochab': [Component('docs'),

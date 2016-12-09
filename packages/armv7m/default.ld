@@ -69,12 +69,6 @@ SECTIONS
         /* Check that bitband variables don't overflow */
         dummy = ASSERT(SIZEOF(.data.bitband) <= {{bitband_size}}, "bitband variables too large");
 
-        .data :
-        {
-            *(.data)
-            . = ALIGN(4);
-        } > sram_region AT > flash_region
-
         {{#rtos.memory_protection}}
         /* Sections that encapsulate protection domains.
          *
@@ -132,6 +126,12 @@ SECTIONS
 
         {{/rtos.protection_domains}}
         {{/rtos.memory_protection}}
+
+        .data :
+        {
+            *(.data*)
+            . = ALIGN(4);
+        } > sram_region AT > flash_region
 
         data_load_addr = LOADADDR(.data.bitband);
         data_virt_addr = ADDR(.data.bitband);

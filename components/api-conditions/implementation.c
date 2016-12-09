@@ -11,17 +11,49 @@
 /*| function_declarations |*/
 
 /*| state |*/
+uint32_t rtos_api_depths[{{tasks.length}}] = {0};
 
 /*| function_like_macros |*/
+{{^memory_protection}}
+#define rtos_internal_api_begin()
+#define rtos_internal_api_end()
+{{/memory_protection}}
+
+{{#memory_protection}}
+/* This is only used when we are *just* about to exit an API call */
+#define rtos_internal_api_exit() \
+if(!mpu_is_enabled()) { \
+    mpu_enable(); \
+}
+
+/* Keep track of how deep down the RTOS API we are so that
+ * we can catch exits from the RTOS API.
+ *
+ * Essentially, if the MPU is enabled we know that we are
+ * entering from userspace and are at the outermost API level.
+ *
+ * We keep track of the API depth for each task as we may
+ * come out of a context switch multiple levels deep.
+ *
+ * If the MPU is enabled when we're at the end of an api call,
+ * it can only mean we're here from a context switch - so we
+ * disable it and then update our state.
+ *
+ * TODO: look into this further to make more efficient*/
 #define rtos_internal_api_begin() \
-{{#memory_protection}}if(mpu_is_enabled()) { \
+if(mpu_is_enabled()) { \
     mpu_disable(); \
-}{{/memory_protection}}
+    rtos_api_depths[get_current_task()] = 0; \
+} \
+++rtos_api_depths[get_current_task()];
 
 #define rtos_internal_api_end() \
-{{#memory_protection}}if(!mpu_is_enabled()) { \
-    mpu_enable(); \
-}{{/memory_protection}}
+if(mpu_is_enabled()) { \
+    mpu_disable(); \
+} \
+--rtos_api_depths[get_current_task()]; \
+if(rtos_api_depths[get_current_task()] == 0) rtos_internal_api_exit(); \
+{{/memory_protection}}
 
 {{^memory_protection}}
 #define rtos_internal_api_end_with(x) \

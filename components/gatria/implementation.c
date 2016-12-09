@@ -53,5 +53,9 @@ void
     context_init(get_task_context({{idx}}), {{function}}, stack_{{idx}}, {{stack_size}});
     {{/tasks}}
 
+    {{#memory_protection}}
+    mpu_initialize();
+    {{/memory_protection}}
+
     context_switch_first(get_task_context({{prefix_const}}TASK_ID_ZERO));
 }
