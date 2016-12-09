@@ -47,13 +47,13 @@ rtos_internal_context_switch:
         str sp, [r1]
         /* fallthrough */
 
-
 .global rtos_internal_context_switch_first
 .type rtos_internal_context_switch_first,#function
 /* void rtos_internal_context_switch_first(context_t *to); */
 rtos_internal_context_switch_first:
         ldr sp, [r0]
         {{#rtos.memory_protection}}
+        bl mpu_configure_for_current_task
         bl mpu_enable
         {{/rtos.memory_protection}}
         pop {r4-r12,pc}

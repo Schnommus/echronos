@@ -61,6 +61,7 @@ _REQUIRED_DEP_SECTIONS = ['provides', 'requires']
 _REQUIRED_DOC_SECTIONS = ['doc_header', 'doc_concepts', 'doc_api',
                           'doc_configuration', 'doc_footer']
 
+_RTOS_API_MACRO_PREFIX = 'rtos_internal_api_'
 
 class _SchemaFormatError(RuntimeError):
     """To be raised when a component configuration schema violates assumptions or conventions."""
@@ -123,9 +124,15 @@ def _annotate_api_functions(public_api_functions):
     their internals so that the first thing the function does is call an
     api begin macro, and the last thing it does is call an api end macro."""
     public_api_functions = re.sub(r'(\{\{prefix_func}}.*\n(\ +.*\n)?\{\n)',
-                                  r'\1    rtos_api_begin();\n', public_api_functions)
-    public_api_functions = re.sub(r'(\n}\n)',
-                                  r'\n    rtos_api_end();\1', public_api_functions)
+                                  r'\1    rtos_internal_api_begin();\n', public_api_functions)
+    def _api_return(match):
+        if(match.group(2)):
+            return '\n    {}end_with({});{}'.format(_RTOS_API_MACRO_PREFIX, match.group(2), match.group(3))
+        else:
+            return '\n    {}end();{}'.format(_RTOS_API_MACRO_PREFIX, match.group(3))
+
+    public_api_functions = re.sub(r'(return\ (.*);)?(\n\}\n)',
+                                  _api_return, public_api_functions)
     return public_api_functions
 
 def _sort_typedefs(typedef_lines):

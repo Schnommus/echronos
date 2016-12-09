@@ -56,12 +56,21 @@ fatal(const RtosErrorId error_id)
 
 #define REGISTER(x) (*((volatile uint32_t *)(x)))
 
+extern uint8_t rtos_internal_current_task;
+
 void
 fn_a(void)
 {
     for (;;)
     {
         debug_println("task a");
+        debug_print("current task (API): ");
+        debug_printhex32(rtos_task_current());
+        debug_println("");
+        debug_print("current task (INTERNAL): ");
+        debug_printhex32(rtos_internal_current_task);
+        debug_println("");
+
         debug_print("ptr: ");
         debug_printhex32((uint32_t)&dom1_variable_1);
         debug_println("");

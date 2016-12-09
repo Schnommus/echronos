@@ -130,6 +130,7 @@ extern uint32_t linker_domain_{{name}}_size;
 
 /*| function_declarations |*/
 {{#memory_protection}}
+bool mpu_is_enabled(void);
 void mpu_enable(void);
 void mpu_disable(void);
 uint32_t mpu_regions_supported_get(void);
@@ -190,7 +191,7 @@ mpu_hardware_regions_supported(void)
 uint32_t
 mpu_hardware_is_unified(void)
 {
-    return !((hardware_register(MPU_TYPE) & MPU_TYPE_SEPARATE);
+    return !(hardware_register(MPU_TYPE) & MPU_TYPE_SEPARATE);
 }
 
 void
@@ -370,7 +371,7 @@ mpu_region_size_flag(uint32_t bytes)
 
 
 void
-mpu_configure_for_task(const {{prefix_type}}TaskId to)
+mpu_configure_for_current_task(void)
 {
     /* Note: region 0 is always the RX-only flash protection region
      * as set up during MPU initialization, so we do not touch that.
@@ -379,6 +380,7 @@ mpu_configure_for_task(const {{prefix_type}}TaskId to)
     /* We simply enable and set parameters for the regions we are using
      * and then disable all the regions that we aren't */
 
+    {{prefix_type}}TaskId to = rtos_internal_current_task;
     int i = 0;
     for(; i != MPU_MAX_REGIONS-1; ++i) {
         if(mpu_regions[to][i].flags) {
