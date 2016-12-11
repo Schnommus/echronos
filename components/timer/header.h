@@ -18,8 +18,6 @@ typedef uint16_t {{prefix_type}}TicksRelative;
 /*| public_function_like_macros |*/
 
 /*| public_state |*/
-/*@unused@*/
-extern {{prefix_type}}TicksAbsolute {{prefix_func}}timer_current_ticks;
 
 /*| public_function_declarations |*/
 /*@unused@*/
@@ -41,4 +39,6 @@ void {{prefix_func}}timer_reload_set({{prefix_type}}TimerId timer_id, {{prefix_t
 void {{prefix_func}}timer_error_set({{prefix_type}}TimerId timer_id, {{prefix_type}}ErrorId error_id);
 /*@unused@*/
 void {{prefix_func}}timer_signal_set({{prefix_type}}TimerId timer_id, {{prefix_type}}TaskId task_id, {{prefix_type}}SignalSet signal_set);
+/*@unused@*/
+{{prefix_type}}TicksAbsolute {{prefix_func}}get_timer_current_ticks(void);
 {{/timers.length}}

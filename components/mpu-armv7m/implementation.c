@@ -394,7 +394,7 @@ mpu_configure_for_current_task(void)
 }
 
 bool
-{{prefix_func}}handle_memmanage(void)
+rtos_handle_memmanage(void)
 {
     /* Turn off the MPU so that the RTOS (outside this handler)
      * is able to operate normally */

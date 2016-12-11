@@ -282,4 +282,11 @@ void
 
     timers[timer_id].error_id = error_id;
 }
+
+{{prefix_type}}TicksAbsolute
+{{prefix_func}}get_timer_current_ticks(void)
+{
+    return {{prefix_func}}timer_current_ticks;
+}
+
 {{/timers.length}}

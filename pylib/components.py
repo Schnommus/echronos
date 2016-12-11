@@ -311,9 +311,7 @@ def _generate(rtos_name, components, pkg_name, search_paths):
         call_signature = m.group(2)
         function_body = m.group(3)
 
-        out = return_type + '\n' + call_signature + '\n{\n'
-
-        call_signature = call_signature.replace('{{prefix_func}}','{{prefix_internal}}')
+        out = return_type + '\n' + call_signature.replace("{{prefix_internal}}", "{{prefix_func}}") + '\n{\n'
 
         out += '    {}begin();\n'.format(_RTOS_API_MACRO_PREFIX)
 
@@ -354,14 +352,21 @@ def _generate(rtos_name, components, pkg_name, search_paths):
     with open(source_output, 'w') as f:
         for ss in _REQUIRED_C_SECTIONS:
             data = "\n".join(c_sections[ss] for c_sections in all_c_sections)
+            data = data.replace("{{prefix_func}}", "{{prefix_internal}}")
+
             if ss == 'types':
                 data = _sort_typedefs(data)
+
             if ss == 'function_declarations':
+                # Forward declare all the 'internal' replacements from the header file
                 data += public_apis.replace("{{prefix_func}}", "{{prefix_internal}}")
-            if ss == 'public_functions':
-                f.write(data.replace("{{prefix_func}}", "{{prefix_internal}}"))
-                data = shrink(data)
+
             f.write(data)
+
+            if ss == 'public_functions':
+                # Write out our wrapper functions
+                f.write(shrink(data))
+
             f.write('\n')
 
     # Generate docs

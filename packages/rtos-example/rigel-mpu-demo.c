@@ -110,7 +110,7 @@ fn_a(void)
         debug_print(" - remaining supervisor - ");
         debug_printhex32(rtos_timer_remaining(RTOS_TIMER_ID_SUPERVISOR));
         debug_print(" - ticks - ");
-        debug_printhex32(rtos_timer_current_ticks);
+        debug_printhex32(rtos_get_timer_current_ticks());
         debug_println("");
         rtos_yield();
     } while (!rtos_timer_check_overflow(RTOS_TIMER_ID_TEST));

@@ -24,9 +24,9 @@ static {{prefix_type}}TimerId task_timers[{{tasks.length}}] = {
 /*| function_like_macros |*/
 #define yield() {{prefix_func}}yield()
 #define interrupt_event_id_to_taskid(interrupt_event_id) (({{prefix_type}}TaskId)(interrupt_event_id))
-#define mutex_core_block_on(unused_task) {{prefix_func}}signal_wait({{prefix_const}}SIGNAL_ID__TASK_TIMER)
-#define mutex_core_unblock(task) {{prefix_func}}signal_send(task, {{prefix_const}}SIGNAL_ID__TASK_TIMER)
-#define message_queue_core_block() {{prefix_func}}signal_wait({{prefix_const}}SIGNAL_ID__TASK_TIMER)
+#define mutex_core_block_on(unused_task) {{prefix_func}}signal_wait_set({{prefix_const}}SIGNAL_ID__TASK_TIMER)
+#define mutex_core_unblock(task) {{prefix_func}}signal_send_set(task, {{prefix_const}}SIGNAL_ID__TASK_TIMER)
+#define message_queue_core_block() {{prefix_func}}signal_wait_set({{prefix_const}}SIGNAL_ID__TASK_TIMER)
 /* sleep() may return before the timeout occurs because another task may send the timeout signal to indicate that the
  * state of the message queue has changed.
  * Therefore, disable the timer whenever sleep() returns to make sure the timer is no longer active.
@@ -40,7 +40,7 @@ do\
     {{prefix_func}}timer_disable(task_timers[get_current_task()]);\
 }\
 while (0)
-#define message_queue_core_unblock(task) {{prefix_func}}signal_send((task), {{prefix_const}}SIGNAL_ID__TASK_TIMER)
+#define message_queue_core_unblock(task) {{prefix_func}}signal_send_set((task), {{prefix_const}}SIGNAL_ID__TASK_TIMER)
 #define message_queue_core_is_unblocked(task) sched_runnable((task))
 
 /*| functions |*/
@@ -74,7 +74,7 @@ static void
 entry_{{name}}(void)
 {
     {{#start}}{{prefix_func}}yield();{{/start}}
-    {{^start}}{{prefix_func}}signal_wait({{prefix_const}}SIGNAL_ID__RTOS_UTIL);{{/start}}
+    {{^start}}{{prefix_func}}signal_wait_set({{prefix_const}}SIGNAL_ID__RTOS_UTIL);{{/start}}
     {{function}}();
 
     api_error(ERROR_ID_TASK_FUNCTION_RETURNS);
@@ -87,7 +87,7 @@ void
 {{prefix_func}}task_start(const {{prefix_type}}TaskId task)
 {
     assert_task_valid(task);
-    {{prefix_func}}signal_send(task, {{prefix_const}}SIGNAL_ID__RTOS_UTIL);
+    {{prefix_func}}signal_send_set(task, {{prefix_const}}SIGNAL_ID__RTOS_UTIL);
 }
 
 void
