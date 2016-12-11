@@ -282,6 +282,72 @@ def _generate(rtos_name, components, pkg_name, search_paths):
     module_dir = base_path('packages', pkg_name, module_name)
     os.makedirs(module_dir, exist_ok=True)
 
+
+    # Generate .h file
+    all_h_sections = _get_sections(bound_components, "header.h", _REQUIRED_H_SECTIONS)
+    header_output = os.path.join(module_dir, module_name + '.h')
+    public_apis = []
+    with open(header_output, 'w') as f:
+        mod_name = module_name.upper().replace('-', '_')
+        f.write("#ifndef {}_H\n".format(mod_name))
+        f.write("#define {}_H\n".format(mod_name))
+        for ss in _REQUIRED_H_SECTIONS:
+            data = "\n".join(h_sections[ss] for h_sections in all_h_sections)
+            if ss == 'public_function_declarations':
+                public_apis = data
+                f.write("#ifdef __cplusplus\nextern \"C\" {\n#endif\n")
+            f.write(data + '\n')
+            if ss == 'public_function_declarations':
+                f.write("#ifdef __cplusplus\n}\n#endif\n")
+        f.write("\n#endif /* {}_H */".format(mod_name))
+
+    def contract(function):
+        m = re.search(r"(.*)\n([^(\n]*\([^)]*\))[^()]*\n\{\n(.*\n)*?\}", function);
+
+        if m == None:
+            return ""
+
+        return_type = m.group(1).strip()
+        call_signature = m.group(2)
+        function_body = m.group(3)
+
+        out = return_type + '\n' + call_signature + '\n{\n'
+
+        call_signature = call_signature.replace('{{prefix_func}}','{{prefix_internal}}')
+
+        out += '    {}begin();\n'.format(_RTOS_API_MACRO_PREFIX)
+
+        m_func = re.search(r"(.*)\(([^()]*?)\)", call_signature)
+        func_name = m_func.group(1)
+        args = [x.strip() for x in m_func.group(2).split(",")]
+
+        call = func_name
+
+        # If the function takes no arguments, pass it nothing
+        if(args[0] == "void"):
+            call +=  '();\n'
+        else:
+            call += '({});\n'.format(', '.join([arg.strip().split(' ')[-1] for arg in args]))
+
+        # If the function returns something, set up a variable to store it
+        # so that it is stored on the local function's stack
+        if return_type != "void":
+            call = return_type + " ret = " + call
+
+        out += '    ' + call
+        out += '    {}end();\n'.format(_RTOS_API_MACRO_PREFIX)
+
+        # We must insert a return statement if the API call returns something
+        if return_type != "void":
+            out += '    return ret;\n'
+
+        out += '}\n'
+        return out
+
+    def shrink(functions):
+        on = "\n}\n"
+        return "\n\n" + "\n".join([contract(function+on) for function in functions.split(on)])
+
     # Generate .c file
     all_c_sections = _get_sections(bound_components, "implementation.c", _REQUIRED_C_SECTIONS)
     source_output = os.path.join(module_dir, module_name + '.c')
@@ -290,25 +356,13 @@ def _generate(rtos_name, components, pkg_name, search_paths):
             data = "\n".join(c_sections[ss] for c_sections in all_c_sections)
             if ss == 'types':
                 data = _sort_typedefs(data)
+            if ss == 'function_declarations':
+                data += public_apis.replace("{{prefix_func}}", "{{prefix_internal}}")
             if ss == 'public_functions':
-                data = _annotate_api_functions(data)
+                f.write(data.replace("{{prefix_func}}", "{{prefix_internal}}"))
+                data = shrink(data)
             f.write(data)
             f.write('\n')
-
-    # Generate .h file
-    all_h_sections = _get_sections(bound_components, "header.h", _REQUIRED_H_SECTIONS)
-    header_output = os.path.join(module_dir, module_name + '.h')
-    with open(header_output, 'w') as f:
-        mod_name = module_name.upper().replace('-', '_')
-        f.write("#ifndef {}_H\n".format(mod_name))
-        f.write("#define {}_H\n".format(mod_name))
-        for ss in _REQUIRED_H_SECTIONS:
-            if ss == 'public_function_declarations':
-                f.write("#ifdef __cplusplus\nextern \"C\" {\n#endif\n")
-            f.write("\n".join(h_sections[ss] for h_sections in all_h_sections) + "\n")
-            if ss == 'public_function_declarations':
-                f.write("#ifdef __cplusplus\n}\n#endif\n")
-        f.write("\n#endif /* {}_H */".format(mod_name))
 
     # Generate docs
     if os.path.exists(os.path.join(BASE_DIR, 'components', rtos_name, 'docs.md')):
