@@ -396,6 +396,10 @@ mpu_configure_for_current_task(void)
 bool
 {{prefix_func}}handle_memmanage(void)
 {
+    /* Turn off the MPU so that the RTOS (outside this handler)
+     * is able to operate normally */
+    mpu_disable();
+
     /* Grab fault address and status */
     uint32_t fault_address = hardware_register(NVIC_MM_ADDR);
     uint32_t fault_status  = hardware_register(NVIC_FAULT_STAT);
@@ -409,10 +413,6 @@ bool
 
     /* Clear the fault status register */
     hardware_register(NVIC_FAULT_STAT) = fault_status;
-
-    /* Turn off the MPU so that the RTOS (outside this handler)
-     * is able to operate normally */
-    mpu_disable();
 
     /* An MPU policy violation is a fatal error (for now) */
     {{fatal_error}}(ERROR_ID_MPU_VIOLATION);

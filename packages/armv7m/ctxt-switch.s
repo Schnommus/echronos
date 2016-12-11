@@ -54,7 +54,6 @@ rtos_internal_context_switch_first:
         ldr sp, [r0]
         {{#rtos.memory_protection}}
         bl mpu_configure_for_current_task
-        bl mpu_enable
         {{/rtos.memory_protection}}
         pop {r4-r12,pc}
 .size rtos_internal_context_switch_first, .-rtos_internal_context_switch_first
@@ -67,7 +66,18 @@ rtos_internal_context_switch_first:
  * It is designed to be used in conjunction with the context
  * switch code for the initial switch to a particular task.
  * The tasks entry point is stored in 'r4'.
- */
+ * {{#rtos.memory_protection}}
+ * Normally, the MPU is enabled when an API call is exited - this
+ * will happen every time we complete context switching (falling into
+ * our yield() wrapper etc).
+ *
+ * The first switch into a task will not be trapped by our API wrappers
+ * as it directly enters the target function. Hence, we must enable the
+ * MPU here.
+ * {{/rtos.memory_protection}} */
 rtos_internal_trampoline:
+        {{#rtos.memory_protection}}
+        bl mpu_enable
+        {{/rtos.memory_protection}}
         blx r4
 .size rtos_internal_trampoline, .-rtos_internal_trampoline
