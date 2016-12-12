@@ -36,6 +36,10 @@
       <sram_size>0x8000</sram_size>
       <systick>tick_irq</systick>
       <memmanage>rtos_handle_memmanage</memmanage>
+      <nmi>nmi</nmi>
+      <hardfault>hardfault</hardfault>
+      <usagefault>usagefault</usagefault>
+      <busfault>busfault</busfault>
     </module>
     <module name="armv7m.semihost-debug" />
     <module name="generic.debug" />

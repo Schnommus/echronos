@@ -37,6 +37,17 @@ void fatal(RtosErrorId error_id);
 void fn_a(void);
 void fn_b(void);
 
+void nmi() { for(;;); }
+
+void hardfault() { for(;;); }
+
+void memmanage() { for(;;); }
+
+void busfault() { for(;;); }
+
+void usagefault() { for(;;); }
+
+
 void
 tick_irq(void)
 {
