@@ -20,15 +20,8 @@ uint32_t rtos_api_depths[{{tasks.length}}] = {0};
 {{/memory_protection}}
 
 {{#memory_protection}}
-#define rtos_internal_api_begin() \
-if(mpu_is_enabled()) { \
-    mpu_disable(); \
-}
-
-#define rtos_internal_api_end() \
-if(!mpu_is_enabled()) { \
-    mpu_enable(); \
-}
+#define rtos_internal_api_begin() mpu_disable()
+#define rtos_internal_api_end() mpu_enable()
 {{/memory_protection}}
 /*| functions |*/
 
