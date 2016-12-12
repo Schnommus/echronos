@@ -67,6 +67,8 @@ interrupt_event_wait(void)
 }
 
 /*| public_functions |*/
+
+/*| public_privileged_functions |*/
 {{#interrupt_events.length}}
 void
 {{prefix_func}}interrupt_event_raise(const {{prefix_type}}InterruptEventId interrupt_event_id)
@@ -74,5 +76,3 @@ void
     interrupt_event_bitband[interrupt_event_id] = 1;
 }
 {{/interrupt_events.length}}
-
-/*| public_privileged_functions |*/

@@ -43,6 +43,7 @@ _REQUIRED_H_SECTIONS = ['public_headers',
                         'public_function_like_macros',
                         'public_state',
                         'public_function_declarations',
+                        'public_privileged_function_declarations'
                         ]
 
 _REQUIRED_C_SECTIONS = ['headers',
@@ -54,7 +55,9 @@ _REQUIRED_C_SECTIONS = ['headers',
                         'state',
                         'function_like_macros',
                         'functions',
-                        'public_functions']
+                        'public_functions',
+                        'public_privileged_functions',
+                        ]
 
 _REQUIRED_DEP_SECTIONS = ['provides', 'requires']
 
@@ -352,7 +355,9 @@ def _generate(rtos_name, components, pkg_name, search_paths):
     with open(source_output, 'w') as f:
         for ss in _REQUIRED_C_SECTIONS:
             data = "\n".join(c_sections[ss] for c_sections in all_c_sections)
-            data = data.replace("{{prefix_func}}", "{{prefix_internal}}")
+
+            if ss != 'public_privileged_functions':
+                data = data.replace("{{prefix_func}}", "{{prefix_internal}}")
 
             if ss == 'types':
                 data = _sort_typedefs(data)

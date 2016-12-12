@@ -99,6 +99,7 @@ void
     yield_to(to);
 }
 
+/*| public_privileged_functions |*/
 void
 {{prefix_func}}start(void)
 {
@@ -115,5 +116,3 @@ void
 
     context_switch_first(get_task_context({{prefix_const}}TASK_ID_ZERO));
 }
-
-/*| public_privileged_functions |*/
