@@ -290,3 +290,5 @@ void
 }
 
 {{/timers.length}}
+
+/*| public_privileged_functions |*/

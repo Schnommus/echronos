@@ -66,3 +66,5 @@ get_current_task_check(void)
 {
     return get_current_task();
 }
+
+/*| public_privileged_functions |*/

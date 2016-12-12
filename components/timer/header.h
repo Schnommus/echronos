@@ -42,3 +42,5 @@ void {{prefix_func}}timer_signal_set({{prefix_type}}TimerId timer_id, {{prefix_t
 /*@unused@*/
 {{prefix_type}}TicksAbsolute {{prefix_func}}get_timer_current_ticks(void);
 {{/timers.length}}
+
+/*| public_privileged_function_declarations |*/

@@ -33,3 +33,5 @@ if(!mpu_is_enabled()) { \
 /*| functions |*/
 
 /*| public_functions |*/
+
+/*| public_privileged_functions |*/

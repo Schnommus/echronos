@@ -228,3 +228,5 @@ void
 }
 {{/mutex.stats}}
 {{/mutexes.length}}
+
+/*| public_privileged_functions |*/

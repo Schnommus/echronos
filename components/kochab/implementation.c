@@ -110,3 +110,5 @@ void
 
     context_switch_first({{prefix_const}}TASK_ID_ZERO);
 }
+
+/*| public_privileged_functions |*/

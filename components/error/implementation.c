@@ -84,3 +84,5 @@ extern /*@noreturn@*/ void {{fatal_error}}({{prefix_type}}ErrorId error_id);
 /*| functions |*/
 
 /*| public_functions |*/
+
+/*| public_privileged_functions |*/

@@ -23,3 +23,5 @@ void {{prefix_func}}block(void) {{prefix_const}}REENTRANT;
 void {{prefix_func}}unblock({{prefix_type}}TaskId);
 void {{prefix_func}}start(void);
 
+
+/*| public_privileged_function_declarations |*/

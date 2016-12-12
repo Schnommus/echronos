@@ -424,3 +424,5 @@ rtos_handle_memmanage(void)
 {{/memory_protection}}
 
 /*| public_functions |*/
+
+/*| public_privileged_functions |*/

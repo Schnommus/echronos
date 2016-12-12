@@ -74,3 +74,5 @@ void
     interrupt_event_bitband[interrupt_event_id] = 1;
 }
 {{/interrupt_events.length}}
+
+/*| public_privileged_functions |*/
