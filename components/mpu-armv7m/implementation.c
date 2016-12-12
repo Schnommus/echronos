@@ -145,6 +145,7 @@ void mpu_configure_for_task(const {{prefix_type}}TaskId to);
 {{/memory_protection}}
 
 /*| state |*/
+uint32_t mpu_was_enabled = 0;
 
 /*| function_like_macros |*/
 {{#memory_protection}}
@@ -426,3 +427,22 @@ rtos_handle_memmanage(void)
 /*| public_functions |*/
 
 /*| public_privileged_functions |*/
+void
+{{prefix_func}}mpu_suspend()
+{
+    // Store on our stack before disabling as we can't actually
+    // access any global state if the mpu was enabled!
+    uint32_t is_enabled = mpu_is_enabled();
+    if(is_enabled) {
+        mpu_disable();
+    }
+    mpu_was_enabled = is_enabled;
+}
+
+void
+{{prefix_func}}mpu_restore()
+{
+    if(mpu_was_enabled) {
+        mpu_enable();
+    }
+}

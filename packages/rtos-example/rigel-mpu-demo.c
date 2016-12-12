@@ -51,9 +51,13 @@ void usagefault() { for(;;); }
 void
 tick_irq(void)
 {
+    rtos_mpu_suspend();
+
     machine_timer_tick_isr();
     debug_println("irq tick");
     rtos_timer_tick();
+
+    rtos_mpu_restore();
 }
 
 void

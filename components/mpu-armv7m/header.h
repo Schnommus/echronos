@@ -14,8 +14,7 @@
 /*| public_state |*/
 
 /*| public_function_declarations |*/
-{{#memory_protection}}
-bool {{prefix_func}}handle_memmanage(void);
-{{/memory_protection}}
 
 /*| public_privileged_function_declarations |*/
+void {{prefix_func}}mpu_suspend();
+void {{prefix_func}}mpu_restore();
