@@ -268,6 +268,80 @@ def _bind_components(components, pkg_name, search_paths):
         bound_components.append(_BoundComponent(path, component.configuration))
     return bound_components
 
+def _make_api_wrapper(function):
+
+    # This regex isolates the following from a function definition that adheres to our coding style:
+    #   - Group 1: The return type of the function we are wrapping
+    #   - Group 2: The 'call body' of the function (everything after the return type until the first '{')
+    #   - Group 3: The function body. This is unused as it has already been written to the file.
+    m = re.search(r"(.*)\n([^(\n]*\([^)]*\))[^()]*\n\{\n(.*\n)*?\}", function);
+
+    # Catch something that doesn't look like a function. This includes public state in the wrong
+    # spot in some of the scheduler test components. TODO: fix those components instead
+    if m == None:
+        return ''
+
+    return_type = m.group(1).strip()
+    call_body = m.group(2).strip()
+
+    # Our actual API function has the same call signature as the original,
+    # except we replace the internal prefix with the external prefix
+    out = return_type + '\n' + call_body.replace("{{prefix_internal}}", "{{prefix_func}}") + '\n{\n'
+
+    # Insert an API begin macro before our 'internal' call
+    out += '    {}begin();\n'.format(_RTOS_API_MACRO_PREFIX)
+
+    # This regex isolates the following from the 'call body':
+    #   - Group 1: The name of the function only.
+    #   - Group 2: The list of parameters to the function excluding parentheses
+    m_func = re.search(r"(.*)\(([^()]*?)\)", call_body)
+
+    # Pull out the function name and the *names* of each of the parameters to it so that
+    # we can later use them to call the function that we are wrapping.
+    func_name = m_func.group(1)
+    args = [x.strip() for x in m_func.group(2).split(",")]
+
+    # Now we will begin constructing how the wrapper invokes the target function
+    call = func_name
+
+    # If the function takes no arguments, pass it nothing - otherwise we pass it
+    # a comma-separated list of the arguments passed into our wrapper (excluding their
+    # types as this is an invocation).
+    if(args[0] == "void"):
+        call +=  '();\n'
+    else:
+        call += '({});\n'.format(', '.join([arg.strip().split(' ')[-1] for arg in args]))
+
+    # If the function returns something, set up a variable to store it
+    # so that our api completion macro is able to follow the function invocation
+    if return_type != "void":
+        call = return_type + " ret = " + call
+
+    # Finally, add the function invocation to our output
+    out += '    ' + call
+
+    # Add the API completion macro
+    out += '    {}end();\n'.format(_RTOS_API_MACRO_PREFIX)
+
+    # We must insert a return statement if the API call returns something
+    if return_type != "void":
+        out += '    return ret;\n'
+
+    out += '}\n'
+    return out
+
+def _make_api_wrappers_for(functions):
+    # Split our functions into individual functions, then create a wrapper for each
+
+    # We differentiate API function termination based on the closing bracket.
+    # This works on the entire codebase given our style adherance.
+    on = "\n}\n"
+
+    # Create a wrapper function for every supplied function
+    function_list = [_make_api_wrapper(function+on) for function in functions.split(on) if function.strip() != '']
+
+    # Extra newlines so that wrapper functions don't collide with their originals
+    return "\n\n" + "\n".join(function_list)
 
 def _generate(rtos_name, components, pkg_name, search_paths):
     """Generate the RTOS module to disk, so it is available as a compile and link unit to projects.
@@ -289,7 +363,7 @@ def _generate(rtos_name, components, pkg_name, search_paths):
     # Generate .h file
     all_h_sections = _get_sections(bound_components, "header.h", _REQUIRED_H_SECTIONS)
     header_output = os.path.join(module_dir, module_name + '.h')
-    public_apis = []
+    public_apis = ""
     with open(header_output, 'w') as f:
         mod_name = module_name.upper().replace('-', '_')
         f.write("#ifndef {}_H\n".format(mod_name))
@@ -304,50 +378,6 @@ def _generate(rtos_name, components, pkg_name, search_paths):
                 f.write("#ifdef __cplusplus\n}\n#endif\n")
         f.write("\n#endif /* {}_H */".format(mod_name))
 
-    def contract(function):
-        m = re.search(r"(.*)\n([^(\n]*\([^)]*\))[^()]*\n\{\n(.*\n)*?\}", function);
-
-        if m == None:
-            return ""
-
-        return_type = m.group(1).strip()
-        call_signature = m.group(2)
-        function_body = m.group(3)
-
-        out = return_type + '\n' + call_signature.replace("{{prefix_internal}}", "{{prefix_func}}") + '\n{\n'
-
-        out += '    {}begin();\n'.format(_RTOS_API_MACRO_PREFIX)
-
-        m_func = re.search(r"(.*)\(([^()]*?)\)", call_signature)
-        func_name = m_func.group(1)
-        args = [x.strip() for x in m_func.group(2).split(",")]
-
-        call = func_name
-
-        # If the function takes no arguments, pass it nothing
-        if(args[0] == "void"):
-            call +=  '();\n'
-        else:
-            call += '({});\n'.format(', '.join([arg.strip().split(' ')[-1] for arg in args]))
-
-        # If the function returns something, set up a variable to store it
-        # so that it is stored on the local function's stack
-        if return_type != "void":
-            call = return_type + " ret = " + call
-
-        out += '    ' + call
-        out += '    {}end();\n'.format(_RTOS_API_MACRO_PREFIX)
-
-        # We must insert a return statement if the API call returns something
-        if return_type != "void":
-            out += '    return ret;\n'
-
-        out += '}\n'
-        return out
-
-    def shrink(functions):
-        on = "\n}\n"
-        return "\n\n" + "\n".join([contract(function+on) for function in functions.split(on)])
 
     # Generate .c file
     all_c_sections = _get_sections(bound_components, "implementation.c", _REQUIRED_C_SECTIONS)
@@ -356,6 +386,7 @@ def _generate(rtos_name, components, pkg_name, search_paths):
         for ss in _REQUIRED_C_SECTIONS:
             data = "\n".join(c_sections[ss] for c_sections in all_c_sections)
 
+            # Hide every public API symbol as we wrap it during the 'public_functions' step
             if ss != 'public_privileged_functions':
                 data = data.replace("{{prefix_func}}", "{{prefix_internal}}")
 
@@ -370,7 +401,7 @@ def _generate(rtos_name, components, pkg_name, search_paths):
 
             if ss == 'public_functions':
                 # Write out our wrapper functions
-                f.write(shrink(data))
+                f.write(_make_api_wrappers_for(data))
 
             f.write('\n')
 
