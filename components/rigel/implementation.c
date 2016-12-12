@@ -73,8 +73,10 @@ unblock(const {{prefix_type}}TaskId task)
 static void
 entry_{{name}}(void)
 {
+    rtos_internal_api_begin();
     {{#start}}{{prefix_func}}yield();{{/start}}
     {{^start}}{{prefix_func}}signal_wait_set({{prefix_const}}SIGNAL_ID__RTOS_UTIL);{{/start}}
+    rtos_internal_api_end();
     {{function}}();
 
     api_error(ERROR_ID_TASK_FUNCTION_RETURNS);

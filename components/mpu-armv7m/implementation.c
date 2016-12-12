@@ -166,6 +166,7 @@ mpu_enable(void)
 {
     internal_assert(!mpu_is_enabled(), ERROR_ID_MPU_ALREADY_ENABLED );
 
+    debug_print("<");
     /* Turn on the MPU */
     hardware_register(MPU_CTRL) = MPU_CTRL_ENABLE;
 }
@@ -175,6 +176,7 @@ mpu_disable(void)
 {
     internal_assert(mpu_is_enabled(), ERROR_ID_MPU_ALREADY_DISABLED);
 
+    debug_print(">");
     hardware_register(MPU_CTRL) &= ~MPU_CTRL_ENABLE;
 }
 
@@ -396,10 +398,6 @@ mpu_configure_for_current_task(void)
 bool
 rtos_handle_memmanage(void)
 {
-    /* Turn off the MPU so that the RTOS (outside this handler)
-     * is able to operate normally */
-    mpu_disable();
-
     /* Grab fault address and status */
     uint32_t fault_address = hardware_register(NVIC_MM_ADDR);
     uint32_t fault_status  = hardware_register(NVIC_FAULT_STAT);
@@ -413,6 +411,10 @@ rtos_handle_memmanage(void)
 
     /* Clear the fault status register */
     hardware_register(NVIC_FAULT_STAT) = fault_status;
+
+    /* Turn off the MPU so that the RTOS (outside this handler)
+     * is able to operate normally */
+    mpu_disable();
 
     /* An MPU policy violation is a fatal error (for now) */
     {{fatal_error}}(ERROR_ID_MPU_VIOLATION);
