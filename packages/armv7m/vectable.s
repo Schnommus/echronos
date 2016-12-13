@@ -55,9 +55,12 @@ vector_table:
 {{#svcall}}
         .word {{svcall}}
 {{/svcall}}
-{{^svcall}}
+{{#rtos.memory_protection}}
+        .word rtos_internal_svc_handler
+{{/rtos.memory_protection}}
+{{^svcall}}{{^rtos.memory_protection}}
         .word reset
-{{/svcall}}
+{{/rtos.memory_protection}}{{/svcall}}
 {{/preemption}}
 
         .word {{debug_monitor}}

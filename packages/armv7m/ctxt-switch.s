@@ -77,7 +77,38 @@ rtos_internal_context_switch_first:
  * {{/rtos.memory_protection}} */
 rtos_internal_trampoline:
         {{#rtos.memory_protection}}
-        bl mpu_enable
+        bl rtos_internal_drop_privileges
         {{/rtos.memory_protection}}
         blx r4
 .size rtos_internal_trampoline, .-rtos_internal_trampoline
+
+
+.global rtos_internal_elevate_privileges
+.type rtos_internal_elevate_privileges,#function
+rtos_internal_elevate_privileges:
+    /* 0 is used for pre-emption on other variants */
+    svc #1
+    /* At this point we are running in privileged mode */
+    mov pc, lr
+
+.global rtos_internal_drop_privileges
+.type rtos_internal_drop_privileges,#function
+rtos_internal_drop_privileges:
+    mrs r0, control
+    orr r0, r0, #1
+    msr control, r0
+    mov pc, lr
+
+.global rtos_internal_svc_handler
+.type rtos_internal_svc_handler,#function
+/* Elevates the processor into privileged mode and continues execution
+ * TODO: Use a linker symbol defining RTOS bounds to ensure the call
+ * originates from RTOS code. */
+rtos_internal_svc_handler:
+    /* Switch to privileged mode */
+    mrs r0, control
+    bic r0, r0, #1
+    msr control, r0
+    /* RFE to straight after the offending svc call */
+    bx lr
+

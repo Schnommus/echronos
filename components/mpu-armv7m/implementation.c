@@ -49,9 +49,9 @@
 /* MPU region permission flags */
 #define MPU_P_EXEC                  0x00000000
 #define MPU_P_NOEXEC                0x10000000
-#define MPU_P_NO                    0x00000000  /* No access for privileged or user access */
-#define MPU_P_RO                    0x06000000  /* Read-only for privileged or user access */
-#define MPU_P_RW                    0x03000000  /* Read-Write for privileged or user access */
+#define MPU_P_NO                    0x01000000  /* RW for priv, no access for user */
+#define MPU_P_RO                    0x02000000  /* RW for priv, read-only for user access */
+#define MPU_P_RW                    0x03000000  /* Read-Write for privileged and user access */
 
 /* MPU special region permission flags */
 #define MPU_ATTR_TEX_M              0x00380000
@@ -167,9 +167,8 @@ mpu_enable(void)
 {
     internal_assert(!mpu_is_enabled(), ERROR_ID_MPU_ALREADY_ENABLED );
 
-    debug_print("<");
     /* Turn on the MPU */
-    hardware_register(MPU_CTRL) = MPU_CTRL_ENABLE;
+    hardware_register(MPU_CTRL) |= MPU_CTRL_ENABLE;
 }
 
 void
@@ -177,7 +176,6 @@ mpu_disable(void)
 {
     internal_assert(mpu_is_enabled(), ERROR_ID_MPU_ALREADY_DISABLED);
 
-    debug_print(">");
     hardware_register(MPU_CTRL) &= ~MPU_CTRL_ENABLE;
 }
 
@@ -333,8 +331,9 @@ mpu_initialize(void)
 
     internal_assert(mpu_hardware_is_unified(), ERROR_ID_MPU_NON_STANDARD);
 
-    /* Make the MPU fault in privileged mode, but disable it during a hard fault */
-    hardware_register(MPU_CTRL) &= ~(MPU_CONFIG_PRIV_DEFAULT | MPU_CONFIG_HARDFLT_NMI);
+    /* Make the MPU use a default region in privileged mode, disable it during a hard fault */
+    hardware_register(MPU_CTRL) |= MPU_CONFIG_PRIV_DEFAULT;
+    hardware_register(MPU_CTRL) &= ~(MPU_CONFIG_HARDFLT_NMI);
 
     /* Initially, we will only give tasks access to:
      * - Their own stack
@@ -358,6 +357,7 @@ mpu_initialize(void)
     /* The MPU itself will only enforce memory protection rules
      * whilst it is enabled. We only enable the MPU when we are
      * inside a task - it is not enabled here. */
+    mpu_enable();
 }
 
 uint32_t
@@ -427,22 +427,3 @@ rtos_handle_memmanage(void)
 /*| public_functions |*/
 
 /*| public_privileged_functions |*/
-void
-{{prefix_func}}mpu_suspend()
-{
-    // Store on our stack before disabling as we can't actually
-    // access any global state if the mpu was enabled!
-    uint32_t is_enabled = mpu_is_enabled();
-    if(is_enabled) {
-        mpu_disable();
-    }
-    mpu_was_enabled = is_enabled;
-}
-
-void
-{{prefix_func}}mpu_restore()
-{
-    if(mpu_was_enabled) {
-        mpu_enable();
-    }
-}
