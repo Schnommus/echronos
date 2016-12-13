@@ -106,10 +106,10 @@ static void mpu_enable(void);
 static void mpu_disable(void);
 static uint32_t mpu_hardware_regions_supported(void);
 static bool mpu_hardware_is_unified(void);
-static void mpu_region_disable(uint32_t mpu_region);
-static void mpu_region_set(uint32_t mpu_region, uint32_t mpu_addr, uint32_t mpu_flags);
+static void mpu_region_disable(const uint32_t mpu_region);
+static void mpu_region_set(const uint32_t mpu_region, const uint32_t mpu_addr, const uint32_t mpu_flags);
 static void mpu_memmanage_interrupt_enable(void);
-static uint32_t mpu_region_size_flag(uint32_t bytes);
+static uint32_t mpu_region_size_flag(const uint32_t bytes);
 static void mpu_populate_regions(void);
 static void mpu_initialize(void);
 void mpu_configure_for_current_task(void);
@@ -166,7 +166,7 @@ mpu_hardware_is_unified(void)
 }
 
 static void
-mpu_region_disable(uint32_t mpu_region)
+mpu_region_disable(const uint32_t mpu_region)
 {
     internal_assert(mpu_region < MPU_MAX_REGIONS,
                     ERROR_ID_MPU_INTERNAL_INVALID_REGION_INDEX);
@@ -176,7 +176,7 @@ mpu_region_disable(uint32_t mpu_region)
 }
 
 static void
-mpu_region_set(uint32_t mpu_region, uint32_t mpu_addr, uint32_t mpu_flags)
+mpu_region_set(const uint32_t mpu_region, const uint32_t mpu_addr, const uint32_t mpu_flags)
 {
     internal_assert(mpu_region < MPU_MAX_REGIONS,
                     ERROR_ID_MPU_INTERNAL_INVALID_REGION_INDEX);
@@ -211,7 +211,7 @@ mpu_memmanage_interrupt_enable(void)
 }
 
 static uint32_t
-mpu_region_size_flag(uint32_t bytes)
+mpu_region_size_flag(const uint32_t bytes)
 {
     /* armv7m MPU only supports regions of 2^n size, above 32 bytes */
     internal_assert(is_pow2(bytes), ERROR_ID_MPU_INVALID_REGION_SIZE);
