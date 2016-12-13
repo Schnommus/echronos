@@ -90,31 +90,32 @@ static struct mpu_region mpu_regions[{{tasks.length}}][MPU_MAX_REGIONS-1];
  *
  * Note the *address* of these symbols must be taken to get their value.
  * This should always be through the 'linker_value' macro defined below.*/
-extern uint32_t linker_flash_size;
-extern uint32_t linker_sram_size;
-extern uint32_t linker_code_start;
+extern const uint32_t linker_flash_size;
+extern const uint32_t linker_sram_size;
+extern const uint32_t linker_code_start;
 {{#protection_domains}}
-extern uint32_t linker_domain_{{name}}_start;
-extern uint32_t linker_domain_{{name}}_size;
+extern const uint32_t linker_domain_{{name}}_start;
+extern const uint32_t linker_domain_{{name}}_size;
 {{/protection_domains}}
 {{/memory_protection}}
 
 /*| function_declarations |*/
 {{#memory_protection}}
-bool mpu_is_enabled(void);
-void mpu_enable(void);
-void mpu_disable(void);
-uint32_t mpu_regions_supported_get(void);
-void mpu_region_enable(uint32_t mpu_region);
-void mpu_region_disable(uint32_t mpu_region);
-void mpu_region_set(uint32_t mpu_region, uint32_t mpu_addr, uint32_t mpu_flags);
-void mpu_memmanage_interrupt_enable(void);
-uint32_t mpu_region_size_flag(uint32_t bytes);
-void mpu_configure_for_task(const {{prefix_type}}TaskId to);
+static bool mpu_is_enabled(void);
+static void mpu_enable(void);
+static void mpu_disable(void);
+static uint32_t mpu_hardware_regions_supported(void);
+static bool mpu_hardware_is_unified(void);
+static void mpu_region_disable(uint32_t mpu_region);
+static void mpu_region_set(uint32_t mpu_region, uint32_t mpu_addr, uint32_t mpu_flags);
+static void mpu_memmanage_interrupt_enable(void);
+static uint32_t mpu_region_size_flag(uint32_t bytes);
+static void mpu_populate_regions(void);
+static void mpu_initialize(void);
+void mpu_configure_for_current_task(void);
 {{/memory_protection}}
 
 /*| state |*/
-uint32_t mpu_was_enabled = 0;
 
 /*| function_like_macros |*/
 {{#memory_protection}}
@@ -125,13 +126,13 @@ uint32_t mpu_was_enabled = 0;
 
 /*| functions |*/
 {{#memory_protection}}
-bool
+static bool
 mpu_is_enabled(void)
 {
     return (hardware_register(MPU_CTRL) & MPU_CTRL_ENABLE);
 }
 
-void
+static void
 mpu_enable(void)
 {
     internal_assert(!mpu_is_enabled(), ERROR_ID_MPU_ALREADY_ENABLED );
@@ -140,7 +141,7 @@ mpu_enable(void)
     hardware_register(MPU_CTRL) |= MPU_CTRL_ENABLE;
 }
 
-void
+static void
 mpu_disable(void)
 {
     internal_assert(mpu_is_enabled(), ERROR_ID_MPU_ALREADY_DISABLED);
@@ -149,7 +150,7 @@ mpu_disable(void)
 }
 
 /* Gets the number of hardware regions supported by this MPU */
-uint32_t
+static uint32_t
 mpu_hardware_regions_supported(void)
 {
     /* Read the DREGION field of the MPU type register and mask off   */
@@ -158,26 +159,13 @@ mpu_hardware_regions_supported(void)
 }
 
 /* Does our hardware have unified I & D regions? */
-uint32_t
+static bool
 mpu_hardware_is_unified(void)
 {
     return !(hardware_register(MPU_TYPE) & MPU_TYPE_SEPARATE);
 }
 
-void
-mpu_region_enable(uint32_t mpu_region)
-{
-    internal_assert(mpu_region < MPU_MAX_REGIONS,
-                    ERROR_ID_MPU_INTERNAL_INVALID_REGION_INDEX);
-
-    /* Pick the region we want to modify */
-    hardware_register(MPU_NUMBER) = mpu_region;
-
-    /* Enable this region */
-    hardware_register(MPU_ATTR) |= MPU_ATTR_ENABLE;
-}
-
-void
+static void
 mpu_region_disable(uint32_t mpu_region)
 {
     internal_assert(mpu_region < MPU_MAX_REGIONS,
@@ -187,7 +175,7 @@ mpu_region_disable(uint32_t mpu_region)
     hardware_register(MPU_ATTR) &= ~MPU_ATTR_ENABLE;
 }
 
-void
+static void
 mpu_region_set(uint32_t mpu_region, uint32_t mpu_addr, uint32_t mpu_flags)
 {
     internal_assert(mpu_region < MPU_MAX_REGIONS,
@@ -211,7 +199,7 @@ mpu_region_set(uint32_t mpu_region, uint32_t mpu_addr, uint32_t mpu_flags)
                                   MPU_ATTR_SHAREABLE | MPU_ATTR_BUFFRABLE);
 }
 
-void
+static void
 mpu_memmanage_interrupt_enable(void)
 {
     /* Clear the NVIC FSR as it starts off as junk */
@@ -222,7 +210,19 @@ mpu_memmanage_interrupt_enable(void)
     hardware_register(SYS_HND_CTRL) |= SYS_HND_CTRL_MEM;
 }
 
-void
+static uint32_t
+mpu_region_size_flag(uint32_t bytes)
+{
+    /* armv7m MPU only supports regions of 2^n size, above 32 bytes */
+    internal_assert(is_pow2(bytes), ERROR_ID_MPU_INVALID_REGION_SIZE);
+    internal_assert(bytes >= 32, ERROR_ID_MPU_INVALID_REGION_SIZE);
+
+    /* MPU region size flag for 2^x bytes is (x-1)<<1
+     * Count trailing zeros to get log2(x), valid as x is a power of 2 */
+    return ((__builtin_ctz(bytes) - 1) << 1);
+}
+
+static void
 mpu_populate_regions(void)
 {
     /* Note: region 0 is always the RX-only flash protection region
@@ -261,8 +261,7 @@ mpu_populate_regions(void)
 {{/tasks}}
 }
 
-
-void
+static void
 mpu_initialize(void)
 {
     /* Check hardware registers to see if this processor actually has
@@ -306,19 +305,6 @@ mpu_initialize(void)
      * in usermode. We leave it on for the lifetime of our system. */
     mpu_enable();
 }
-
-uint32_t
-mpu_region_size_flag(uint32_t bytes)
-{
-    /* armv7m MPU only supports regions of 2^n size, above 32 bytes */
-    internal_assert(is_pow2(bytes), ERROR_ID_MPU_INVALID_REGION_SIZE);
-    internal_assert(bytes >= 32, ERROR_ID_MPU_INVALID_REGION_SIZE);
-
-    /* MPU region size flag for 2^x bytes is (x-1)<<1
-     * Count trailing zeros to get log2(x), valid as x is a power of 2 */
-    return ((__builtin_ctz(bytes) - 1) << 1);
-}
-
 
 void
 mpu_configure_for_current_task(void)

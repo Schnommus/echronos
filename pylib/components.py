@@ -273,7 +273,7 @@ def _make_api_wrapper(function):
     call_body = m.group(2).strip()
 
     # Our actual API function has the same call signature as the original.
-    out = return_type + '\n' + call_body + '\n{\n'
+    out = 'inline ' + return_type + '\n' + call_body + '\n{\n'
 
     # Insert an API begin macro before our 'internal' call
     out += '    {}begin();\n'.format(_RTOS_API_MACRO_PREFIX)
