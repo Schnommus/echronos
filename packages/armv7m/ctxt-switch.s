@@ -66,15 +66,13 @@ rtos_internal_context_switch_first:
  * It is designed to be used in conjunction with the context
  * switch code for the initial switch to a particular task.
  * The tasks entry point is stored in 'r4'.
- * {{#rtos.memory_protection}}
- * Normally, the MPU is enabled when an API call is exited - this
- * will happen every time we complete context switching (falling into
- * our yield() wrapper etc).
- *
- * The first switch into a task will not be trapped by our API wrappers
- * as it directly enters the target function. Hence, we must enable the
- * MPU here.
- * {{/rtos.memory_protection}} */
+ *{{#rtos.memory_protection}}
+ * When memory protection is enabled, we must ensure that
+ * we drop into user-mode before branching into our task.
+ * Normally, this is the responsibility of API call wrappers,
+ * however the first context switch into a function requires
+ * us to explicitly drop privileges as we do here.
+ *{{/rtos.memory_protection}} */
 rtos_internal_trampoline:
         {{#rtos.memory_protection}}
         bl rtos_internal_drop_privileges
@@ -82,14 +80,16 @@ rtos_internal_trampoline:
         blx r4
 .size rtos_internal_trampoline, .-rtos_internal_trampoline
 
-
+{{#rtos.memory_protection}}
 .global rtos_internal_elevate_privileges
 .type rtos_internal_elevate_privileges,#function
 rtos_internal_elevate_privileges:
-    /* 0 is used for pre-emption on other variants */
+    /* 0 is used for pre-emption on other variants, so we
+     * use 1 to indicate an svc for a privilege raise request */
     svc #1
     /* At this point we are running in privileged mode */
     mov pc, lr
+.size rtos_internal_elevate_privileges, .-rtos_internal_elevate_privileges
 
 .global rtos_internal_drop_privileges
 .type rtos_internal_drop_privileges,#function
@@ -98,6 +98,7 @@ rtos_internal_drop_privileges:
     orr r0, r0, #1
     msr control, r0
     mov pc, lr
+.size rtos_internal_drop_privileges, .-rtos_internal_drop_privileges
 
 .global rtos_internal_svc_handler
 .type rtos_internal_svc_handler,#function
@@ -111,4 +112,5 @@ rtos_internal_svc_handler:
     msr control, r0
     /* RFE to straight after the offending svc call */
     bx lr
-
+.size rtos_internal_svc_handler, .-rtos_internal_svc_handler
+{{/rtos.memory_protection}}
