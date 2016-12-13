@@ -35,7 +35,6 @@
       <flash_size>0x40000</flash_size>
       <sram_size>0x8000</sram_size>
       <systick>tick_irq</systick>
-      <memmanage>rtos_handle_memmanage</memmanage>
       <nmi>nmi</nmi>
       <hardfault>hardfault</hardfault>
       <usagefault>usagefault</usagefault>
@@ -46,6 +45,7 @@
 
     <module name="armv7m.rtos-rigel">
       <memory_protection>true</memory_protection>
+      <verbose_protection_faults>true</verbose_protection_faults>
       <prefix>rtos</prefix>
       <signalset_size>8</signalset_size>
       <api_asserts>true</api_asserts>

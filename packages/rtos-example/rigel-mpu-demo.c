@@ -67,6 +67,8 @@ fatal(const RtosErrorId error_id)
     }
 }
 
+int global = 0;
+
 void
 fn_a(void)
 {
@@ -124,6 +126,7 @@ fn_a(void)
         debug_printhex32(rtos_get_timer_current_ticks());
         debug_println("");
         rtos_yield();
+        ++global;
     } while (!rtos_timer_check_overflow(RTOS_TIMER_ID_TEST));
 
 

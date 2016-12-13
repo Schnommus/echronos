@@ -1,10 +1,17 @@
 /*| headers |*/
 {{#memory_protection}}
+{{#verbose_protection_faults}}
 #include "debug.h"
+{{/verbose_protection_faults}}
 {{/memory_protection}}
 
 /*| object_like_macros |*/
 {{#memory_protection}}
+/* MPU-related constants */
+#define MPU_MAX_REGIONS             8
+#define MPU_BUILTIN_REGIONS         2           /* Stack & flash regions           */
+#define MPU_MAX_ASSOCIATED_DOMAINS  MPU_MAX_REGIONS-MPU_BUILTIN_REGIONS
+
 /* MPU control registers */
 #define MPU_TYPE                    0xE000ED90  /* MPU Type                        */
 #define MPU_CTRL                    0xE000ED94  /* MPU Control                     */
@@ -14,12 +21,17 @@
                                                 /* We exclude the additional alias
                                                  * regions as they are unavailable
                                                  * on some processors */
+/* MPU interrupt registers */
+#define SYS_HND_CTRL                0xE000ED24  /* System Handler Control and State */
+#define SYS_HND_CTRL_MEM            0x00010000  /* Memory Management Fault Enable   */
+
+/* MPU fault status registers */
+#define NVIC_FAULT_STAT             0xE000ED28  /* Configurable Fault Status        */
+#define NVIC_MM_ADDR                0xE000ED34  /* Memory Management Fault Address  */
 
 /* MPU type bitfields */
-#define MPU_TYPE_IREGION_M          0x00FF0000  /* Number of I Regions             */
 #define MPU_TYPE_DREGION_M          0x0000FF00  /* Number of D Regions             */
 #define MPU_TYPE_SEPARATE           0x00000001  /* Separate or Unified MPU         */
-#define MPU_TYPE_IREGION_S          16
 #define MPU_TYPE_DREGION_S          8
 
 /* MPU base bitfields */
@@ -29,22 +41,15 @@
 #define MPU_BASE_ADDR_S             5
 #define MPU_BASE_REGION_S           0
 
-/* More MPU-related constants */
-#define MPU_MAX_REGIONS             8
-#define MPU_BUILTIN_REGIONS         2           /* Stack & flash regions           */
-#define MPU_MAX_ASSOCIATED_DOMAINS  MPU_MAX_REGIONS-MPU_BUILTIN_REGIONS
-
 /* MPU control flags */
 #define MPU_CTRL_ENABLE             0x00000001  /* MPU Enable                      */
 
 /* MPU enable flags */
 #define MPU_CONFIG_PRIV_DEFAULT     4
 #define MPU_CONFIG_HARDFLT_NMI      2
-#define MPU_CONFIG_NONE             0
 
 /* MPU region enable flags */
 #define MPU_RGN_ENABLE              1
-#define MPU_RGN_DISABLE             0
 
 /* MPU region permission flags */
 #define MPU_P_EXEC                  0x00000000
@@ -53,50 +58,15 @@
 #define MPU_P_RO                    0x02000000  /* RW for priv, read-only for user access */
 #define MPU_P_RW                    0x03000000  /* Read-Write for privileged and user access */
 
-/* MPU special region permission flags */
+/* MPU memory type flags */
 #define MPU_ATTR_TEX_M              0x00380000
 #define MPU_ATTR_SHAREABLE          0x00040000
 #define MPU_ATTR_CACHEABLE          0x00020000
 #define MPU_ATTR_BUFFRABLE          0x00010000
 
-/* MPU sub-region flags */
-#define MPU_SUB_RGN_DISABLE_0       0x00000100
-#define MPU_SUB_RGN_DISABLE_1       0x00000200
-#define MPU_SUB_RGN_DISABLE_2       0x00000400
-#define MPU_SUB_RGN_DISABLE_3       0x00000800
-#define MPU_SUB_RGN_DISABLE_4       0x00001000
-#define MPU_SUB_RGN_DISABLE_5       0x00002000
-#define MPU_SUB_RGN_DISABLE_6       0x00004000
-#define MPU_SUB_RGN_DISABLE_7       0x00008000
-
-/* Allowed MPU region sizes */
+/* MPU region attribute flags */
 #define MPU_ATTR_SIZE_M             0x0000003E  /* Region Size Mask */
 #define MPU_ATTR_ENABLE             0x00000001  /* Region Enable    */
-
-/* Registers used for enabling the MPU interrupt */
-#define SYS_HND_CTRL                0xE000ED24  /* System Handler Control and State */
-#define SYS_HND_CTRL_MEM            0x00010000  /* Memory Management Fault Enable   */
-
-/* Registers used to handle the MPU interrupt */
-#define NVIC_FAULT_STAT             0xE000ED28  /* Configurable Fault Status        */
-#define NVIC_MM_ADDR                0xE000ED34  /* Memory Management Fault Address  */
-
-/* Armv7m system address map (from TRM) */
-#define CODE_BASE                   0x00000000  /* 512 MB */
-#define SRAM_BASE                   0x20000000  /* 512 MB */
-#define SRAM_BITBAND_END            0x20100000  /* ^      */
-#define SRAM_BITBAND_ALIAS_BASE     0x22000000  /* ^      */
-#define SRAM_BITBAND_ALIAS_END      0x24000000  /* ^      */
-#define PERIPH_BASE                 0x40000000  /* 512 MB */
-#define PERIPH_BITBAND_END          0x40100000  /* ^      */
-#define PERIPH_BITBAND_ALIAS_BASE   0x42000000  /* ^      */
-#define PERIPH_BITBAND_ALIAS_END    0x44000000  /* ^      */
-#define EXTERNAL_RAM_BASE           0x60000000  /* 1 GB   */
-#define EXTERNAL_DEVICE_BASE        0xA0000000  /* 1 GB   */
-#define INT_PERIPH_BASE             0xE0000000  /* 256 KB */
-#define INT_PERIPH_NVIC             0xE000E000  /* ^      */
-#define EXT_PERIPH_BASE             0xE0040000  /* 768 KB */
-#define SYSTEM_RESERVED_BASE        0xE0100000  /* rest   */
 {{/memory_protection}}
 
 /*| types |*/
@@ -122,6 +92,7 @@ static struct mpu_region mpu_regions[{{tasks.length}}][MPU_MAX_REGIONS-1];
  * This should always be through the 'linker_value' macro defined below.*/
 extern uint32_t linker_flash_size;
 extern uint32_t linker_sram_size;
+extern uint32_t linker_code_start;
 {{#protection_domains}}
 extern uint32_t linker_domain_{{name}}_start;
 extern uint32_t linker_domain_{{name}}_size;
@@ -137,9 +108,7 @@ uint32_t mpu_regions_supported_get(void);
 void mpu_region_enable(uint32_t mpu_region);
 void mpu_region_disable(uint32_t mpu_region);
 void mpu_region_set(uint32_t mpu_region, uint32_t mpu_addr, uint32_t mpu_flags);
-void mpu_region_get(uint32_t mpu_region, uint32_t *mpu_addr_ptr, uint32_t *mpu_flags_ptr);
 void mpu_memmanage_interrupt_enable(void);
-void mpu_memmanage_interrupt_disable(void);
 uint32_t mpu_region_size_flag(uint32_t bytes);
 void mpu_configure_for_task(const {{prefix_type}}TaskId to);
 {{/memory_protection}}
@@ -236,25 +205,10 @@ mpu_region_set(uint32_t mpu_region, uint32_t mpu_addr, uint32_t mpu_flags)
      * Cacheable = 0
      * Shareable = 1
      * Bufferable = 1
-     * These options should be fine on most devices, with a performance
+     * These options should be fine on most devices, with a small performance
      * penalty on armv7m processors that have a cache. This is rare though. */
     hardware_register(MPU_ATTR) = ((mpu_flags & ~(MPU_ATTR_TEX_M | MPU_ATTR_CACHEABLE)) |
                                   MPU_ATTR_SHAREABLE | MPU_ATTR_BUFFRABLE);
-}
-
-void
-mpu_region_get(uint32_t mpu_region, uint32_t *mpu_addr_ptr, uint32_t *mpu_flags_ptr)
-{
-    internal_assert(mpu_region < MPU_MAX_REGIONS,
-                    ERROR_ID_MPU_INTERNAL_INVALID_REGION_INDEX);
-
-    internal_assert(mpu_addr_ptr && mpu_flags_ptr,
-                    ERROR_ID_MPU_INTERNAL_INVALID_PTR);
-
-    /* Set the MPU region and then grab our data */
-    hardware_register(MPU_NUMBER) = mpu_region;
-    *mpu_addr_ptr = hardware_register(MPU_BASE) & MPU_BASE_ADDR_M;
-    *mpu_flags_ptr = hardware_register(MPU_ATTR);
 }
 
 void
@@ -266,12 +220,6 @@ mpu_memmanage_interrupt_enable(void)
 
     /* Enable the interrupt */
     hardware_register(SYS_HND_CTRL) |= SYS_HND_CTRL_MEM;
-}
-
-void
-mpu_memmanage_interrupt_disable(void)
-{
-    hardware_register(SYS_HND_CTRL) &= ~SYS_HND_CTRL_MEM;
 }
 
 void
@@ -345,7 +293,7 @@ mpu_initialize(void)
 
     /* Create a read-only executable region for our FLASH */
     uint32_t flash_size = linker_value(linker_flash_size);
-    mpu_region_set(0, CODE_BASE, mpu_region_size_flag(flash_size) |
+    mpu_region_set(0, linker_value(linker_code_start), mpu_region_size_flag(flash_size) |
                    MPU_P_EXEC | MPU_P_RO | MPU_RGN_ENABLE);
 
     /* fill up our region table for each task */
@@ -355,8 +303,7 @@ mpu_initialize(void)
     mpu_memmanage_interrupt_enable();
 
     /* The MPU itself will only enforce memory protection rules
-     * whilst it is enabled. We only enable the MPU when we are
-     * inside a task - it is not enabled here. */
+     * in usermode. We leave it on for the lifetime of our system. */
     mpu_enable();
 }
 
@@ -397,24 +344,24 @@ mpu_configure_for_current_task(void)
 }
 
 bool
-rtos_handle_memmanage(void)
+rtos_internal_memmanage_handler(void)
 {
-    /* Grab fault address and status */
-    uint32_t fault_address = hardware_register(NVIC_MM_ADDR);
     uint32_t fault_status  = hardware_register(NVIC_FAULT_STAT);
 
-    /* Print these to make debugging easier */
-    debug_print("ADR: ");
+{{#verbose_protection_faults}}
+    uint32_t fault_address = hardware_register(NVIC_MM_ADDR);
+    debug_print("protection fault: [address=");
     debug_printhex32(fault_address);
-    debug_print(" ST: ");
+    debug_print(", status=");
     debug_printhex32(fault_status);
-    debug_println("");
+    debug_print("]\n");
+{{/verbose_protection_faults}}
 
     /* Clear the fault status register */
     hardware_register(NVIC_FAULT_STAT) = fault_status;
 
-    /* Turn off the MPU so that the RTOS (outside this handler)
-     * is able to operate normally */
+    /* Turn off the MPU in case we managed to block ourselves
+     * from doing memory accesses in privileged mode */
     mpu_disable();
 
     /* An MPU policy violation is a fatal error (for now) */
