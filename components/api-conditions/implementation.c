@@ -7,13 +7,14 @@
 /*| structures |*/
 
 /*| extern_declarations |*/
+{{#memory_protection}}
 extern void rtos_internal_elevate_privileges(void);
 extern void rtos_internal_drop_privileges(void);
+{{/memory_protection}}
 
 /*| function_declarations |*/
 
 /*| state |*/
-uint32_t rtos_api_depths[{{tasks.length}}] = {0};
 
 /*| function_like_macros |*/
 {{^memory_protection}}

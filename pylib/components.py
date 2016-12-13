@@ -65,6 +65,8 @@ _REQUIRED_DOC_SECTIONS = ['doc_header', 'doc_concepts', 'doc_api',
                           'doc_configuration', 'doc_footer']
 
 _RTOS_API_MACRO_PREFIX = 'rtos_internal_api_'
+_RTOS_API_PUBLIC_TAG = "{{prefix_func}}"
+_RTOS_API_INTERNAL_TAG = "{{prefix_internal}}"
 
 class _SchemaFormatError(RuntimeError):
     """To be raised when a component configuration schema violates assumptions or conventions."""
@@ -121,22 +123,6 @@ def _merge_schema_files(xml_files):
         _merge_schema_entries(merged_schema, schema)
 
     return xml.etree.ElementTree.tostring(merged_schema).decode()
-
-def _annotate_api_functions(public_api_functions):
-    """Given a string containing a bunch of public API functions, will annotate
-    their internals so that the first thing the function does is call an
-    api begin macro, and the last thing it does is call an api end macro."""
-    public_api_functions = re.sub(r'(\{\{prefix_func}}.*\n(\ +.*\n)?\{\n)',
-                                  r'\1    rtos_internal_api_begin();\n', public_api_functions)
-    def _api_return(match):
-        if(match.group(2)):
-            return '\n    {}end_with({});{}'.format(_RTOS_API_MACRO_PREFIX, match.group(2), match.group(3))
-        else:
-            return '\n    {}end();{}'.format(_RTOS_API_MACRO_PREFIX, match.group(3))
-
-    public_api_functions = re.sub(r'(return\ (.*);)?(\n\}\n)',
-                                  _api_return, public_api_functions)
-    return public_api_functions
 
 def _sort_typedefs(typedef_lines):
     """Given a string containing multiple lines of typedefs, sort the lines so that the typedefs are in the 'correct'
@@ -269,6 +255,8 @@ def _bind_components(components, pkg_name, search_paths):
     return bound_components
 
 def _make_api_wrapper(function):
+    """Given a string containing a public RTOS API function, return a wrapper for that function
+    that calls API begin/end macros required by some RTOS components. (i.e memory protection)"""
 
     # This regex isolates the following from a function definition that adheres to our coding style:
     #   - Group 1: The return type of the function we are wrapping
@@ -284,9 +272,8 @@ def _make_api_wrapper(function):
     return_type = m.group(1).strip()
     call_body = m.group(2).strip()
 
-    # Our actual API function has the same call signature as the original,
-    # except we replace the internal prefix with the external prefix
-    out = return_type + '\n' + call_body.replace("{{prefix_internal}}", "{{prefix_func}}") + '\n{\n'
+    # Our actual API function has the same call signature as the original.
+    out = return_type + '\n' + call_body + '\n{\n'
 
     # Insert an API begin macro before our 'internal' call
     out += '    {}begin();\n'.format(_RTOS_API_MACRO_PREFIX)
@@ -302,7 +289,7 @@ def _make_api_wrapper(function):
     args = [x.strip() for x in m_func.group(2).split(",")]
 
     # Now we will begin constructing how the wrapper invokes the target function
-    call = func_name
+    call = func_name.replace(_RTOS_API_PUBLIC_TAG, _RTOS_API_INTERNAL_TAG)
 
     # If the function takes no arguments, pass it nothing - otherwise we pass it
     # a comma-separated list of the arguments passed into our wrapper (excluding their
@@ -386,23 +373,21 @@ def _generate(rtos_name, components, pkg_name, search_paths):
         for ss in _REQUIRED_C_SECTIONS:
             data = "\n".join(c_sections[ss] for c_sections in all_c_sections)
 
-            # Hide every public API symbol as we wrap it during the 'public_functions' step
-            if ss != 'public_privileged_functions':
-                data = data.replace("{{prefix_func}}", "{{prefix_internal}}")
+            # Forward declare all the 'internal api' functions
+            if ss == 'function_declarations':
+                data += public_apis.replace(_RTOS_API_PUBLIC_TAG, _RTOS_API_INTERNAL_TAG)
+
+            # Hide uses of public API symbols, and include the API wrappers when appropriate
+            if ss not in ['public_privileged_functions']:
+                api_wrappers = ""
+                if ss == 'public_functions':
+                    api_wrappers = _make_api_wrappers_for(data)
+                data = api_wrappers + data.replace(_RTOS_API_PUBLIC_TAG, _RTOS_API_INTERNAL_TAG)
 
             if ss == 'types':
                 data = _sort_typedefs(data)
 
-            if ss == 'function_declarations':
-                # Forward declare all the 'internal' replacements from the header file
-                data += public_apis.replace("{{prefix_func}}", "{{prefix_internal}}")
-
             f.write(data)
-
-            if ss == 'public_functions':
-                # Write out our wrapper functions
-                f.write(_make_api_wrappers_for(data))
-
             f.write('\n')
 
     # Generate docs
