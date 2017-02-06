@@ -231,6 +231,8 @@ CORE_SKELETONS = {
                Component('simple-semaphore', {'timeouts': True, 'preemptive': True}),
                Component('error'),
                Component('task', {'task_start_api': False}),
+               Component('api-conditions'),
+               Component('mpu', pkg_component=True),
                Component('kochab'),
                ],
     'phact': [Component('docs'),

@@ -41,6 +41,11 @@ entry_{{name}}(void)
     precondition_preemption_disabled();
 
     preempt_enable();
+
+    {{#memory_protection}}
+    rtos_internal_drop_privileges();
+    {{/memory_protection}}
+
     {{function}}();
 }
 {{/tasks}}
@@ -97,6 +102,8 @@ unblock(const {{prefix_type}}TaskId task)
 }
 
 /*| public_functions |*/
+
+/*| public_privileged_functions |*/
 void
 {{prefix_func}}start(void)
 {
@@ -108,7 +115,9 @@ void
     sched_set_runnable({{idx}});
     {{/tasks}}
 
+    {{#memory_protection}}
+    mpu_initialize();
+    {{/memory_protection}}
+
     context_switch_first({{prefix_const}}TASK_ID_ZERO);
 }
-
-/*| public_privileged_functions |*/

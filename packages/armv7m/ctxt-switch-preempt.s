@@ -117,6 +117,9 @@
         str.w sp, [\scratch, \old_task_idx, lsl #2] /* tasks[old_task_idx] = current_ctx<sp> */
         ldr.w sp, [\scratch, \new_task_idx, lsl #2] /* new_ctx<sp> = tasks[new_task_idx] */
         strb \new_task_idx, [\current_task_p] /* current_task = new_task_idx */
+        {{#rtos.memory_protection}}
+        bl mpu_configure_for_current_task
+        {{/rtos.memory_protection}}
 .endm
 
 /* If the task is using the FPU context (determined by the EXC_RETURN register), push high vfp registers.
@@ -217,6 +220,25 @@ rtos_internal_yield:
 .type rtos_internal_svc_handler,#function
 /* Implements the functionality of rtos_internal_yield. */
 rtos_internal_svc_handler:
+        {{#rtos.memory_protection}}
+        /* Get the SVC instruction and extract it's immediate argument */
+        mrs r0, msp
+        ldr r0, [r0, #6*4]
+        ldrb r0, [r0, #-2]
+        /* Check if it is a privilege elevation request */
+        mov r1, #1
+        cmp r0, r1
+        /* Skip the privilege elevation if this wasn't an elevation request */
+        bne 1f
+        mrs r0, control
+        bic r0, r0, #1
+        msr control, r0
+        /* We're now in privileged mode - RFE to after the offending SVC */
+        bx lr
+1:
+        /* If the SVC wasn't a privilege elevation request, execution falls through here
+         * with no changes to privilege levels */
+        {{/rtos.memory_protection}}
         /* Jump to the end if no context switch is necessary, else put the new task id in r0 */
         asm_invoke_scheduler
         asm_current_task_get r12 r1
@@ -288,6 +310,9 @@ rtos_internal_pendsv_handler:
 /* void rtos_internal_context_switch_first(context_t *to); */
 rtos_internal_context_switch_first:
         ldr sp, [r0]
+        {{#rtos.memory_protection}}
+        bl mpu_configure_for_current_task
+        {{/rtos.memory_protection}}
         /* Cherrypick just those register contents from the initial stack frame relevant to the task entry trampoline.
          * These hardcoded context stack frame offsets must match those initialized by context_init.
          * At the time, we initialized context[CONTEXT_R4_IDX] to hold the task's start function pointer. */
@@ -312,3 +337,25 @@ rtos_internal_context_switch_first:
 rtos_internal_task_entry_trampoline:
         blx r4
 .size rtos_internal_task_entry_trampoline, .-rtos_internal_task_entry_trampoline
+
+
+{{#rtos.memory_protection}}
+.global rtos_internal_elevate_privileges
+.type rtos_internal_elevate_privileges,#function
+rtos_internal_elevate_privileges:
+    /* 0 is used for pre-emption on other variants, so we
+     * use 1 to indicate an svc for a privilege raise request */
+    svc #1
+    /* At this point we are running in privileged mode */
+    mov pc, lr
+.size rtos_internal_elevate_privileges, .-rtos_internal_elevate_privileges
+
+.global rtos_internal_drop_privileges
+.type rtos_internal_drop_privileges,#function
+rtos_internal_drop_privileges:
+    mrs r0, control
+    orr r0, r0, #1
+    msr control, r0
+    mov pc, lr
+.size rtos_internal_drop_privileges, .-rtos_internal_drop_privileges
+{{/rtos.memory_protection}}
