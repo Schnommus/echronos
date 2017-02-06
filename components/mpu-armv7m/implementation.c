@@ -222,6 +222,29 @@ mpu_region_size_flag(const uint32_t bytes)
     return ((__builtin_ctz(bytes) - 1) << 1);
 }
 
+inline static uint32_t mpu_get_permissions_at(uint32_t ptr, uint32_t len_bytes) {
+    uint32_t i;
+    for(i = 0; i != MPU_MAX_REGIONS; ++i) {
+        uint32_t start = mpu_regions[rtos_internal_current_task][i].base_addr;
+        uint32_t size = 1 <<
+            (((MPU_ATTR_SIZE_M & mpu_regions[rtos_internal_current_task][i].flags) >> 1) + 1);
+        if(start <= ptr && ptr + len_bytes <= start + size) {
+            return mpu_regions[rtos_internal_current_task][i].flags;
+        }
+    }
+    return 0;
+}
+
+static uint32_t mpu_ensure_readable(uint32_t ptr, uint32_t len_bytes) {
+    uint32_t flags = mpu_get_permissions_at(ptr, len_bytes);
+    return (flags | MPU_P_RO) || (flags | MPU_P_RW);
+}
+
+static uint32_t mpu_ensure_writeable(uint32_t ptr, uint32_t len_bytes) {
+    uint32_t flags = mpu_get_permissions_at(ptr, len_bytes);
+    return (flags | MPU_P_RW);
+}
+
 static void
 mpu_populate_regions(void)
 {
