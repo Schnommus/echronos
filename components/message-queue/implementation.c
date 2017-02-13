@@ -254,6 +254,9 @@ bool
     message_queue_api_assert_valid(message_queue);
     api_assert(message, ERROR_ID_MESSAGE_QUEUE_INVALID_POINTER);
     message_queue_invariants_check();
+    {{#memory_protection}}
+    mpu_ensure_readable((uint32_t)message, message_queues[message_queue].message_size);
+    {{/memory_protection}}
 
     {
         struct message_queue *const mq = &message_queues[message_queue];
@@ -321,6 +324,9 @@ bool
     message_queue_api_assert_valid(message_queue);
     api_assert(message, ERROR_ID_MESSAGE_QUEUE_INVALID_POINTER);
     message_queue_invariants_check();
+    {{#memory_protection}}
+    mpu_ensure_writeable((uint32_t)message, message_queues[message_queue].message_size);
+    {{/memory_protection}}
 
     {
         struct message_queue *const mq = &message_queues[message_queue];

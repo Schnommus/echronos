@@ -57,6 +57,7 @@
 #define MPU_P_NO                    0x01000000  /* RW for priv, no access for user */
 #define MPU_P_RO                    0x02000000  /* RW for priv, read-only for user access */
 #define MPU_P_RW                    0x03000000  /* Read-Write for privileged and user access */
+#define MPU_P_MASK                  0x0F000000
 
 /* MPU memory type flags */
 #define MPU_ATTR_TEX_M              0x00380000
@@ -222,7 +223,8 @@ mpu_region_size_flag(const uint32_t bytes)
     return ((__builtin_ctz(bytes) - 1) << 1);
 }
 
-inline static uint32_t mpu_get_permissions_at(uint32_t ptr, uint32_t len_bytes) {
+inline static uint32_t
+mpu_get_permissions_at(uint32_t ptr, uint32_t len_bytes) {
     uint32_t i;
     for(i = 0; i != MPU_MAX_REGIONS; ++i) {
         uint32_t start = mpu_regions[rtos_internal_current_task][i].base_addr;
@@ -235,14 +237,38 @@ inline static uint32_t mpu_get_permissions_at(uint32_t ptr, uint32_t len_bytes) 
     return 0;
 }
 
-static uint32_t mpu_ensure_readable(uint32_t ptr, uint32_t len_bytes) {
-    uint32_t flags = mpu_get_permissions_at(ptr, len_bytes);
-    return (flags | MPU_P_RO) || (flags | MPU_P_RW);
+__attribute__((unused))
+static void
+mpu_ensure_readable(uint32_t ptr, uint32_t len_bytes) {
+    uint32_t flags = mpu_get_permissions_at(ptr, len_bytes) & MPU_P_MASK;
+    if(!((flags == MPU_P_RO) || (flags == MPU_P_RW))) {
+{{#verbose_protection_faults}}
+        debug_print("failed to ensure readable pointer: [address=");
+        debug_printhex32(ptr);
+        debug_print(", length=");
+        debug_printhex32(len_bytes);
+        debug_print("]\n");
+{{/verbose_protection_faults}}
+        mpu_disable();
+        {{fatal_error}}(ERROR_ID_MPU_SANITATION_FAILURE);
+    }
 }
 
-static uint32_t mpu_ensure_writeable(uint32_t ptr, uint32_t len_bytes) {
+__attribute__((unused))
+static void
+mpu_ensure_writeable(uint32_t ptr, uint32_t len_bytes) {
     uint32_t flags = mpu_get_permissions_at(ptr, len_bytes);
-    return (flags | MPU_P_RW);
+    if(!(flags == MPU_P_RW)) {
+{{#verbose_protection_faults}}
+        debug_print("failed to ensure writeable pointer: [address=");
+        debug_printhex32(ptr);
+        debug_print(", length=");
+        debug_printhex32(len_bytes);
+        debug_print("]\n");
+{{/verbose_protection_faults}}
+        mpu_disable();
+        {{fatal_error}}(ERROR_ID_MPU_SANITATION_FAILURE);
+    }
 }
 
 static void
