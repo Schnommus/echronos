@@ -146,18 +146,6 @@ static const uint32_t g_pui32UnpendRegs[] =
 //
 #undef NUM_INTERRUPTS
 #define NUM_INTERRUPTS                          155
-#if defined(ewarm)
-#pragma data_alignment=1024
-static __no_init void (*g_pfnRAMVectors[NUM_INTERRUPTS])(void) @ "VTABLE";
-#elif defined(sourcerygxx)
-static __attribute__((section(".cs3.region-head.ram")))
-void (*g_pfnRAMVectors[NUM_INTERRUPTS])(void) __attribute__ ((aligned(1024)));
-#elif defined(ccs) || defined(DOXYGEN)
-#pragma DATA_ALIGN(g_pfnRAMVectors, 1024)
-#pragma DATA_SECTION(g_pfnRAMVectors, ".vtable")
-void (*g_pfnRAMVectors[NUM_INTERRUPTS])(void);
-#else
-#endif
 
 //*****************************************************************************
 //

@@ -104,8 +104,8 @@ class EntryModule(Module):
             with open(c_file) as f:
                 try:
                     p.parse(f.read(), c_file)
-                except ply.cpp.CppError as e:
-                    raise SystemBuildError(str(e))
+                except:
+                    print("parse error with bitband substitution in: " + c_file)
 
         super().post_prepare(system, config)
 

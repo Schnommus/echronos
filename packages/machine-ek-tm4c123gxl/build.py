@@ -37,7 +37,7 @@ def system_build(system):
     inc_path_args = ['-I%s' % i for i in system.include_paths]
     common_flags = ['-g', '-mthumb', '-mlittle-endian', '-mcpu=cortex-m4', '-mfloat-abi=hard', '-mfpu=fpv4-sp-d16']
     a_flags = common_flags
-    c_flags = common_flags + ['-O0']
+    c_flags = common_flags + ['-O0', '-DTARGET_IS_TM4C123_RB1', '-DPART_TM4C123GH6PM', '-Dgcc']
     ld_flags = ['--print-memory-usage']
 
     # Compile all C files.

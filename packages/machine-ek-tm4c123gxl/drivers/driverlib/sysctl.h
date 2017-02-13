@@ -180,10 +180,6 @@ extern "C"
 #define SYSCTL_CAUSE_WDOG1      0x00000020  // Watchdog 1 reset
 #define SYSCTL_CAUSE_SW         0x00000010  // Software reset
 #define SYSCTL_CAUSE_WDOG0      0x00000008  // Watchdog 0 reset
-#ifndef DEPRECATED
-#define SYSCTL_CAUSE_WDOG       SYSCTL_CAUSE_WDOG0
-                                            // Watchdog reset(Deprecated)
-#endif
 #define SYSCTL_CAUSE_BOR        0x00000004  // Brown-out reset
 #define SYSCTL_CAUSE_POR        0x00000002  // Power on reset
 #define SYSCTL_CAUSE_EXT        0x00000001  // External reset

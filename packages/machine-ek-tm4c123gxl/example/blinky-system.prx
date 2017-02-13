@@ -1,42 +1,114 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<!--
-     eChronos Real-Time Operating System
-     Copyright (C) 2015  National ICT Australia Limited (NICTA), ABN 62 102 206 173.
-
-     This program is free software: you can redistribute it and/or modify
-     it under the terms of the GNU Affero General Public License as published by
-     the Free Software Foundation, version 3, provided that these additional
-     terms apply under section 7:
-
-       No right, title or interest in or to any trade mark, service mark, logo
-       or trade name of of National ICT Australia Limited, ABN 62 102 206 173
-       ("NICTA") or its licensors is granted. Modified versions of the Program
-       must be plainly marked as such, and must not be distributed using
-       "eChronos" as a trade mark or product name, or misrepresented as being
-       the original Program.
-
-     This program is distributed in the hope that it will be useful,
-     but WITHOUT ANY WARRANTY; without even the implied warranty of
-     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-     GNU Affero General Public License for more details.
-
-     You should have received a copy of the GNU Affero General Public License
-     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
-     @TAG(NICTA_AGPL)
-  -->
-
 <system>
-  <modules>
-    <module name="armv7m.build" />
-    <module name="armv7m.vectable">
-      <flash_load_addr>0x0000000</flash_load_addr>
-      <flash_size>0x40000</flash_size>
-      <sram_size>0x8000</sram_size>
-    </module>
-    <module name="machine-ek-tm4c123gxl.led" />
-    <module name="machine-ek-tm4c123gxl.example.blinky">
-      <delay_amount>100000</delay_amount>
-    </module>
-  </modules>
+
+    <include_paths>
+        <include_path>packages/machine-ek-tm4c123gxl/drivers</include_path>
+        <include_path>packages/machine-ek-tm4c123gxl/drivers/stdlib_hook</include_path>
+    </include_paths>
+
+    <modules>
+        <module name="machine-ek-tm4c123gxl.example.blinky" />
+        <module name="machine-ek-tm4c123gxl.example.boilerplate" />
+
+        <module name="machine-ek-tm4c123gxl.drivers.driverlib.adc" />
+        <module name="machine-ek-tm4c123gxl.drivers.driverlib.aes" />
+        <module name="machine-ek-tm4c123gxl.drivers.driverlib.can" />
+        <module name="machine-ek-tm4c123gxl.drivers.driverlib.cpu" />
+        <module name="machine-ek-tm4c123gxl.drivers.driverlib.comp" />
+        <module name="machine-ek-tm4c123gxl.drivers.driverlib.crc" />
+        <module name="machine-ek-tm4c123gxl.drivers.driverlib.des" />
+        <module name="machine-ek-tm4c123gxl.drivers.driverlib.eeprom" />
+        <module name="machine-ek-tm4c123gxl.drivers.driverlib.flash" />
+        <module name="machine-ek-tm4c123gxl.drivers.driverlib.fpu" />
+        <module name="machine-ek-tm4c123gxl.drivers.driverlib.gpio" />
+        <module name="machine-ek-tm4c123gxl.drivers.driverlib.i2c" />
+        <module name="machine-ek-tm4c123gxl.drivers.driverlib.interrupt" />
+        <module name="machine-ek-tm4c123gxl.drivers.driverlib.lcd" />
+        <module name="machine-ek-tm4c123gxl.drivers.driverlib.onewire" />
+        <module name="machine-ek-tm4c123gxl.drivers.driverlib.pwm" />
+        <module name="machine-ek-tm4c123gxl.drivers.driverlib.qei" />
+        <module name="machine-ek-tm4c123gxl.drivers.driverlib.shamd5" />
+        <module name="machine-ek-tm4c123gxl.drivers.driverlib.ssi" />
+        <module name="machine-ek-tm4c123gxl.drivers.driverlib.sw_crc" />
+        <module name="machine-ek-tm4c123gxl.drivers.driverlib.sysctl" />
+        <module name="machine-ek-tm4c123gxl.drivers.driverlib.sysexc" />
+        <module name="machine-ek-tm4c123gxl.drivers.driverlib.systick" />
+        <module name="machine-ek-tm4c123gxl.drivers.driverlib.timer" />
+        <module name="machine-ek-tm4c123gxl.drivers.driverlib.uart" />
+        <module name="machine-ek-tm4c123gxl.drivers.driverlib.udma" />
+        <module name="machine-ek-tm4c123gxl.drivers.driverlib.usb" />
+        <module name="machine-ek-tm4c123gxl.drivers.driverlib.watchdog" />
+
+        <module name="machine-ek-tm4c123gxl.drivers.utils.ustdlib" />
+        <module name="machine-ek-tm4c123gxl.drivers.utils.uartstdio" />
+
+        <module name="machine-ek-tm4c123gxl.build" />
+        <module name="armv7m.ctxt-switch-preempt" />
+        <module name="armv7m.exception-preempt">
+            <trampolines>
+                <trampoline>
+                    <name>systick</name>
+                    <handler>tick_irq</handler>
+                </trampoline>
+            </trampolines>
+        </module>
+        <module name="armv7m.vectable">
+            <flash_load_addr>0x0000000</flash_load_addr>
+            <flash_size>0x40000</flash_size>
+            <sram_size>0x8000</sram_size>
+            <nmi>nmi</nmi>
+            <hardfault>hardfault</hardfault>
+            <usagefault>usagefault</usagefault>
+            <busfault>busfault</busfault>
+            <preemption>true</preemption>
+            <systick>exception_preempt_trampoline_systick</systick>
+        </module>
+        <module name="armv7m.semihost-debug" />
+        <module name="generic.debug" />
+
+        <module name="armv7m.rtos-kochab">
+            <api_asserts>true</api_asserts>
+            <internal_asserts>true</internal_asserts>
+            <fatal_error>fatal</fatal_error>
+            <prefix>rtos</prefix>
+            <taskid_size>8</taskid_size>
+            <signalset_size>8</signalset_size>
+            <svcall_priority>192</svcall_priority>
+            <pendsv_priority>224</pendsv_priority>
+            <tasks>
+                <task>
+                    <name>task_blink</name>
+                    <function>task_blink_fn</function>
+                    <priority>30</priority>
+                    <stack_size>512</stack_size>
+                </task>
+            </tasks>
+
+            <signal_labels>
+                <signal_label>
+                    <name>blink_delay</name>
+                </signal_label>
+            </signal_labels>
+
+            <timers>
+                <timer>
+                    <name>blink_delay_timer</name>
+                    <enabled>true</enabled>
+                    <reload>10</reload>
+                    <task>task_blink</task>
+                    <sig_set>blink_delay</sig_set>
+                </timer>
+            </timers>
+
+            <mutexes>
+                <mutex>
+                  <name>m0</name>
+                </mutex>
+            </mutexes>
+            <semaphore_enable_max>true</semaphore_enable_max>
+            <mutex>
+                <stats>true</stats>
+            </mutex>
+        </module>
+    </modules>
 </system>

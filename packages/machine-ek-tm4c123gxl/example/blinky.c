@@ -1,77 +1,75 @@
-/*
- * eChronos Real-Time Operating System
- * Copyright (C) 2015  National ICT Australia Limited (NICTA), ABN 62 102 206 173.
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License as published by
- * the Free Software Foundation, version 3, provided that these additional
- * terms apply under section 7:
- *
- *   No right, title or interest in or to any trade mark, service mark, logo
- *   or trade name of of National ICT Australia Limited, ABN 62 102 206 173
- *   ("NICTA") or its licensors is granted. Modified versions of the Program
- *   must be plainly marked as such, and must not be distributed using
- *   "eChronos" as a trade mark or product name, or misrepresented as being
- *   the original Program.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU Affero General Public License for more details.
- *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
- *
- * @TAG(NICTA_AGPL)
- */
+#include "boilerplate.h"
+#include "rtos-kochab.h"
 
-/*<module>
-  <code_gen>template</code_gen>
-  <schema>
-   <entry name="delay_amount" type="int" default="10000"/>
-  </schema>
-</module>*/
-#include "led.h"
-#define DELAY_AMOUNT {{delay_amount}}
+#define SYSTICKS_PER_SECOND     100
 
-static inline void
-delay(void)
-{
-    volatile int i;
-    for (i = 0; i < DELAY_AMOUNT; i++)
-    {
+#define RED_LED   GPIO_PIN_1
+#define BLUE_LED  GPIO_PIN_2
+#define GREEN_LED GPIO_PIN_3
+#define ALL_LEDS (RED_LED|BLUE_LED|GREEN_LED)
+
+bool tick_irq(void) {
+    rtos_timer_tick();
+    return true;
+}
+
+void task_blink_fn(void) {
+
+    UARTprintf("Entered task_blink_fn\n");
+
+    // Enable the GPIO pin for the LEDs (PF3).  Set the direction as output, and
+    // enable the GPIO pin for digital function.
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOF);
+    while(!SysCtlPeripheralReady(SYSCTL_PERIPH_GPIOF));
+    GPIOPinTypeGPIOOutput(GPIO_PORTF_BASE, RED_LED|GREEN_LED|BLUE_LED);
+
+    UARTprintf("Initialized GPIOS\n");
+
+    // Loop forever.
+    while(1) {
+        // Turn off all but the red LED.
+        GPIOPinWrite(GPIO_PORTF_BASE, ALL_LEDS, RED_LED);
+
+        rtos_signal_wait( RTOS_SIGNAL_ID_BLINK_DELAY );
+
+        // Turn off all but the green LED.
+        GPIOPinWrite(GPIO_PORTF_BASE, ALL_LEDS, GREEN_LED);
+
+        rtos_signal_wait( RTOS_SIGNAL_ID_BLINK_DELAY );
+
+        // Turn off all but the blue LED.
+        GPIOPinWrite(GPIO_PORTF_BASE, ALL_LEDS, BLUE_LED);
+
+        rtos_signal_wait( RTOS_SIGNAL_ID_BLINK_DELAY );
+
+        // Print a dot so that we look alive on the console
+        UARTprintf(".");
     }
 }
 
-int
-main(void)
-{
-    unsigned int i;
-    led_init();
 
-    for (i = 0; ; i++)
-    {
-        switch (i % 6)
-        {
-        case 0:
-            led_green_on();
-            break;
-        case 1:
-            led_blue_on();
-            break;
-        case 2:
-            led_red_on();
-            break;
-        case 3:
-            led_green_off();
-            break;
-        case 4:
-            led_blue_off();
-            break;
-        case 5:
-            led_red_off();
-            break;
-        }
-        delay();
-    }
+int main(void) {
+
+    // Initialize the floating-point unit.
+    InitializeFPU();
+
+    // Set the clocking to run from the PLL at 50 MHz.
+    ROM_SysCtlClockSet(SYSCTL_SYSDIV_4 | SYSCTL_USE_PLL | SYSCTL_OSC_MAIN |
+                       SYSCTL_XTAL_16MHZ);
+
+    // Set up the systick interrupt used by the RTOS
+    ROM_SysTickPeriodSet(ROM_SysCtlClockGet() / SYSTICKS_PER_SECOND);
+    ROM_SysTickIntEnable();
+    ROM_SysTickEnable();
+
+    // Initialize the UART for stdio so we can use UARTPrintf
+    InitializeUARTStdio();
+
+    // Actually start the RTOS
+    UARTprintf("Starting RTOS...\n");
+    rtos_start();
+
+    /* Should never reach here, but if we do, an infinite loop is
+       easier to debug than returning somewhere random. */
+    for (;;) ;
 }
