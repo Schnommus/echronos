@@ -1,5 +1,8 @@
 .DEFAULT_GOAL := mpu_rigel
 
+mpu_blinky:
+	prj/app/prj.py build machine-ek-tm4c123gxl.example.blinky-system
+
 mpu_rigel:
 	prj/app/prj.py build machine-ek-tm4c123gxl.example.rigel-mpu
 

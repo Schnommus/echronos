@@ -302,9 +302,9 @@ mpu_populate_regions(void)
     mpu_regions[{{idx}}][{{domx}}+1].base_addr = linker_value(linker_domain_{{name}}_start);
     mpu_regions[{{idx}}][{{domx}}+1].flags =
         mpu_region_size_flag(linker_value(linker_domain_{{name}}_size)) | MPU_RGN_ENABLE |
-            {{#readable}}{{^writeable}}MPU_P_RO |{{/writeable}}{{/readable}} /* Read-only? */
-            {{#writeable}}{{#readable}}MPU_P_RW |{{/readable}}{{/writeable}} /* Read-write? */
-            {{^executable}}MPU_P_NOEXEC{{/executable}}; /* Executable? (no flag = executable) */
+            {{#readable}}{{^writeable}}MPU_P_RO{{/writeable}}{{/readable}} /* Read-only? */
+            {{#writeable}}{{#readable}}MPU_P_RW{{/readable}}{{/writeable}} /* Read-write? */
+            {{^executable}}| MPU_P_NOEXEC{{/executable}}; /* Executable? (no flag = executable) */
 
 {{/associated_domains}}
 {{/tasks}}

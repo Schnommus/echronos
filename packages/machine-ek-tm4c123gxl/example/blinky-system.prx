@@ -67,6 +67,34 @@
         <module name="generic.debug" />
 
         <module name="armv7m.rtos-kochab">
+            <memory_protection>true</memory_protection>
+
+            <protection_domains>
+                <protection_domain>
+                    <name>tm4c_driver_rom</name>
+                    <domain_size> 0x00010000</domain_size>
+                    <base_address>0x01000000</base_address>
+                </protection_domain>
+                <protection_domain>
+                    <name>uart_stdio_helper</name>
+                    <domain_size>128</domain_size>
+                    <symbols>
+                        <symbol>uartstdio.o</symbol>
+                    </symbols>
+                </protection_domain>
+                <protection_domain>
+                    <name>peripheral_uart0</name>
+                    <domain_size> 0x00001000</domain_size>
+                    <base_address>0x4000C000</base_address>
+                </protection_domain>
+                <protection_domain>
+                    <name>peripheral_gpio_portf</name>
+                    <domain_size> 0x00001000</domain_size>
+                    <base_address>0x40025000</base_address>
+                </protection_domain>
+            </protection_domains>
+
+            <verbose_protection_faults>true</verbose_protection_faults>
             <api_asserts>true</api_asserts>
             <internal_asserts>true</internal_asserts>
             <fatal_error>fatal</fatal_error>
@@ -81,6 +109,23 @@
                     <function>task_blink_fn</function>
                     <priority>30</priority>
                     <stack_size>512</stack_size>
+                    <associated_domains>
+                        <domain>
+                            <name>tm4c_driver_rom</name>
+                            <executable>true</executable>
+                        </domain>
+                        <domain>
+                            <name>uart_stdio_helper</name>
+                        </domain>
+                        <domain>
+                            <name>peripheral_uart0</name>
+                            <writeable>true</writeable>
+                        </domain>
+                        <domain>
+                            <name>peripheral_gpio_portf</name>
+                            <writeable>true</writeable>
+                        </domain>
+                    </associated_domains>
                 </task>
             </tasks>
 
@@ -102,7 +147,7 @@
 
             <mutexes>
                 <mutex>
-                  <name>m0</name>
+                    <name>m0</name>
                 </mutex>
             </mutexes>
             <semaphore_enable_max>true</semaphore_enable_max>

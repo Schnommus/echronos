@@ -17,14 +17,6 @@ void task_blink_fn(void) {
 
     UARTprintf("Entered task_blink_fn\n");
 
-    // Enable the GPIO pin for the LEDs (PF3).  Set the direction as output, and
-    // enable the GPIO pin for digital function.
-    SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOF);
-    while(!SysCtlPeripheralReady(SYSCTL_PERIPH_GPIOF));
-    GPIOPinTypeGPIOOutput(GPIO_PORTF_BASE, RED_LED|GREEN_LED|BLUE_LED);
-
-    UARTprintf("Initialized GPIOS\n");
-
     // Loop forever.
     while(1) {
         // Turn off all but the red LED.
@@ -64,6 +56,12 @@ int main(void) {
 
     // Initialize the UART for stdio so we can use UARTPrintf
     InitializeUARTStdio();
+
+    // Enable the GPIO pin for the LEDs (PF3).  Set the direction as output, and
+    // enable the GPIO pin for digital function.
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOF);
+    while(!SysCtlPeripheralReady(SYSCTL_PERIPH_GPIOF));
+    GPIOPinTypeGPIOOutput(GPIO_PORTF_BASE, RED_LED|GREEN_LED|BLUE_LED);
 
     // Actually start the RTOS
     UARTprintf("Starting RTOS...\n");
