@@ -16,6 +16,8 @@
 #define GREEN_LED GPIO_PIN_3
 #define ALL_LEDS (RED_LED|BLUE_LED|GREEN_LED)
 
+#define USB_IRQ (44 + 16)
+
 static volatile bool usb_ready = false;
 static uint32_t usb_put_string_nonblocking( char *s );
 
@@ -33,6 +35,11 @@ int usb_device_irq(void) {
     // Get the controller interrupt status.
     usb_device_driver_status = MAP_USBIntStatusControl(USB0_BASE);
 
+    // Disable the USB interrupt, otherwise it will constantly fire
+    // until handled - which we're about to do.
+    ROM_IntDisable(USB_IRQ);
+
+    // Wake up the USB device driver task
     rtos_interrupt_event_raise(RTOS_INTERRUPT_EVENT_ID_USB_DEVICE);
 
     return true;
@@ -43,6 +50,7 @@ void task_usb_device_driver_fn(void) {
         rtos_signal_wait(RTOS_SIGNAL_ID_USB_DEVICE_INTERRUPT);
         // Call the internal handler.
         USBDeviceIntHandlerInternal(0, usb_device_driver_status);
+        ROM_IntEnable(USB_IRQ);
     }
 }
 
@@ -50,9 +58,12 @@ void task_console_fn(void) {
     UARTprintf("Entered task_console_fn\n");
     while(1) {
         rtos_signal_wait( RTOS_SIGNAL_ID_ECHO_DELAY );
+        UARTprintf("Trying to echo keepalive...");
         if(usb_ready) {
-            UARTprintf("Connection up. Echoing a keepalive over USB...\n");
+            UARTprintf(" connected\n");
             usb_put_string_nonblocking("THIS IS A USB CDC Keepalive...\n");
+        } else {
+            UARTprintf(" failed - disconnected\n");
         }
     }
 }
