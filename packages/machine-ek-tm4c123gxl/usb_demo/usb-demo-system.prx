@@ -96,17 +96,11 @@
             <memory_protection>true</memory_protection>
 
             <protection_domains>
+                <!-- ROM & memory-mapped devices -->
                 <protection_domain>
                     <name>tm4c_driver_rom</name>
                     <domain_size> 0x00010000</domain_size>
                     <base_address>0x01000000</base_address>
-                </protection_domain>
-                <protection_domain>
-                    <name>uart_stdio_helper</name>
-                    <domain_size>128</domain_size>
-                    <symbols>
-                        <symbol>uartstdio.o</symbol>
-                    </symbols>
                 </protection_domain>
                 <protection_domain>
                     <name>peripheral_uart0</name>
@@ -117,6 +111,20 @@
                     <name>peripheral_gpio_portf</name>
                     <domain_size> 0x00001000</domain_size>
                     <base_address>0x40025000</base_address>
+                </protection_domain>
+                <protection_domain>
+                    <name>peripheral_usb</name>
+                    <domain_size>0x00001000</domain_size>
+                    <base_address>0x40050000</base_address>
+                </protection_domain>
+
+                <!-- application & driver state -->
+                <protection_domain>
+                    <name>uart_stdio_helper</name>
+                    <domain_size>128</domain_size>
+                    <symbols>
+                        <symbol>uartstdio.o</symbol>
+                    </symbols>
                 </protection_domain>
                 <protection_domain>
                     <name>usb_device_state</name>
@@ -136,11 +144,6 @@
                         <symbol>usbtick.o</symbol>
                         <symbol>usbdma.o</symbol>
                     </symbols>
-                </protection_domain>
-                <protection_domain>
-                    <name>peripheral_usb</name>
-                    <domain_size>0x00001000</domain_size>
-                    <base_address>0x40050000</base_address>
                 </protection_domain>
             </protection_domains>
 
