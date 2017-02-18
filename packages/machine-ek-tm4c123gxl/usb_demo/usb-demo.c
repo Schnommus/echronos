@@ -1,6 +1,7 @@
 #include "boilerplate.h"
 #include "rtos-kochab.h"
 #include "driverlib/rom_map.h"
+#include "driverlib/interrupt.h"
 #include "usblib/usblib.h"
 #include "usblib/usbcdc.h"
 #include "usblib/usb-ids.h"
@@ -18,7 +19,6 @@
 
 #define USB_IRQ (44 + 16)
 
-static volatile bool usb_ready = false;
 static uint32_t usb_put_string_nonblocking( char *s );
 
 uint32_t example_data = 42;
@@ -28,10 +28,15 @@ bool tick_irq(void) {
     return true;
 }
 
-
-uint32_t usb_device_driver_status;
+/* These are initialized non-zero to force them to be PROGBITS
+ * TODO: figure out how to force non-progbits automatically! */
+bool usb_ready = 1;
+uint32_t usb_device_driver_status = 1;
 
 extern void USBDeviceIntHandlerInternal(uint32_t ui32Index, uint32_t ui32Status);
+
+extern void rtos_internal_elevate_privileges();
+extern void rtos_internal_drop_privileges();
 
 int usb_device_irq(void) {
     // Get the controller interrupt status.
@@ -52,7 +57,10 @@ void task_usb_device_driver_fn(void) {
         rtos_signal_wait(RTOS_SIGNAL_ID_USB_DEVICE_INTERRUPT);
         // Call the internal handler.
         USBDeviceIntHandlerInternal(0, usb_device_driver_status);
-        ROM_IntEnable(USB_IRQ);
+
+        rtos_internal_elevate_privileges();
+        IntEnable(USB_IRQ);
+        rtos_internal_drop_privileges();
     }
 }
 
@@ -63,7 +71,7 @@ void task_console_fn(void) {
         UARTprintf("Trying to echo keepalive...");
         if(usb_ready) {
             UARTprintf(" connected\n");
-            usb_put_string_nonblocking("THIS IS A USB CDC Keepalive...\n");
+            usb_put_string_nonblocking("USB CDC Keepalive (memory protected!)...\n\r");
         } else {
             UARTprintf(" failed - disconnected\n");
         }

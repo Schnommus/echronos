@@ -668,10 +668,14 @@ static void
 SetDeferredOpFlag(volatile uint16_t *pui16DeferredOp, uint16_t ui16Bit,
                   bool bSet)
 {
-    //
+    // FIXME: Disabling bitbanding here to save protection domains.
+    // There is no race condition here anyway due to the way eChronos is treating
+    // the USB interrupt.
+
+    *pui16DeferredOp |= (bSet?1:0) << ui16Bit;
+
     // Set the flag bit to 1 or 0 using a bitband access.
-    //
-    HWREGBITH(pui16DeferredOp, ui16Bit) = bSet ? 1 : 0;
+    //HWREGBITH(pui16DeferredOp, ui16Bit) = bSet ? 1 : 0;
 }
 
 //*****************************************************************************

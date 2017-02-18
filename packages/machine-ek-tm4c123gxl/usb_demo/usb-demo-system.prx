@@ -120,11 +120,27 @@
                 </protection_domain>
                 <protection_domain>
                     <name>usb_device_state</name>
-                    <domain_size>32</domain_size>
+                    <domain_size>1024</domain_size>
                     <symbols>
                         <symbol>usb_device_driver_status</symbol>
                         <symbol>usb_ready</symbol>
+                        <symbol>usb-serial-structs.o</symbol>
+                        <symbol>usbdcdc.o</symbol>
                     </symbols>
+                </protection_domain>
+                <protection_domain>
+                    <name>usb_driver_internal</name>
+                    <domain_size>1024</domain_size>
+                    <symbols>
+                        <symbol>usbdenum.o</symbol>
+                        <symbol>usbtick.o</symbol>
+                        <symbol>usbdma.o</symbol>
+                    </symbols>
+                </protection_domain>
+                <protection_domain>
+                    <name>peripheral_usb</name>
+                    <domain_size>0x00001000</domain_size>
+                    <base_address>0x40050000</base_address>
                 </protection_domain>
             </protection_domains>
 
@@ -152,6 +168,14 @@
                             <name>usb_device_state</name>
                             <writeable>true</writeable>
                         </domain>
+                        <domain>
+                            <name>usb_driver_internal</name>
+                            <writeable>true</writeable>
+                        </domain>
+                        <domain>
+                            <name>peripheral_usb</name>
+                            <writeable>true</writeable>
+                        </domain>
                     </associated_domains>
                 </task>
                 <task>
@@ -173,6 +197,11 @@
                         </domain>
                         <domain>
                             <name>usb_device_state</name>
+                            <writeable>true</writeable>
+                        </domain>
+                        <domain>
+                            <name>peripheral_usb</name>
+                            <writeable>true</writeable>
                         </domain>
                     </associated_domains>
                 </task>
