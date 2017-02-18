@@ -21,6 +21,8 @@
 static volatile bool usb_ready = false;
 static uint32_t usb_put_string_nonblocking( char *s );
 
+uint32_t example_data = 42;
+
 bool tick_irq(void) {
     rtos_timer_tick();
     return true;

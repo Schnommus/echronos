@@ -93,7 +93,7 @@
         <module name="generic.debug" />
 
         <module name="armv7m.rtos-kochab">
-            <!--<memory_protection>true</memory_protection>
+            <memory_protection>true</memory_protection>
 
             <protection_domains>
                 <protection_domain>
@@ -128,7 +128,7 @@
                 </protection_domain>
             </protection_domains>
 
-            <verbose_protection_faults>true</verbose_protection_faults>-->
+            <verbose_protection_faults>true</verbose_protection_faults>
             <api_asserts>true</api_asserts>
             <internal_asserts>true</internal_asserts>
             <fatal_error>fatal</fatal_error>
@@ -143,7 +143,7 @@
                     <function>task_usb_device_driver_fn</function>
                     <priority>60</priority>
                     <stack_size>512</stack_size>
-                    <!--<associated_domains>
+                    <associated_domains>
                         <domain>
                             <name>tm4c_driver_rom</name>
                             <executable>true</executable>
@@ -152,14 +152,14 @@
                             <name>usb_device_state</name>
                             <writeable>true</writeable>
                         </domain>
-                    </associated_domains>-->
+                    </associated_domains>
                 </task>
                 <task>
                     <name>task_console</name>
                     <function>task_console_fn</function>
                     <priority>50</priority>
                     <stack_size>512</stack_size>
-                    <!--<associated_domains>
+                    <associated_domains>
                         <domain>
                             <name>tm4c_driver_rom</name>
                             <executable>true</executable>
@@ -174,14 +174,14 @@
                         <domain>
                             <name>usb_device_state</name>
                         </domain>
-                    </associated_domains>-->
+                    </associated_domains>
                 </task>
                 <task>
                     <name>task_blink</name>
                     <function>task_blink_fn</function>
                     <priority>30</priority>
                     <stack_size>512</stack_size>
-                    <!--<associated_domains>
+                    <associated_domains>
                         <domain>
                             <name>tm4c_driver_rom</name>
                             <executable>true</executable>
@@ -197,7 +197,7 @@
                             <name>peripheral_gpio_portf</name>
                             <writeable>true</writeable>
                         </domain>
-                    </associated_domains>-->
+                    </associated_domains>
                 </task>
             </tasks>
 
