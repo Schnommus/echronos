@@ -19,20 +19,24 @@
 
 #define USB_IRQ (44 + 16)
 
+#define PRIVILEGED_ACTION(x) \
+    rtos_internal_elevate_privileges(); \
+    (x); \
+    rtos_internal_drop_privileges();
+
+extern void USBDeviceIntHandlerInternal(uint32_t ui32Index, uint32_t ui32Status);
+extern void rtos_internal_elevate_privileges();
+extern void rtos_internal_drop_privileges();
+
 static uint32_t usb_put_string_nonblocking( char *s );
+
+bool usb_ready = 0;
+uint32_t usb_device_driver_status = 0;
 
 bool tick_irq(void) {
     rtos_timer_tick();
     return true;
 }
-
-bool usb_ready = 0;
-uint32_t usb_device_driver_status = 0;
-
-extern void USBDeviceIntHandlerInternal(uint32_t ui32Index, uint32_t ui32Status);
-
-extern void rtos_internal_elevate_privileges();
-extern void rtos_internal_drop_privileges();
 
 int usb_device_irq(void) {
     // Get the controller interrupt status.
@@ -54,9 +58,7 @@ void task_usb_device_driver_fn(void) {
         // Call the internal handler.
         USBDeviceIntHandlerInternal(0, usb_device_driver_status);
 
-        rtos_internal_elevate_privileges();
-        IntEnable(USB_IRQ);
-        rtos_internal_drop_privileges();
+        PRIVILEGED_ACTION(IntEnable(USB_IRQ));
     }
 }
 
