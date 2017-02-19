@@ -8,8 +8,6 @@
 #define GREEN_LED GPIO_PIN_3
 #define ALL_LEDS (RED_LED|BLUE_LED|GREEN_LED)
 
-int example_data = 42;
-
 bool tick_irq(void) {
     rtos_timer_tick();
     return true;

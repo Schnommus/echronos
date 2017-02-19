@@ -21,17 +21,13 @@
 
 static uint32_t usb_put_string_nonblocking( char *s );
 
-uint32_t example_data = 42;
-
 bool tick_irq(void) {
     rtos_timer_tick();
     return true;
 }
 
-/* These are initialized non-zero to force them to be PROGBITS
- * TODO: figure out how to force non-progbits automatically! */
-bool usb_ready = 1;
-uint32_t usb_device_driver_status = 1;
+bool usb_ready = 0;
+uint32_t usb_device_driver_status = 0;
 
 extern void USBDeviceIntHandlerInternal(uint32_t ui32Index, uint32_t ui32Status);
 
