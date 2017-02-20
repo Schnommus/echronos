@@ -138,11 +138,18 @@
                 </protection_domain>
                 <protection_domain>
                     <name>usb_driver_internal</name>
-                    <domain_size>1024</domain_size>
+                    <domain_size>512</domain_size>
                     <symbols>
                         <symbol>usbdenum.o</symbol>
                         <symbol>usbtick.o</symbol>
                         <symbol>usbdma.o</symbol>
+                    </symbols>
+                </protection_domain>
+                <protection_domain>
+                    <name>usb_writer</name>
+                    <domain_size>256</domain_size>
+                    <symbols>
+                        <symbol>usb_write_buffer</symbol>
                     </symbols>
                 </protection_domain>
             </protection_domains>
@@ -182,8 +189,8 @@
                     </associated_domains>
                 </task>
                 <task>
-                    <name>task_console</name>
-                    <function>task_console_fn</function>
+                    <name>task_usb_writer</name>
+                    <function>task_usb_writer_fn</function>
                     <priority>50</priority>
                     <stack_size>512</stack_size>
                     <associated_domains>
@@ -192,18 +199,27 @@
                             <executable>true</executable>
                         </domain>
                         <domain>
-                            <name>uart_stdio_helper</name>
-                        </domain>
-                        <domain>
-                            <name>peripheral_uart0</name>
-                            <writeable>true</writeable>
-                        </domain>
-                        <domain>
                             <name>usb_device_state</name>
                             <writeable>true</writeable>
                         </domain>
                         <domain>
                             <name>peripheral_usb</name>
+                            <writeable>true</writeable>
+                        </domain>
+                        <domain>
+                            <name>usb_writer</name>
+                            <writeable>true</writeable>
+                        </domain>
+                    </associated_domains>
+                </task>
+                <task>
+                    <name>task_echo</name>
+                    <function>task_echo_fn</function>
+                    <priority>50</priority>
+                    <stack_size>512</stack_size>
+                    <associated_domains>
+                        <domain>
+                            <name>usb_writer</name>
                             <writeable>true</writeable>
                         </domain>
                     </associated_domains>
@@ -235,6 +251,9 @@
 
             <signal_labels>
                 <signal_label>
+                    <name>usb_write</name>
+                </signal_label>
+                <signal_label>
                     <name>blink_delay</name>
                 </signal_label>
                 <signal_label>
@@ -257,7 +276,7 @@
                     <name>echo_delay_timer</name>
                     <enabled>true</enabled>
                     <reload>100</reload>
-                    <task>task_console</task>
+                    <task>task_echo</task>
                     <sig_set>echo_delay</sig_set>
                 </timer>
             </timers>

@@ -28,8 +28,6 @@ extern void USBDeviceIntHandlerInternal(uint32_t ui32Index, uint32_t ui32Status)
 extern void rtos_internal_elevate_privileges();
 extern void rtos_internal_drop_privileges();
 
-static uint32_t usb_put_string_nonblocking( char *s );
-
 bool usb_ready = 0;
 uint32_t usb_device_driver_status = 0;
 
@@ -62,17 +60,49 @@ void task_usb_device_driver_fn(void) {
     }
 }
 
-void task_console_fn(void) {
-    UARTprintf("Entered task_console_fn\n");
+#define USB_SERIAL_BUFFER_SIZE 128
+
+typedef struct _usb_write_buffer_t {
+    uint8_t buffer[USB_SERIAL_BUFFER_SIZE];
+    uint32_t index;
+} usb_write_buffer_t;
+
+typedef struct _usb_read_buffer_t {
+    uint8_t buffer[USB_SERIAL_BUFFER_SIZE];
+    uint32_t index;
+} usb_read_buffer_t;
+
+usb_write_buffer_t usb_write_buffer = {{0}, 0};
+usb_read_buffer_t usb_read_buffer = {{0}, 0};
+
+void task_usb_writer_fn(void) {
+    while(1) {
+        rtos_signal_wait( RTOS_SIGNAL_ID_USB_WRITE );
+        // Ignore any writes that happen while the USB device isn't ready
+        if(usb_ready) {
+            uint32_t space = USBBufferSpaceAvailable((tUSBBuffer *)&g_sTxBuffer);
+            // If we somehow overflowed the USB buffer, ignore the write
+            if( space > usb_write_buffer.index ) {
+                USBBufferWrite((tUSBBuffer *)&g_sTxBuffer,
+                                usb_write_buffer.buffer,
+                                usb_write_buffer.index);
+            }
+        }
+        usb_write_buffer.index = 0;
+    }
+}
+
+void usb_puts(char *s) {
+    uint32_t len = ustrlen(s);
+    ustrncpy((char*)usb_write_buffer.buffer, s, len);
+    usb_write_buffer.index = len;
+    rtos_signal_send(RTOS_TASK_ID_TASK_USB_WRITER, RTOS_SIGNAL_ID_USB_WRITE);
+}
+
+void task_echo_fn(void) {
     while(1) {
         rtos_signal_wait( RTOS_SIGNAL_ID_ECHO_DELAY );
-        UARTprintf("Trying to echo keepalive...");
-        if(usb_ready) {
-            UARTprintf(" connected\n");
-            usb_put_string_nonblocking("USB CDC Keepalive (memory protected!)...\n\r");
-        } else {
-            UARTprintf(" failed - disconnected\n");
-        }
+        usb_puts("USB CDC Keepalive (memory protected!)...\n\r");
     }
 }
 
@@ -99,18 +129,6 @@ void task_blink_fn(void) {
 
         // Print a dot so that we look alive on the console
         UARTprintf(".");
-    }
-}
-
-uint32_t usb_put_string_nonblocking( char *s ) {
-    uint32_t space = USBBufferSpaceAvailable((tUSBBuffer *)&g_sTxBuffer);
-    uint32_t len = ustrlen(s);
-    if(space > len) {
-        USBBufferWrite((tUSBBuffer *)&g_sTxBuffer, (uint8_t *)s, len);
-        return len;
-    } else {
-        USBBufferWrite((tUSBBuffer *)&g_sTxBuffer, (uint8_t *)s, space);
-        return space;
     }
 }
 
