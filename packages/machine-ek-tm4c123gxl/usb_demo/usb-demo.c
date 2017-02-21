@@ -30,6 +30,8 @@ extern void rtos_internal_drop_privileges();
 
 bool usb_ready = 0;
 uint32_t usb_device_driver_status = 0;
+int led_on = 0;
+int uart_on = 0;
 
 bool tick_irq(void) {
     rtos_timer_tick();
@@ -78,6 +80,9 @@ usb_read_buffer_t usb_read_buffer = {{0}, 0};
 void task_usb_writer_fn(void) {
     while(1) {
         rtos_signal_wait( RTOS_SIGNAL_ID_USB_WRITE );
+
+        rtos_mutex_lock( RTOS_MUTEX_ID_WRITER_LOCK );
+
         // Ignore any writes that happen while the USB device isn't ready
         if(usb_ready) {
             uint32_t space = USBBufferSpaceAvailable((tUSBBuffer *)&g_sTxBuffer);
@@ -89,46 +94,176 @@ void task_usb_writer_fn(void) {
             }
         }
         usb_write_buffer.index = 0;
+
+        rtos_mutex_unlock( RTOS_MUTEX_ID_WRITER_LOCK );
     }
 }
 
-void usb_puts(char *s) {
-    uint32_t len = ustrlen(s);
+void task_usb_reader_fn(void) {
+    while(1) {
+        rtos_signal_wait( RTOS_SIGNAL_ID_USB_RX_PACKET );
+
+        rtos_mutex_lock( RTOS_MUTEX_ID_READER_LOCK );
+
+        usb_read_buffer.index +=
+            USBBufferRead((tUSBBuffer *)&g_sRxBuffer,
+                          (uint8_t*)(usb_read_buffer.buffer+usb_read_buffer.index),
+                          USB_SERIAL_BUFFER_SIZE-usb_read_buffer.index);
+
+        rtos_mutex_unlock( RTOS_MUTEX_ID_READER_LOCK );
+    }
+}
+
+void usb_puts(char *s, uint32_t len) {
+    rtos_mutex_lock( RTOS_MUTEX_ID_WRITER_LOCK );
     ustrncpy((char*)usb_write_buffer.buffer, s, len);
     usb_write_buffer.index = len;
+    rtos_mutex_unlock( RTOS_MUTEX_ID_WRITER_LOCK );
+
     rtos_signal_send(RTOS_TASK_ID_TASK_USB_WRITER, RTOS_SIGNAL_ID_USB_WRITE);
 }
 
-void task_echo_fn(void) {
-    while(1) {
-        rtos_signal_wait( RTOS_SIGNAL_ID_ECHO_DELAY );
-        usb_puts("USB CDC Keepalive (memory protected!)...\n\r");
+void usb_print(char *s) {
+    usb_puts(s, ustrlen(s));
+}
+
+void usb_gets_nonblocking(char **dest, uint32_t *n) {
+    rtos_mutex_lock( RTOS_MUTEX_ID_READER_LOCK );
+    *dest = (char*)usb_read_buffer.buffer;
+    *n = usb_read_buffer.index;
+    usb_read_buffer.index = 0;
+    rtos_mutex_unlock( RTOS_MUTEX_ID_READER_LOCK );
+}
+
+void command_info(int arg) {
+    usb_print("\n\reChronos RTOS + MPU + USB Stack");
+    usb_print("\n\rDemonstrates a USB stack isolated from the RTOS kernel,");
+    usb_print("\n\rperipherals & data associated with other tasks.");
+    usb_print("\n\r");
+    usb_print("\n\rThe USB stack emulates a serial device (this console), and eChronos");
+    usb_print("\n\rallows only a very small communication pathway between tasks.");
+    usb_print("\n\r");
+    usb_print("\n\rCOMMANDS:");
+    usb_print("\n\r    led on - enable the led blinking task");
+    usb_print("\n\r    led off - disable the led blinking task");
+    usb_print("\n\r    uart on - enable the uart keepalive task");
+    usb_print("\n\r    uart off - disable the uart keepalive task");
+}
+
+void command_led(int arg) {
+    usb_print("\n\r");
+    if(arg) {
+        led_on = 1;
+        usb_print("Enabling");
+    } else {
+        led_on = 0;
+        usb_print("Disabling");
+    }
+    usb_print(" the RGB LED task");
+}
+
+void command_uart(int arg) {
+    usb_print("\n\r");
+    if(arg) {
+        uart_on = 1;
+        usb_print("Enabling");
+    } else {
+        uart_on = 0;
+        usb_print("Disabling");
+    }
+    usb_print(" the UART keepalive task");
+}
+
+struct command {
+    char *name;
+    void (*command)(int arg);
+    int arg_to_pass;
+};
+
+struct command commands[] = {
+    { "info", command_info, 0 },
+    { "led on", command_led, 1 },
+    { "led off", command_led, 0 },
+    { "uart on", command_uart, 1 },
+    { "uart off", command_uart, 0 },
+    };
+
+void parse_command(char *s) {
+
+    int did_command = 0;
+    for(int i = 0; i != sizeof(commands)/sizeof(struct command); ++i) {
+        if(ustrcmp(s, commands[i].name) == 0) {
+            commands[i].command(commands[i].arg_to_pass);
+            did_command = 1;
+            break;
+        }
+    }
+
+    if(!did_command) {
+        usb_print("\n\rUnknown command: ");
+        usb_print(s);
     }
 }
 
-void task_blink_fn(void) {
+#define CBUFFER_SIZE 128
 
-    UARTprintf("Entered task_blink_fn\n");
+void task_console_fn(void) {
+    char cbuffer[CBUFFER_SIZE];
+    uint32_t cindex = 0;
 
-    // Loop forever.
     while(1) {
-        // Turn off all but the red LED.
-        GPIOPinWrite(GPIO_PORTF_BASE, ALL_LEDS, RED_LED);
+        rtos_sleep(5);
 
-        rtos_signal_wait( RTOS_SIGNAL_ID_BLINK_DELAY );
+        char *s;
+        uint32_t len;
 
-        // Turn off all but the green LED.
-        GPIOPinWrite(GPIO_PORTF_BASE, ALL_LEDS, GREEN_LED);
+        usb_gets_nonblocking(&s, &len);
 
-        rtos_signal_wait( RTOS_SIGNAL_ID_BLINK_DELAY );
+        if(len > 0) {
+            // Echo back what the user is typing
+            usb_puts(s, len);
+        }
 
-        // Turn off all but the blue LED.
-        GPIOPinWrite(GPIO_PORTF_BASE, ALL_LEDS, BLUE_LED);
+        // Add the new characters to the console buffer
+        ustrncpy((char*)(cbuffer+cindex), s, len);
+        cindex += len;
 
-        rtos_signal_wait( RTOS_SIGNAL_ID_BLINK_DELAY );
+        for(int i = 0; i != len; ++i) {
+            if(s[i] == '\r') {
+                cbuffer[cindex - len + i] = '\0';
+                parse_command(cbuffer);
+                cindex = 0;
+                usb_print("\n\r>>> ");
+            }
+        }
 
-        // Print a dot so that we look alive on the console
-        UARTprintf(".");
+    }
+}
+
+void task_uart_fn(void) {
+    while(1) {
+        if(uart_on) {
+            UARTprintf("I am a UART spitting out text...\n");
+        }
+        rtos_sleep(50);
+    }
+}
+
+
+void task_blink_fn(void) {
+    while(1) {
+
+        if(led_on) {
+            GPIOPinWrite(GPIO_PORTF_BASE, ALL_LEDS, RED_LED);
+            rtos_signal_wait( RTOS_SIGNAL_ID_BLINK_DELAY );
+            GPIOPinWrite(GPIO_PORTF_BASE, ALL_LEDS, GREEN_LED);
+            rtos_signal_wait( RTOS_SIGNAL_ID_BLINK_DELAY );
+            GPIOPinWrite(GPIO_PORTF_BASE, ALL_LEDS, BLUE_LED);
+            rtos_signal_wait( RTOS_SIGNAL_ID_BLINK_DELAY );
+        } else {
+            GPIOPinWrite(GPIO_PORTF_BASE, ALL_LEDS, 0);
+            rtos_sleep(10);
+        }
     }
 }
 
@@ -254,6 +389,7 @@ uint32_t RxHandler(void *pvCBData, uint32_t ui32Event, uint32_t ui32MsgValue,
         // A new packet has been received.
         case USB_EVENT_RX_AVAILABLE:
         {
+            rtos_signal_send(RTOS_TASK_ID_TASK_USB_READER, RTOS_SIGNAL_ID_USB_RX_PACKET);
             break;
         }
 

@@ -152,6 +152,34 @@
                         <symbol>usb_write_buffer</symbol>
                     </symbols>
                 </protection_domain>
+                <protection_domain>
+                    <name>usb_reader</name>
+                    <domain_size>256</domain_size>
+                    <symbols>
+                        <symbol>usb_read_buffer</symbol>
+                    </symbols>
+                </protection_domain>
+                <protection_domain>
+                    <name>commands</name>
+                    <domain_size>128</domain_size>
+                    <symbols>
+                        <symbol>commands</symbol>
+                    </symbols>
+                </protection_domain>
+                <protection_domain>
+                    <name>led_state</name>
+                    <domain_size>32</domain_size>
+                    <symbols>
+                        <symbol>led_on</symbol>
+                    </symbols>
+                </protection_domain>
+                <protection_domain>
+                    <name>uart_state</name>
+                    <domain_size>32</domain_size>
+                    <symbols>
+                        <symbol>uart_on</symbol>
+                    </symbols>
+                </protection_domain>
             </protection_domains>
 
             <verbose_protection_faults>true</verbose_protection_faults>
@@ -213,13 +241,52 @@
                     </associated_domains>
                 </task>
                 <task>
-                    <name>task_echo</name>
-                    <function>task_echo_fn</function>
+                    <name>task_usb_reader</name>
+                    <function>task_usb_reader_fn</function>
+                    <priority>50</priority>
+                    <stack_size>512</stack_size>
+                    <associated_domains>
+                        <domain>
+                            <name>tm4c_driver_rom</name>
+                            <executable>true</executable>
+                        </domain>
+                        <domain>
+                            <name>usb_device_state</name>
+                            <writeable>true</writeable>
+                        </domain>
+                        <domain>
+                            <name>peripheral_usb</name>
+                            <writeable>true</writeable>
+                        </domain>
+                        <domain>
+                            <name>usb_reader</name>
+                            <writeable>true</writeable>
+                        </domain>
+                    </associated_domains>
+                </task>
+                <task>
+                    <name>task_console</name>
+                    <function>task_console_fn</function>
                     <priority>50</priority>
                     <stack_size>512</stack_size>
                     <associated_domains>
                         <domain>
                             <name>usb_writer</name>
+                            <writeable>true</writeable>
+                        </domain>
+                        <domain>
+                            <name>usb_reader</name>
+                            <writeable>true</writeable>
+                        </domain>
+                        <domain>
+                            <name>commands</name>
+                        </domain>
+                        <domain>
+                            <name>led_state</name>
+                            <writeable>true</writeable>
+                        </domain>
+                        <domain>
+                            <name>uart_state</name>
                             <writeable>true</writeable>
                         </domain>
                     </associated_domains>
@@ -228,21 +295,39 @@
                     <name>task_blink</name>
                     <function>task_blink_fn</function>
                     <priority>30</priority>
-                    <stack_size>512</stack_size>
+                    <stack_size>128</stack_size>
                     <associated_domains>
                         <domain>
                             <name>tm4c_driver_rom</name>
                             <executable>true</executable>
                         </domain>
                         <domain>
+                            <name>peripheral_gpio_portf</name>
+                            <writeable>true</writeable>
+                        </domain>
+                        <domain>
+                            <name>led_state</name>
+                        </domain>
+                    </associated_domains>
+                </task>
+                <task>
+                    <name>task_uart</name>
+                    <function>task_uart_fn</function>
+                    <priority>30</priority>
+                    <stack_size>128</stack_size>
+                    <associated_domains>
+                        <domain>
+                            <name>tm4c_driver_rom</name>
+                            <executable>true</executable>
+                        </domain>
+                        <domain>
+                            <name>uart_state</name>
+                        </domain>
+                        <domain>
                             <name>uart_stdio_helper</name>
                         </domain>
                         <domain>
                             <name>peripheral_uart0</name>
-                            <writeable>true</writeable>
-                        </domain>
-                        <domain>
-                            <name>peripheral_gpio_portf</name>
                             <writeable>true</writeable>
                         </domain>
                     </associated_domains>
@@ -254,10 +339,10 @@
                     <name>usb_write</name>
                 </signal_label>
                 <signal_label>
-                    <name>blink_delay</name>
+                    <name>usb_rx_packet</name>
                 </signal_label>
                 <signal_label>
-                    <name>echo_delay</name>
+                    <name>blink_delay</name>
                 </signal_label>
                 <signal_label>
                     <name>usb_device_interrupt</name>
@@ -272,13 +357,6 @@
                     <task>task_blink</task>
                     <sig_set>blink_delay</sig_set>
                 </timer>
-                <timer>
-                    <name>echo_delay_timer</name>
-                    <enabled>true</enabled>
-                    <reload>100</reload>
-                    <task>task_echo</task>
-                    <sig_set>echo_delay</sig_set>
-                </timer>
             </timers>
 
             <interrupt_events>
@@ -291,7 +369,10 @@
 
             <mutexes>
                 <mutex>
-                    <name>m0</name>
+                    <name>writer_lock</name>
+                </mutex>
+                <mutex>
+                    <name>reader_lock</name>
                 </mutex>
             </mutexes>
             <semaphore_enable_max>true</semaphore_enable_max>
