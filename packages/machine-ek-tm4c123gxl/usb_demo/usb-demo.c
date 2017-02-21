@@ -159,6 +159,7 @@ void command_info(int arg) {
     usb_print("\n\r    demo peripheral - attempt to disable RGB LED peripheral (directly)");
     usb_print("\n\r    demo intertask - attempt to write to USB stack state");
     usb_print("\n\r    demo interrupt - attempt to disable all interrupts");
+    usb_print("\n\r    demo stack - attempt to cause a stack overflow");
 }
 
 void command_led(int arg) {
@@ -208,6 +209,18 @@ void command_interrupt(int arg) {
     ROM_IntMasterDisable();
 }
 
+void stack_overflow(void) {
+    char c[128];
+    c[0] = '0';
+    ++c[0];
+    stack_overflow();
+}
+
+void command_stack(int arg) {
+    usb_print("\n\rAttempting to cause a stack overflow in console task...");
+    stack_overflow();
+}
+
 
 struct command {
     char *name;
@@ -225,6 +238,7 @@ struct command commands[] = {
     { "demo peripheral", command_peripheral, 0 },
     { "demo intertask", command_usb_state, 0 },
     { "demo interrupt", command_interrupt, 0 },
+    { "demo stack", command_stack, 0 },
     };
 
 void parse_command(char *s) {
