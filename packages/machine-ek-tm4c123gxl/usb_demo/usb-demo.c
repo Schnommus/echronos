@@ -28,9 +28,14 @@ extern void USBDeviceIntHandlerInternal(uint32_t ui32Index, uint32_t ui32Status)
 extern void rtos_internal_elevate_privileges();
 extern void rtos_internal_drop_privileges();
 
+// USB Device state
 bool usb_ready = 0;
 uint32_t usb_device_driver_status = 0;
+
+// LED State
 int led_on = 0;
+
+// UART State
 int uart_on = 0;
 
 bool tick_irq(void) {
@@ -148,6 +153,12 @@ void command_info(int arg) {
     usb_print("\n\r    led off - disable the led blinking task");
     usb_print("\n\r    uart on - enable the uart keepalive task");
     usb_print("\n\r    uart off - disable the uart keepalive task");
+    usb_print("\n\r");
+    usb_print("\n\rDEMOS: (all executed in console task)");
+    usb_print("\n\r    demo kernel - attempt to access kernel data");
+    usb_print("\n\r    demo peripheral - attempt to disable RGB LED peripheral (directly)");
+    usb_print("\n\r    demo intertask - attempt to write to USB stack state");
+    usb_print("\n\r    demo interrupt - attempt to disable all interrupts");
 }
 
 void command_led(int arg) {
@@ -174,6 +185,30 @@ void command_uart(int arg) {
     usb_print(" the UART keepalive task");
 }
 
+extern uint32_t rtos_internal_current_task;
+void command_kernel(int arg) {
+    usb_print("\n\rAttempting to access kernel data from console task...");
+    uint32_t t = (uint32_t)rtos_internal_current_task;
+    ++t;
+}
+
+void command_peripheral(int arg) {
+    usb_print("\n\rAttempting to disable RGB LED peripheral from console task...");
+    SysCtlPeripheralDisable(SYSCTL_PERIPH_GPIOF);
+}
+
+void command_usb_state(int arg) {
+    usb_print("\n\rAttempting to write to USB stack state from console task...");
+    g_pui8USBTxBuffer[10] = 42;
+}
+
+
+void command_interrupt(int arg) {
+    usb_print("\n\rAttempting to disable interrupts from console task...");
+    ROM_IntMasterDisable();
+}
+
+
 struct command {
     char *name;
     void (*command)(int arg);
@@ -186,6 +221,10 @@ struct command commands[] = {
     { "led off", command_led, 0 },
     { "uart on", command_uart, 1 },
     { "uart off", command_uart, 0 },
+    { "demo kernel", command_kernel, 0 },
+    { "demo peripheral", command_peripheral, 0 },
+    { "demo intertask", command_usb_state, 0 },
+    { "demo interrupt", command_interrupt, 0 },
     };
 
 void parse_command(char *s) {
