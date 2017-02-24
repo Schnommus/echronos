@@ -196,7 +196,7 @@
                     <name>task_usb_device_driver</name>
                     <function>task_usb_device_driver_fn</function>
                     <priority>60</priority>
-                    <stack_size>512</stack_size>
+                    <stack_size>256</stack_size>
                     <associated_domains>
                         <domain>
                             <name>tm4c_driver_rom</name>
@@ -220,7 +220,7 @@
                     <name>task_usb_writer</name>
                     <function>task_usb_writer_fn</function>
                     <priority>50</priority>
-                    <stack_size>512</stack_size>
+                    <stack_size>256</stack_size>
                     <associated_domains>
                         <domain>
                             <name>tm4c_driver_rom</name>
@@ -244,7 +244,7 @@
                     <name>task_usb_reader</name>
                     <function>task_usb_reader_fn</function>
                     <priority>50</priority>
-                    <stack_size>512</stack_size>
+                    <stack_size>256</stack_size>
                     <associated_domains>
                         <domain>
                             <name>tm4c_driver_rom</name>
@@ -268,7 +268,7 @@
                     <name>task_console</name>
                     <function>task_console_fn</function>
                     <priority>50</priority>
-                    <stack_size>512</stack_size>
+                    <stack_size>256</stack_size>
                     <associated_domains>
                         <domain>
                             <name>usb_writer</name>
