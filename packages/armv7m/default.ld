@@ -110,6 +110,7 @@ SECTIONS
         .domain_{{name}} :
         {
             . = ALIGN({{domain_size}});
+            linker_domain_{{name}}_start = .;
             {{#symbols}}
             *(.data.{{.}} .bss.{{.}}) /* C identifier? put here */
             *{{.}} (.data* .bss*)     /* Object file? put here */
@@ -117,8 +118,7 @@ SECTIONS
             . = ALIGN({{domain_size}});
         } > sram_region AT > flash_region
 
-        linker_domain_{{name}}_start = ADDR(.domain_{{name}});
-        linker_domain_{{name}}_size = SIZEOF(.domain_{{name}});
+        linker_domain_{{name}}_size = . - linker_domain_{{name}}_start;
 
         dummy = ASSERT(linker_domain_{{name}}_size == {{domain_size}},
             "Failed to fit symbols in protection domain: {{name}}");
