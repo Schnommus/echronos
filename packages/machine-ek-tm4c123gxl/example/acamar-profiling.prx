@@ -28,7 +28,7 @@
 
 <system>
   <modules>
-    <module name="armv7m.build" />
+    <module name="machine-ek-tm4c123gxl.build" />
     <module name="armv7m.ctxt-switch" />
     <module name="armv7m.vectable">
       <flash_load_addr>0x0000000</flash_load_addr>
@@ -49,8 +49,8 @@
               <name>profiling</name>
               <domain_size>1024</domain_size>
               <symbols>
-                  <symbol>cycle_buffer</symbol>
                   <symbol>i</symbol>
+                  <symbol>cycle_buffer</symbol>
               </symbols>
           </protection_domain>
           <protection_domain>
@@ -79,8 +79,8 @@
 
       <prefix>rtos</prefix>
       <fatal_error>fatal</fatal_error>
-      <internal_asserts>true</internal_asserts>
-      <api_asserts>true</api_asserts>
+      <internal_asserts>false</internal_asserts>
+      <api_asserts>false</api_asserts>
       <taskid_size>8</taskid_size>
       <tasks>
 
@@ -95,6 +95,7 @@
               </domain>
               <domain>
                   <name>dom1</name>
+                  <writeable>true</writeable>
               </domain>
               <domain>
                   <name>cycle_counter</name>

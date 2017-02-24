@@ -31,7 +31,20 @@
 #include "rtos-acamar.h"
 #include "debug.h"
 
+#define REGISTER(x) (*((volatile uint32_t *)(x)))
+
+#define DWT_CYCCNT  0xE0001004
+#define DWT_CONTROL 0xE0001000
+#define SCB_DEMCR   0xE000EDFC
+
+#define PRIVILEGED_ACTION(x) \
+    rtos_internal_elevate_privileges(); \
+    (x); \
+    rtos_internal_drop_privileges();
+
 extern void debug_println(const char *msg);
+extern void rtos_internal_elevate_privileges();
+extern void rtos_internal_drop_privileges();
 
 void fn_a(void);
 void fn_b(void);
@@ -39,16 +52,12 @@ void fatal(RtosErrorId error_id);
 
 uint32_t dom1_variable_1;
 uint32_t dom1_variable_2 = 42;
-
 uint32_t dom2_variable_1;
 uint32_t dom2_variable_2 = 7;
 
 void nmi() { for(;;); }
-
 void hardfault() { for(;;); }
-
 void busfault() { for(;;); }
-
 void usagefault() { for(;;); }
 
 void
@@ -61,12 +70,6 @@ fatal(const RtosErrorId error_id)
     {
     }
 }
-
-#define REGISTER(x) (*((volatile uint32_t *)(x)))
-
-#define DWT_CYCCNT  0xE0001004
-#define DWT_CONTROL 0xE0001000
-#define SCB_DEMCR   0xE000EDFC
 
 void
 reset_timer() {
@@ -90,27 +93,21 @@ get_cycles() {
     return REGISTER(DWT_CYCCNT);
 }
 
-uint32_t cycle_buffer[200];
+uint32_t cycle_buffer[200] = {0};
 uint32_t i = 0;
-
-extern void rtos_internal_elevate_privileges();
-extern void rtos_internal_drop_privileges();
 
 void
 fn_a(void)
 {
-    rtos_internal_elevate_privileges();
-    cycle_buffer[i++] = get_cycles();
-    rtos_internal_drop_privileges();
+    dom1_variable_1 = 3;
+    ++dom1_variable_2;
+    PRIVILEGED_ACTION(cycle_buffer[i++] = get_cycles());
     for (;;)
     {
         rtos_yield_to(1);
-        rtos_internal_elevate_privileges();
-        cycle_buffer[i++] = get_cycles();
-        rtos_internal_drop_privileges();
+        PRIVILEGED_ACTION(cycle_buffer[i++] = get_cycles());
         if( i > 180 ) {
-            int j = 0;
-            for(;j < 180; ++j) {
+            for(int j = 0;j < 180; ++j) {
                 debug_printhex32(cycle_buffer[j+1]);
                 debug_print(" - delta is ");
                 debug_printhex32(cycle_buffer[j+1] - cycle_buffer[j]);
@@ -123,11 +120,11 @@ fn_a(void)
 void
 fn_b(void)
 {
+    dom2_variable_1 = 3;
+    ++dom2_variable_2;
     for (;;)
     {
-        rtos_internal_elevate_privileges();
-        cycle_buffer[i++] = get_cycles();
-        rtos_internal_drop_privileges();
+        PRIVILEGED_ACTION(cycle_buffer[i++] = get_cycles());
         rtos_yield_to(0);
     }
 }
