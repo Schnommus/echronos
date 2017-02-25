@@ -1,0 +1,11 @@
+w/ 10k trials: -O2, after flag streamlining optimization
+- No MPU, No inline traps (context switches ONLY) = 48 cycles
+- MPU shortcut, inline traps (inline traps + context switches ONLY) = 93 cycles
+- MPU full = 194 cycles
+
+Force loop unroll MPU full = 164 cycles
+
+but sloth - 180 (MPU+itraps cost) + 39 (base) = 219 cycles
+
+overall delta (eChronos): 164 - 48 = 116 cycles
+overall delta (sloth): 180 cycles

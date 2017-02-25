@@ -1,0 +1,21 @@
+MPU=on, api=off, internal=off, -O3, debug symbols off: 280-290 cycles.
+MPU=off, api=off, internal=off, -O3, debug symbols off: 55-60 cycles.
+Delta NOW: ~220 cycles
+
+MPU=on, api=off, internal=off, -O0, debug symbols on: 815-823 cycles
+
+STREAMLINED FLAGS:
+MPU=on, api=off, internal=off, -O2, debug symbols off: 273-281 cycles.
+Inline traps (no reconfig): api=off, internal=off, -O2, debug symbols off: 140-148 cycles.
+Context switch (no trap): api=off, internal=off, -O2, debug symbols off: 55-60 cycles.
+Cost of 'get cycles' is 49 cycles!
+Cost of the if statement & for branch etc is 8 cycles.
+So... cost of inline traps = 140-55-49 = 36 cycles
+So... MPU actual cycles -- 273 - 49 (cycle count) - 8 (if & loop) = 216 cycles (8 regions)
+NO IF: MPU actual -- 249 - 49 (cycle count) - 12 (if & loop) = 188 cycles (8 regions)
+
+SLOTH:
+ActivateTask w/ dispatch: 39 cycles
+ActivateTask w/ dispatch w/ MPU: +118 cycles = ~160 cycles
+
+Need to almost halve the overhead!
