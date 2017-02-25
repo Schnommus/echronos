@@ -82,7 +82,16 @@ struct mpu_region {
 static struct mpu_region mpu_regions[{{tasks.length}}][MPU_MAX_REGIONS-1] =
     {
 {{#tasks}}
-    { {0, 0} },
+        {
+            // TODO: Fix this hardcoded initialization
+            {1 | MPU_BASE_VALID, 0},
+            {2 | MPU_BASE_VALID, 0},
+            {3 | MPU_BASE_VALID, 0},
+            {4 | MPU_BASE_VALID, 0},
+            {5 | MPU_BASE_VALID, 0},
+            {6 | MPU_BASE_VALID, 0},
+            {7 | MPU_BASE_VALID, 0},
+        },
 {{/tasks}}
     };
 {{/memory_protection}}
@@ -320,9 +329,10 @@ mpu_initialize(void)
 
     /* The MPU itself will only enforce memory protection rules
      * in usermode. We leave it on for the lifetime of our system. */
-    //mpu_enable();
+    mpu_enable();
 }
 
+__attribute__((optimize("unroll-loops")))
 void
 mpu_configure_for_current_task(void)
 {
@@ -335,8 +345,7 @@ mpu_configure_for_current_task(void)
 
 
     {{prefix_type}}TaskId to = rtos_internal_current_task;
-    int i = 0;
-    for(; i != MPU_MAX_REGIONS-1; ++i) {
+    for(int i = 0; i != MPU_MAX_REGIONS-1; ++i) {
         hardware_register(MPU_BASE) = mpu_regions[to][i].base_flag;
         hardware_register(MPU_ATTR) = mpu_regions[to][i].attr_flag;
     }
