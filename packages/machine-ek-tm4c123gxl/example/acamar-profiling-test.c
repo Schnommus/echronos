@@ -102,6 +102,9 @@ fn_a(void)
     dom1_variable_1 = 3;
     ++dom1_variable_2;
     PRIVILEGED_ACTION(cycle_buffer[i++] = get_cycles());
+    PRIVILEGED_ACTION(cycle_buffer[i++] = get_cycles());
+    PRIVILEGED_ACTION(cycle_buffer[i++] = get_cycles());
+    PRIVILEGED_ACTION(cycle_buffer[i++] = get_cycles());
     for (;;)
     {
         rtos_yield_to(1);
