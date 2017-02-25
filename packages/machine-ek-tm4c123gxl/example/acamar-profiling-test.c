@@ -93,31 +93,34 @@ get_cycles() {
     return REGISTER(DWT_CYCCNT);
 }
 
-uint32_t cycle_buffer[200] = {0};
-uint32_t i = 0;
+#define NUM_ITERATIONS 10000
 
 void
 fn_a(void)
 {
     dom1_variable_1 = 3;
     ++dom1_variable_2;
-    PRIVILEGED_ACTION(cycle_buffer[i++] = get_cycles());
-    PRIVILEGED_ACTION(cycle_buffer[i++] = get_cycles());
-    PRIVILEGED_ACTION(cycle_buffer[i++] = get_cycles());
-    PRIVILEGED_ACTION(cycle_buffer[i++] = get_cycles());
-    for (;;)
+
+    uint32_t start = 0, end = 0;
+
+    PRIVILEGED_ACTION(start = get_cycles());
+
+    for (uint32_t i = 0; i != NUM_ITERATIONS; ++i)
     {
         rtos_yield_to(1);
-        PRIVILEGED_ACTION(cycle_buffer[i++] = get_cycles());
-        if( i > 180 ) {
-            for(int j = 0;j < 180; ++j) {
-                debug_printhex32(cycle_buffer[j+1]);
-                debug_print(" - delta is ");
-                debug_printhex32(cycle_buffer[j+1] - cycle_buffer[j]);
-                debug_println("");
-            }
-        }
     }
+
+    PRIVILEGED_ACTION(end = get_cycles());
+
+    debug_print("start: ");
+    debug_printhex32(start);
+    debug_print(" - end: ");
+    debug_printhex32(end);
+    debug_print(" - delta is (per context switch): ");
+    debug_printhex32((end - start)/(NUM_ITERATIONS*2));
+    debug_println("");
+
+    for(;;);
 }
 
 void
@@ -127,7 +130,6 @@ fn_b(void)
     ++dom2_variable_2;
     for (;;)
     {
-        PRIVILEGED_ACTION(cycle_buffer[i++] = get_cycles());
         rtos_yield_to(0);
     }
 }

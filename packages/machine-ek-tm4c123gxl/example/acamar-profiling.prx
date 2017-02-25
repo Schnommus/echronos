@@ -46,14 +46,6 @@
       <memory_protection>true</memory_protection>
       <protection_domains>
           <protection_domain>
-              <name>profiling</name>
-              <domain_size>1024</domain_size>
-              <symbols>
-                  <symbol>i</symbol>
-                  <symbol>cycle_buffer</symbol>
-              </symbols>
-          </protection_domain>
-          <protection_domain>
               <name>dom1</name>
               <domain_size>256</domain_size>
               <symbols>
@@ -90,10 +82,6 @@
           <stack_size>256</stack_size>
           <associated_domains>
               <domain>
-                  <name>profiling</name>
-                  <writeable>true</writeable>
-              </domain>
-              <domain>
                   <name>dom1</name>
                   <writeable>true</writeable>
               </domain>
@@ -108,10 +96,6 @@
           <function>fn_b</function>
           <stack_size>256</stack_size>
           <associated_domains>
-              <domain>
-                  <name>profiling</name>
-                  <writeable>true</writeable>
-              </domain>
               <domain>
                   <name>dom2</name>
                   <writeable>true</writeable>
