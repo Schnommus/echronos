@@ -337,25 +337,3 @@ rtos_internal_context_switch_first:
 rtos_internal_task_entry_trampoline:
         blx r4
 .size rtos_internal_task_entry_trampoline, .-rtos_internal_task_entry_trampoline
-
-
-{{#rtos.memory_protection}}
-.global rtos_internal_elevate_privileges
-.type rtos_internal_elevate_privileges,#function
-rtos_internal_elevate_privileges:
-    /* 0 is used for pre-emption on other variants, so we
-     * use 1 to indicate an svc for a privilege raise request */
-    svc #1
-    /* At this point we are running in privileged mode */
-    mov pc, lr
-.size rtos_internal_elevate_privileges, .-rtos_internal_elevate_privileges
-
-.global rtos_internal_drop_privileges
-.type rtos_internal_drop_privileges,#function
-rtos_internal_drop_privileges:
-    mrs r0, control
-    orr r0, r0, #1
-    msr control, r0
-    mov pc, lr
-.size rtos_internal_drop_privileges, .-rtos_internal_drop_privileges
-{{/rtos.memory_protection}}
