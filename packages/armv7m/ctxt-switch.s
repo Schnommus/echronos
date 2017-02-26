@@ -81,25 +81,6 @@ rtos_internal_trampoline:
 .size rtos_internal_trampoline, .-rtos_internal_trampoline
 
 {{#rtos.memory_protection}}
-.global rtos_internal_elevate_privileges
-.type rtos_internal_elevate_privileges,#function
-rtos_internal_elevate_privileges:
-    /* 0 is used for pre-emption on other variants, so we
-     * use 1 to indicate an svc for a privilege raise request */
-    svc #1
-    /* At this point we are running in privileged mode */
-    mov pc, lr
-.size rtos_internal_elevate_privileges, .-rtos_internal_elevate_privileges
-
-.global rtos_internal_drop_privileges
-.type rtos_internal_drop_privileges,#function
-rtos_internal_drop_privileges:
-    mrs r0, control
-    orr r0, r0, #1
-    msr control, r0
-    mov pc, lr
-.size rtos_internal_drop_privileges, .-rtos_internal_drop_privileges
-
 .global rtos_internal_svc_handler
 .type rtos_internal_svc_handler,#function
 /* Elevates the processor into privileged mode and continues execution

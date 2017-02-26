@@ -6,6 +6,8 @@ w/ 10k trials: -O2, after flag streamlining optimization
 Force loop unroll MPU full = 164 cycles (reconfigure = 71 cycles)
 Hand ASM. MPU alias banks (no longer M0/M1+ compatible) =
     151 cycles (reconfigure = 58 cycles)
+Force inlining privilege up/down = 144 cycles
+(Check => 
 
 but sloth - 180 (MPU+itraps cost) + 39 (base) = 219 cycles
 

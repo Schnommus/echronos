@@ -8,8 +8,8 @@
 
 /*| extern_declarations |*/
 {{#memory_protection}}
-extern void rtos_internal_elevate_privileges(void);
-extern void rtos_internal_drop_privileges(void);
+inline void rtos_internal_elevate_privileges(void) __attribute__((always_inline));
+inline void rtos_internal_drop_privileges(void) __attribute__((always_inline));
 {{/memory_protection}}
 
 /*| function_declarations |*/
@@ -27,6 +27,16 @@ extern void rtos_internal_drop_privileges(void);
 #define rtos_internal_api_end() rtos_internal_drop_privileges()
 {{/memory_protection}}
 /*| functions |*/
+void rtos_internal_elevate_privileges(void) {
+    asm volatile ("svc #1");
+}
+void rtos_internal_drop_privileges(void) {
+    asm volatile (
+                  "mrs r0, control\n"
+                  "orr r0, r0, #1\n"
+                  "msr control, r0"
+                 : : : "r0" );
+}
 
 /*| public_functions |*/
 
