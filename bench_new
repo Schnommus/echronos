@@ -3,7 +3,9 @@ w/ 10k trials: -O2, after flag streamlining optimization
 - MPU shortcut, inline traps (inline traps + context switches ONLY) = 93 cycles
 - MPU full = 194 cycles
 
-Force loop unroll MPU full = 164 cycles
+Force loop unroll MPU full = 164 cycles (reconfigure = 71 cycles)
+Hand ASM. MPU alias banks (no longer M0/M1+ compatible) =
+    151 cycles (reconfigure = 58 cycles)
 
 but sloth - 180 (MPU+itraps cost) + 39 (base) = 219 cycles
 
