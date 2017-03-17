@@ -119,6 +119,7 @@ SECTIONS
         } > sram_region AT > flash_region
 
         linker_domain_{{name}}_size = . - linker_domain_{{name}}_start;
+
         dummy = ASSERT(linker_domain_{{name}}_size > 0,
             "No symbols (or only unused symbols) in protection domain: {{name}}");
         dummy = ASSERT(linker_domain_{{name}}_size == {{domain_size}},

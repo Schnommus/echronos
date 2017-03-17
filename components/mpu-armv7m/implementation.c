@@ -75,11 +75,25 @@
 /*| structures |*/
 {{#memory_protection}}
 struct mpu_region {
-    uint32_t base_addr;
-    uint32_t flags;
+    uint32_t base_flag;
+    uint32_t attr_flag;
 };
 
-static struct mpu_region mpu_regions[{{tasks.length}}][MPU_MAX_REGIONS-1];
+static struct mpu_region mpu_regions[{{tasks.length}}][MPU_MAX_REGIONS-1] =
+    {
+{{#tasks}}
+        {
+            // TODO: Fix this hardcoded initialization
+            {1 | MPU_BASE_VALID, 0},
+            {2 | MPU_BASE_VALID, 0},
+            {3 | MPU_BASE_VALID, 0},
+            {4 | MPU_BASE_VALID, 0},
+            {5 | MPU_BASE_VALID, 0},
+            {6 | MPU_BASE_VALID, 0},
+            {7 | MPU_BASE_VALID, 0},
+        },
+{{/tasks}}
+    };
 {{/memory_protection}}
 
 /*| extern_declarations |*/
@@ -108,12 +122,11 @@ static void mpu_disable(void);
 static uint32_t mpu_hardware_regions_supported(void);
 static bool mpu_hardware_is_unified(void);
 static void mpu_region_disable(const uint32_t mpu_region);
-static void mpu_region_set(const uint32_t mpu_region, const uint32_t mpu_addr, const uint32_t mpu_flags);
 static void mpu_memmanage_interrupt_enable(void);
 static uint32_t mpu_region_size_flag(const uint32_t bytes);
 static void mpu_populate_regions(void);
 static void mpu_initialize(void);
-void mpu_configure_for_current_task(void);
+inline void mpu_configure_for_current_task(void);
 {{/memory_protection}}
 
 /*| state |*/
@@ -166,7 +179,7 @@ mpu_hardware_is_unified(void)
     return !(hardware_register(MPU_TYPE) & MPU_TYPE_SEPARATE);
 }
 
-static void
+inline static void
 mpu_region_disable(const uint32_t mpu_region)
 {
     internal_assert(mpu_region < MPU_MAX_REGIONS,
@@ -176,18 +189,13 @@ mpu_region_disable(const uint32_t mpu_region)
     hardware_register(MPU_ATTR) &= ~MPU_ATTR_ENABLE;
 }
 
-static void
-mpu_region_set(const uint32_t mpu_region, const uint32_t mpu_addr, const uint32_t mpu_flags)
+static uint32_t
+mpu_get_attr_flag(const uint32_t mpu_size_and_permission_flags, const uint32_t mpu_base_addr)
 {
-    internal_assert(mpu_region < MPU_MAX_REGIONS,
-                    ERROR_ID_MPU_INTERNAL_INVALID_REGION_INDEX);
-
     /* Check that the address is size-aligned as required */
-    internal_assert(mpu_addr == (mpu_addr & ~0 << (((mpu_flags & MPU_ATTR_SIZE_M) >> 1) + 1)),
-                    ERROR_ID_MPU_INTERNAL_MISALIGNED_ADDR);
-
-    /* Select the region and set the base address at the same time */
-    hardware_register(MPU_BASE) = mpu_addr | mpu_region | MPU_BASE_VALID;
+    internal_assert(mpu_base_addr == (mpu_base_addr & ~0 <<
+                   (((mpu_size_and_permission_flags & MPU_ATTR_SIZE_M) >> 1) + 1)),
+                   ERROR_ID_MPU_INTERNAL_MISALIGNED_ADDR);
 
     /* Set region attributes, with fixed values for:
      * Type Extension Mask = 0
@@ -196,8 +204,19 @@ mpu_region_set(const uint32_t mpu_region, const uint32_t mpu_addr, const uint32_
      * Bufferable = 1
      * These options should be fine on most devices, with a small performance
      * penalty on armv7m processors that have a cache. This is rare though. */
-    hardware_register(MPU_ATTR) = ((mpu_flags & ~(MPU_ATTR_TEX_M | MPU_ATTR_CACHEABLE)) |
-                                  MPU_ATTR_SHAREABLE | MPU_ATTR_BUFFRABLE);
+    return ((mpu_size_and_permission_flags & ~(MPU_ATTR_TEX_M | MPU_ATTR_CACHEABLE)) |
+            MPU_ATTR_SHAREABLE | MPU_ATTR_BUFFRABLE);
+
+}
+
+static uint32_t
+mpu_get_base_flag(const uint32_t mpu_region_index, const uint32_t mpu_base_addr)
+{
+    internal_assert(mpu_region < MPU_MAX_REGIONS,
+                    ERROR_ID_MPU_INTERNAL_INVALID_REGION_INDEX);
+
+    /* Combination will select the region and set the base address at the same time */
+    return mpu_region_index | mpu_base_addr | MPU_BASE_VALID;
 }
 
 static void
@@ -223,54 +242,6 @@ mpu_region_size_flag(const uint32_t bytes)
     return ((__builtin_ctz(bytes) - 1) << 1);
 }
 
-inline static uint32_t
-mpu_get_permissions_at(uint32_t ptr, uint32_t len_bytes) {
-    uint32_t i;
-    for(i = 0; i != MPU_MAX_REGIONS; ++i) {
-        uint32_t start = mpu_regions[rtos_internal_current_task][i].base_addr;
-        uint32_t size = 1 <<
-            (((MPU_ATTR_SIZE_M & mpu_regions[rtos_internal_current_task][i].flags) >> 1) + 1);
-        if(start <= ptr && ptr + len_bytes <= start + size) {
-            return mpu_regions[rtos_internal_current_task][i].flags;
-        }
-    }
-    return 0;
-}
-
-__attribute__((unused))
-static void
-mpu_ensure_readable(uint32_t ptr, uint32_t len_bytes) {
-    uint32_t flags = mpu_get_permissions_at(ptr, len_bytes) & MPU_P_MASK;
-    if(!((flags == MPU_P_RO) || (flags == MPU_P_RW))) {
-{{#verbose_protection_faults}}
-        debug_print("failed to ensure readable pointer: [address=");
-        debug_printhex32(ptr);
-        debug_print(", length=");
-        debug_printhex32(len_bytes);
-        debug_print("]\n");
-{{/verbose_protection_faults}}
-        mpu_disable();
-        {{fatal_error}}(ERROR_ID_MPU_SANITATION_FAILURE);
-    }
-}
-
-__attribute__((unused))
-static void
-mpu_ensure_writeable(uint32_t ptr, uint32_t len_bytes) {
-    uint32_t flags = mpu_get_permissions_at(ptr, len_bytes);
-    if(!(flags == MPU_P_RW)) {
-{{#verbose_protection_faults}}
-        debug_print("failed to ensure writeable pointer: [address=");
-        debug_printhex32(ptr);
-        debug_print(", length=");
-        debug_printhex32(len_bytes);
-        debug_print("]\n");
-{{/verbose_protection_faults}}
-        mpu_disable();
-        {{fatal_error}}(ERROR_ID_MPU_SANITATION_FAILURE);
-    }
-}
-
 static void
 mpu_populate_regions(void)
 {
@@ -289,22 +260,26 @@ mpu_populate_regions(void)
     #endif
 
     /* Stack region for task: {{name}} */
-    mpu_regions[{{idx}}][0].flags =
-        mpu_region_size_flag({{stack_size}}*sizeof(uint32_t)) |
-        MPU_P_NOEXEC | MPU_P_RW | MPU_RGN_ENABLE;
-    mpu_regions[{{idx}}][0].base_addr = (uint32_t)&stack_{{idx}};
+    mpu_regions[{{idx}}][0].attr_flag =
+        mpu_get_attr_flag(mpu_region_size_flag({{stack_size}}*sizeof(uint32_t)) |
+                          MPU_P_NOEXEC | MPU_P_RW | MPU_RGN_ENABLE, (uint32_t)&stack_{{idx}});
+    mpu_regions[{{idx}}][0].base_flag =
+        mpu_get_base_flag(1, (uint32_t)&stack_{{idx}});
 
     /* Protection domains for task: {{name}} */
 {{#associated_domains}}
 {{#writeable}}{{^readable}}
     #error "Write-only permissions unsupported on armv7m. Domain: {{name}}"
 {{/readable}}{{/writeable}}
-    mpu_regions[{{idx}}][{{domx}}+1].base_addr = linker_value(linker_domain_{{name}}_start);
-    mpu_regions[{{idx}}][{{domx}}+1].flags =
-        mpu_region_size_flag(linker_value(linker_domain_{{name}}_size)) | MPU_RGN_ENABLE |
-            {{#readable}}{{^writeable}}MPU_P_RO{{/writeable}}{{/readable}} /* Read-only? */
-            {{#writeable}}{{#readable}}MPU_P_RW{{/readable}}{{/writeable}} /* Read-write? */
-            {{^executable}}| MPU_P_NOEXEC{{/executable}}; /* Executable? (no flag = executable) */
+    mpu_regions[{{idx}}][{{domx}}+1].base_flag =
+        mpu_get_base_flag({{domx}}+2, linker_value(linker_domain_{{name}}_start));
+    mpu_regions[{{idx}}][{{domx}}+1].attr_flag =
+        mpu_get_attr_flag(
+            mpu_region_size_flag(linker_value(linker_domain_{{name}}_size)) | MPU_RGN_ENABLE |
+                {{#readable}}{{^writeable}}MPU_P_RO{{/writeable}}{{/readable}} /* Read-only? */
+                {{#writeable}}{{#readable}}MPU_P_RW{{/readable}}{{/writeable}} /* Read-write? */
+                {{^executable}}| MPU_P_NOEXEC{{/executable}} /* Executable? (no flag = executable) */
+            , linker_value(linker_domain_{{name}}_start) );
 
 {{/associated_domains}}
 {{/tasks}}
@@ -341,8 +316,10 @@ mpu_initialize(void)
 
     /* Create a read-only executable region for our FLASH */
     uint32_t flash_size = linker_value(linker_flash_size);
-    mpu_region_set(0, linker_value(linker_code_start), mpu_region_size_flag(flash_size) |
-                   MPU_P_EXEC | MPU_P_RO | MPU_RGN_ENABLE);
+    hardware_register(MPU_BASE) = mpu_get_base_flag(0, linker_value(linker_code_start));
+    hardware_register(MPU_ATTR) = mpu_get_attr_flag(
+            mpu_region_size_flag(flash_size) | MPU_P_EXEC | MPU_P_RO | MPU_RGN_ENABLE,
+            linker_value(linker_code_start));
 
     /* fill up our region table for each task */
     mpu_populate_regions();
@@ -355,6 +332,7 @@ mpu_initialize(void)
     mpu_enable();
 }
 
+__attribute__((optimize("unroll-loops")))
 void
 mpu_configure_for_current_task(void)
 {
@@ -365,16 +343,11 @@ mpu_configure_for_current_task(void)
     /* We simply enable and set parameters for the regions we are using
      * and then disable all the regions that we aren't */
 
+
     {{prefix_type}}TaskId to = rtos_internal_current_task;
-    int i = 0;
-    for(; i != MPU_MAX_REGIONS-1; ++i) {
-        if(mpu_regions[to][i].flags) {
-            mpu_region_set(i+1,
-                    mpu_regions[to][i].base_addr,
-                    mpu_regions[to][i].flags);
-        } else {
-            mpu_region_disable(i+1);
-        }
+    for(int i = 0; i != MPU_MAX_REGIONS-1; ++i) {
+        hardware_register(MPU_BASE) = mpu_regions[to][i].base_flag;
+        hardware_register(MPU_ATTR) = mpu_regions[to][i].attr_flag;
     }
 }
 
