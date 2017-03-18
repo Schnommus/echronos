@@ -183,6 +183,7 @@
             </protection_domains>
 
             <verbose_protection_faults>true</verbose_protection_faults>
+            <skip_faulting_instructions>true</skip_faulting_instructions>
             <api_asserts>true</api_asserts>
             <internal_asserts>true</internal_asserts>
             <fatal_error>fatal</fatal_error>

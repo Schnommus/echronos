@@ -212,7 +212,7 @@ mpu_get_attr_flag(const uint32_t mpu_size_and_permission_flags, const uint32_t m
 static uint32_t
 mpu_get_base_flag(const uint32_t mpu_region_index, const uint32_t mpu_base_addr)
 {
-    internal_assert(mpu_region < MPU_MAX_REGIONS,
+    internal_assert(mpu_region_index < MPU_MAX_REGIONS,
                     ERROR_ID_MPU_INTERNAL_INVALID_REGION_INDEX);
 
     /* Combination will select the region and set the base address at the same time */
@@ -351,9 +351,23 @@ mpu_configure_for_current_task(void)
     }
 }
 
-bool
+__attribute__((naked))
+void
 rtos_internal_memmanage_handler(void)
 {
+
+{{#skip_faulting_instructions}}
+    /* Load the offending PC, and increment it on the exception stack.
+     * when we RFE, we will resume execution after the bad instruction.
+     * Note that we only add 2 as we assume we are in thumb mode */
+    asm volatile (
+        "mrs r0, msp\n"
+        "ldr r1, [r0, #6*4]\n"
+        "add r1, r1, #2\n"
+        "str r1, [r0, #6*4]\n"
+    );
+{{/skip_faulting_instructions}}
+
     uint32_t fault_status  = hardware_register(NVIC_FAULT_STAT);
 
 {{#verbose_protection_faults}}
@@ -368,14 +382,27 @@ rtos_internal_memmanage_handler(void)
     /* Clear the fault status register */
     hardware_register(NVIC_FAULT_STAT) = fault_status;
 
+{{#skip_faulting_instructions}}
+    /* We don't want to call the fatal handler if we are
+     * skipping faulty instructions */
+    goto return_from_exception;
+{{/skip_faulting_instructions}}
+
     /* Turn off the MPU in case we managed to block ourselves
      * from doing memory accesses in privileged mode */
     mpu_disable();
 
-    /* An MPU policy violation is a fatal error (for now) */
+    /* An MPU policy violation is a fatal error (normally) */
     {{fatal_error}}(ERROR_ID_MPU_VIOLATION);
 
-    return true;
+return_from_exception:
+    /* Must load the lr with this special return value to indicate
+     * an RFE (popping stacked registers (including PC) and
+     * switching to usermode) */
+    asm volatile (
+        "mvn lr, #6\n"
+        "bx lr\n"
+        );
 }
 {{/memory_protection}}
 
