@@ -351,23 +351,9 @@ mpu_configure_for_current_task(void)
     }
 }
 
-__attribute__((naked))
 void
-rtos_internal_memmanage_handler(void)
+handle_mpu_fault(void)
 {
-
-{{#skip_faulting_instructions}}
-    /* Load the offending PC, and increment it on the exception stack.
-     * when we RFE, we will resume execution after the bad instruction.
-     * Note that we only add 2 as we assume we are in thumb mode */
-    asm volatile (
-        "mrs r0, msp\n"
-        "ldr r1, [r0, #6*4]\n"
-        "add r1, r1, #2\n"
-        "str r1, [r0, #6*4]\n"
-    );
-{{/skip_faulting_instructions}}
-
     uint32_t fault_status  = hardware_register(NVIC_FAULT_STAT);
 
 {{#verbose_protection_faults}}
@@ -381,21 +367,26 @@ rtos_internal_memmanage_handler(void)
 
     /* Clear the fault status register */
     hardware_register(NVIC_FAULT_STAT) = fault_status;
+}
 
 {{#skip_faulting_instructions}}
-    /* We don't want to call the fatal handler if we are
-     * skipping faulty instructions */
-    goto return_from_exception;
-{{/skip_faulting_instructions}}
+__attribute__((naked))
+void
+rtos_internal_memmanage_handler(void)
+{
 
-    /* Turn off the MPU in case we managed to block ourselves
-     * from doing memory accesses in privileged mode */
-    mpu_disable();
+    /* Load the offending PC, and increment it on the exception stack.
+     * when we RFE, we will resume execution after the bad instruction.
+     * Note that we only add 2 as we are in thumb mode */
+    asm volatile (
+        "mrs r0, msp\n"
+        "ldr r1, [r0, #6*4]\n"
+        "add r1, r1, #2\n"
+        "str r1, [r0, #6*4]\n"
+    );
 
-    /* An MPU policy violation is a fatal error (normally) */
-    {{fatal_error}}(ERROR_ID_MPU_VIOLATION);
+    handle_mpu_fault();
 
-return_from_exception:
     /* Must load the lr with this special return value to indicate
      * an RFE (popping stacked registers (including PC) and
      * switching to usermode) */
@@ -404,6 +395,25 @@ return_from_exception:
         "bx lr\n"
         );
 }
+{{/skip_faulting_instructions}}
+
+{{^skip_faulting_instructions}}
+void
+rtos_internal_memmanage_handler(void)
+{
+
+    handle_mpu_fault();
+
+    /* Turn off the MPU in case we managed to block ourselves
+     * from doing memory accesses in privileged mode */
+    mpu_disable();
+
+    /* An MPU policy violation is a fatal error (normally) */
+    {{fatal_error}}(ERROR_ID_MPU_VIOLATION);
+
+}
+{{/skip_faulting_instructions}}
+
 {{/memory_protection}}
 
 /*| public_functions |*/
