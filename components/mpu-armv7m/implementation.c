@@ -212,7 +212,7 @@ mpu_get_attr_flag(const uint32_t mpu_size_and_permission_flags, const uint32_t m
 static uint32_t
 mpu_get_base_flag(const uint32_t mpu_region_index, const uint32_t mpu_base_addr)
 {
-    internal_assert(mpu_region < MPU_MAX_REGIONS,
+    internal_assert(mpu_region_index < MPU_MAX_REGIONS,
                     ERROR_ID_MPU_INTERNAL_INVALID_REGION_INDEX);
 
     /* Combination will select the region and set the base address at the same time */

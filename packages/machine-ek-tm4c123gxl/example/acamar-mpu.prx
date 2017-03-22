@@ -34,7 +34,6 @@
       <flash_load_addr>0x0000000</flash_load_addr>
       <flash_size>0x40000</flash_size>
       <sram_size>0x8000</sram_size>
-      <memmanage>rtos_handle_memmanage</memmanage>
     </module>
     <module name="armv7m.semihost-debug" />
     <module name="generic.debug" />
