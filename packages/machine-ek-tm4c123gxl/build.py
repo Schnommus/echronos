@@ -45,7 +45,7 @@ def system_build(system):
 
     for c, o in zip(system.c_files, c_obj_files):
         os.makedirs(os.path.dirname(o), exist_ok=True)
-        execute(['arm-none-eabi-gcc', '-ffreestanding', '-c', c, '-o', o, '-Wall', '-Werror', '-fdata-sections', '-fno-common', '-fno-zero-initialized-in-bss'] +
+        execute(['arm-none-eabi-gcc', '-ffreestanding', '-c', c, '-o', o, '-Wall', '-Werror', '-fdata-sections', '-fno-common', '-fno-zero-initialized-in-bss', '-fomit-frame-pointer'] +
                 c_flags + inc_path_args)
 
     # Assemble all asm files.

@@ -54,6 +54,14 @@ fatal(const RtosErrorId error_id)
     }
 }
 
+void nmi() { for(;;); }
+
+void hardfault() { for(;;); }
+
+void busfault() { for(;;); }
+
+void usagefault() { for(;;); }
+
 #define REGISTER(x) (*((volatile uint32_t *)(x)))
 
 extern uint8_t rtos_internal_current_task;
@@ -67,14 +75,10 @@ fn_a(void)
         debug_print("current task (API): ");
         debug_printhex32(rtos_task_current());
         debug_println("");
-        debug_print("current task (INTERNAL): ");
-        debug_printhex32(rtos_internal_current_task);
-        debug_println("");
 
         debug_print("ptr: ");
         debug_printhex32((uint32_t)&dom1_variable_1);
         debug_println("");
-        dom1_variable_1 = 3;
         rtos_yield_to(1);
     }
 }

@@ -28,18 +28,23 @@
 
 <system>
   <modules>
-    <module name="armv7m.build" />
+    <module name="machine-ek-tm4c123gxl.build" />
     <module name="armv7m.ctxt-switch" />
     <module name="armv7m.vectable">
       <flash_load_addr>0x0000000</flash_load_addr>
       <flash_size>0x40000</flash_size>
       <sram_size>0x8000</sram_size>
+      <nmi>nmi</nmi>
+      <hardfault>hardfault</hardfault>
+      <usagefault>usagefault</usagefault>
+      <busfault>busfault</busfault>
     </module>
     <module name="armv7m.semihost-debug" />
     <module name="generic.debug" />
 
     <module name="armv7m.rtos-acamar">
       <memory_protection>true</memory_protection>
+      <verbose_protection_faults>true</verbose_protection_faults>
       <protection_domains>
           <protection_domain>
               <name>dom1</name>
@@ -47,14 +52,6 @@
               <symbols>
                   <symbol>dom1_variable_1</symbol>
                   <symbol>dom1_variable_2</symbol>
-              </symbols>
-          </protection_domain>
-          <protection_domain>
-              <name>dom2</name>
-              <domain_size>256</domain_size>
-              <symbols>
-                  <symbol>dom2_variable_1</symbol>
-                  <symbol>dom2_variable_2</symbol>
               </symbols>
           </protection_domain>
           <protection_domain>
@@ -79,10 +76,6 @@
           <associated_domains>
               <domain>
                   <name>dom1</name>
-              </domain>
-              <domain>
-                  <name>dom2</name>
-                  <writeable>true</writeable>
               </domain>
               <domain>
                   <name>peripherals</name>

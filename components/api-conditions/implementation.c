@@ -10,11 +10,15 @@
 {{#memory_protection}}
 extern void rtos_internal_elevate_privileges(void);
 extern void rtos_internal_drop_privileges(void);
+extern uint32_t rtos_internal_in_usermode(void);
 {{/memory_protection}}
 
 /*| function_declarations |*/
 
 /*| state |*/
+{{#memory_protection}}
+uint32_t rtos_internal_api_depth[{{tasks.length}}] = {0};
+{{/memory_protection}}
 
 /*| function_like_macros |*/
 {{^memory_protection}}
@@ -23,8 +27,16 @@ extern void rtos_internal_drop_privileges(void);
 {{/memory_protection}}
 
 {{#memory_protection}}
-#define rtos_internal_api_begin() rtos_internal_elevate_privileges()
-#define rtos_internal_api_end() rtos_internal_drop_privileges()
+#define rtos_internal_api_begin() \
+    if(rtos_internal_in_usermode()) { \
+        rtos_internal_elevate_privileges(); \
+    } \
+    ++rtos_internal_api_depth[rtos_internal_current_task];
+
+#define rtos_internal_api_end() \
+    if(--rtos_internal_api_depth[rtos_internal_current_task] == 0) { \
+        rtos_internal_drop_privileges(); \
+    }
 {{/memory_protection}}
 /*| functions |*/
 

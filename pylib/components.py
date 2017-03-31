@@ -26,7 +26,6 @@
 #
 
 import os
-import re
 import shutil
 from collections import namedtuple
 import pystache
@@ -56,17 +55,13 @@ _REQUIRED_C_SECTIONS = ['headers',
                         'function_like_macros',
                         'functions',
                         'public_functions',
-                        'public_privileged_functions',
-                        ]
+                        'public_privileged_functions']
 
 _REQUIRED_DEP_SECTIONS = ['provides', 'requires']
 
 _REQUIRED_DOC_SECTIONS = ['doc_header', 'doc_concepts', 'doc_api',
                           'doc_configuration', 'doc_footer']
 
-_RTOS_API_MACRO_PREFIX = 'rtos_internal_api_'
-_RTOS_API_PUBLIC_TAG = "{{prefix_func}}"
-_RTOS_API_INTERNAL_TAG = "{{prefix_internal}}"
 
 class _SchemaFormatError(RuntimeError):
     """To be raised when a component configuration schema violates assumptions or conventions."""
@@ -123,6 +118,7 @@ def _merge_schema_files(xml_files):
         _merge_schema_entries(merged_schema, schema)
 
     return xml.etree.ElementTree.tostring(merged_schema).decode()
+
 
 def _sort_typedefs(typedef_lines):
     """Given a string containing multiple lines of typedefs, sort the lines so that the typedefs are in the 'correct'
@@ -254,81 +250,6 @@ def _bind_components(components, pkg_name, search_paths):
         bound_components.append(_BoundComponent(path, component.configuration))
     return bound_components
 
-def _make_api_wrapper(function):
-    """Given a string containing a public RTOS API function, return a wrapper for that function
-    that calls API begin/end macros required by some RTOS components. (i.e memory protection)"""
-
-    # This regex isolates the following from a function definition that adheres to our coding style:
-    #   - Group 1: The return type of the function we are wrapping
-    #   - Group 2: The 'call body' of the function (everything after the return type until the first '{')
-    #   - Group 3: The function body. This is unused as it has already been written to the file.
-    m = re.search(r"(.*)\n([^(\n]*\([^)]*\))[^()]*\n\{\n(.*\n)*?\}", function);
-
-    # Catch something that doesn't look like a function. This includes public state in the wrong
-    # spot in some of the scheduler test components. TODO: fix those components instead
-    if m == None:
-        return ''
-
-    return_type = m.group(1).strip()
-    call_body = m.group(2).strip()
-
-    # Our actual API function has the same call signature as the original.
-    out = 'inline ' + return_type + '\n' + call_body + '\n{\n'
-
-    # Insert an API begin macro before our 'internal' call
-    out += '    {}begin();\n'.format(_RTOS_API_MACRO_PREFIX)
-
-    # This regex isolates the following from the 'call body':
-    #   - Group 1: The name of the function only.
-    #   - Group 2: The list of parameters to the function excluding parentheses
-    m_func = re.search(r"(.*)\(([^()]*?)\)", call_body)
-
-    # Pull out the function name and the *names* of each of the parameters to it so that
-    # we can later use them to call the function that we are wrapping.
-    func_name = m_func.group(1)
-    args = [x.strip() for x in m_func.group(2).split(",")]
-
-    # Now we will begin constructing how the wrapper invokes the target function
-    call = func_name.replace(_RTOS_API_PUBLIC_TAG, _RTOS_API_INTERNAL_TAG)
-
-    # If the function takes no arguments, pass it nothing - otherwise we pass it
-    # a comma-separated list of the arguments passed into our wrapper (excluding their
-    # types as this is an invocation).
-    if(args[0] == "void"):
-        call +=  '();\n'
-    else:
-        call += '({});\n'.format(', '.join([arg.strip().split(' ')[-1] for arg in args]))
-
-    # If the function returns something, set up a variable to store it
-    # so that our api completion macro is able to follow the function invocation
-    if return_type != "void":
-        call = return_type + " ret = " + call
-
-    # Finally, add the function invocation to our output
-    out += '    ' + call
-
-    # Add the API completion macro
-    out += '    {}end();\n'.format(_RTOS_API_MACRO_PREFIX)
-
-    # We must insert a return statement if the API call returns something
-    if return_type != "void":
-        out += '    return ret;\n'
-
-    out += '}\n'
-    return out
-
-def _make_api_wrappers_for(functions):
-    # Split our functions into individual functions, then create a wrapper for each
-
-    # We differentiate API function termination based on the closing bracket.
-    # This works on the entire codebase given our style adherance.
-    on = "\n}\n"
-
-    # Create a wrapper function for every supplied function
-    function_list = [_make_api_wrapper(function+on) for function in functions.split(on) if function.strip() != '']
-
-    # Extra newlines so that wrapper functions don't collide with their originals
-    return "\n\n" + "\n".join(function_list)
 
 def _generate(rtos_name, components, pkg_name, search_paths):
     """Generate the RTOS module to disk, so it is available as a compile and link unit to projects.
@@ -346,49 +267,31 @@ def _generate(rtos_name, components, pkg_name, search_paths):
     module_dir = base_path('packages', pkg_name, module_name)
     os.makedirs(module_dir, exist_ok=True)
 
-
-    # Generate .h file
-    all_h_sections = _get_sections(bound_components, "header.h", _REQUIRED_H_SECTIONS)
-    header_output = os.path.join(module_dir, module_name + '.h')
-    public_apis = ""
-    with open(header_output, 'w') as f:
-        mod_name = module_name.upper().replace('-', '_')
-        f.write("#ifndef {}_H\n".format(mod_name))
-        f.write("#define {}_H\n".format(mod_name))
-        for ss in _REQUIRED_H_SECTIONS:
-            data = "\n".join(h_sections[ss] for h_sections in all_h_sections)
-            if ss == 'public_function_declarations':
-                public_apis = data
-                f.write("#ifdef __cplusplus\nextern \"C\" {\n#endif\n")
-            f.write(data + '\n')
-            if ss == 'public_function_declarations':
-                f.write("#ifdef __cplusplus\n}\n#endif\n")
-        f.write("\n#endif /* {}_H */".format(mod_name))
-
-
     # Generate .c file
     all_c_sections = _get_sections(bound_components, "implementation.c", _REQUIRED_C_SECTIONS)
     source_output = os.path.join(module_dir, module_name + '.c')
     with open(source_output, 'w') as f:
         for ss in _REQUIRED_C_SECTIONS:
             data = "\n".join(c_sections[ss] for c_sections in all_c_sections)
-
-            # Forward declare all the 'internal api' functions
-            if ss == 'function_declarations':
-                data += public_apis.replace(_RTOS_API_PUBLIC_TAG, _RTOS_API_INTERNAL_TAG)
-
-            # Hide uses of public API symbols, and include the API wrappers when appropriate
-            if ss not in ['public_privileged_functions']:
-                api_wrappers = ""
-                if ss == 'public_functions':
-                    api_wrappers = _make_api_wrappers_for(data)
-                data = api_wrappers + data.replace(_RTOS_API_PUBLIC_TAG, _RTOS_API_INTERNAL_TAG)
-
             if ss == 'types':
                 data = _sort_typedefs(data)
-
             f.write(data)
             f.write('\n')
+
+    # Generate .h file
+    all_h_sections = _get_sections(bound_components, "header.h", _REQUIRED_H_SECTIONS)
+    header_output = os.path.join(module_dir, module_name + '.h')
+    with open(header_output, 'w') as f:
+        mod_name = module_name.upper().replace('-', '_')
+        f.write("#ifndef {}_H\n".format(mod_name))
+        f.write("#define {}_H\n".format(mod_name))
+        for ss in _REQUIRED_H_SECTIONS:
+            if ss == 'public_function_declarations':
+                f.write("#ifdef __cplusplus\nextern \"C\" {\n#endif\n")
+            f.write("\n".join(h_sections[ss] for h_sections in all_h_sections) + "\n")
+            if ss == 'public_function_declarations':
+                f.write("#ifdef __cplusplus\n}\n#endif\n")
+        f.write("\n#endif /* {}_H */".format(mod_name))
 
     # Generate docs
     if os.path.exists(os.path.join(BASE_DIR, 'components', rtos_name, 'docs.md')):

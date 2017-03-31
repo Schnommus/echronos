@@ -100,6 +100,13 @@ rtos_internal_drop_privileges:
     mov pc, lr
 .size rtos_internal_drop_privileges, .-rtos_internal_drop_privileges
 
+.global rtos_internal_in_usermode
+.type rtos_internal_in_usermode,#function
+rtos_internal_in_usermode:
+    mrs r0, control
+    mov pc, lr
+.size rtos_internal_in_usermode, .-rtos_internal_in_usermode
+
 .global rtos_internal_svc_handler
 .type rtos_internal_svc_handler,#function
 /* Elevates the processor into privileged mode and continues execution
