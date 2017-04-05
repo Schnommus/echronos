@@ -332,6 +332,7 @@ mpu_initialize(void)
     mpu_enable();
 }
 
+__attribute__((optimize("unroll-loops")))
 void
 mpu_configure_for_current_task(void)
 {
@@ -343,21 +344,10 @@ mpu_configure_for_current_task(void)
      * and then disable all the regions that we aren't */
 
     {{prefix_type}}TaskId to = rtos_internal_current_task;
-    uint32_t region_config_addr = (uint32_t)&mpu_regions[to][0];
-
-    /* Load the 7 task-specific MPU regions we're using, by exploiting
-     * the 8 adjacent MPU region alias registers */
-    /* NOTE: Assumes the mpu_regions struct has been packed properly */
-    /* The compiler wasn't intelligent enough to optimize this */
-    asm volatile (
-            "ldm %0, {r2-r9}\n"
-            "stm %1, {r2-r9}\n"
-            "adds %0, #32   \n"
-            "ldm %0, {r2-r7}\n"
-            "stm %1, {r2-r7}\n"
-            : "+r" (region_config_addr) : "r" (MPU_BASE)
-            : "memory", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9");
-
+    for(int i = 0; i != MPU_MAX_REGIONS-1; ++i) {
+        hardware_register(MPU_BASE) = mpu_regions[to][i].base_flag;
+        hardware_register(MPU_ATTR) = mpu_regions[to][i].attr_flag;
+    }
 }
 
 bool
