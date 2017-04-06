@@ -345,8 +345,13 @@ mpu_configure_for_current_task(void)
 
     {{prefix_type}}TaskId to = rtos_internal_current_task;
     for(int i = 0; i != MPU_MAX_REGIONS-1; ++i) {
-        hardware_register(MPU_BASE) = mpu_regions[to][i].base_flag;
-        hardware_register(MPU_ATTR) = mpu_regions[to][i].attr_flag;
+        if(mpu_regions[to][i].attr_flag) {
+            hardware_register(MPU_BASE) = mpu_regions[to][i].base_flag;
+            hardware_register(MPU_ATTR) = mpu_regions[to][i].attr_flag;
+        } else {
+            hardware_register(MPU_NUMBER) = i+1;
+            hardware_register(MPU_ATTR) &= ~MPU_ATTR_ENABLE;
+        }
     }
 }
 

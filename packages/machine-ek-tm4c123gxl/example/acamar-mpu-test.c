@@ -37,11 +37,8 @@ void fn_a(void);
 void fn_b(void);
 void fatal(RtosErrorId error_id);
 
-uint32_t dom1_variable_1;
+uint32_t dom1_variable_1 = 69;
 uint32_t dom1_variable_2 = 42;
-
-uint32_t dom2_variable_1;
-uint32_t dom2_variable_2 = 7;
 
 void
 fatal(const RtosErrorId error_id)
