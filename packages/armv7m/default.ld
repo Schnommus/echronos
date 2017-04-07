@@ -107,7 +107,7 @@ SECTIONS
 
         {{^base_address}}
         /* Symbol domain */
-        .domain_{{name}} :
+        .domain_{{name}} (COPY):
         {
             . = ALIGN({{domain_size}});
             linker_domain_{{name}}_start = .;
