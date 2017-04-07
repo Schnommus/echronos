@@ -349,8 +349,7 @@ mpu_configure_for_current_task(void)
             hardware_register(MPU_BASE) = mpu_regions[to][i].base_flag;
             hardware_register(MPU_ATTR) = mpu_regions[to][i].attr_flag;
         } else {
-            hardware_register(MPU_NUMBER) = i+1;
-            hardware_register(MPU_ATTR) &= ~MPU_ATTR_ENABLE;
+            mpu_region_disable(i+1);
         }
     }
 }

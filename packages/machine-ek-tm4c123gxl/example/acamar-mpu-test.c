@@ -76,6 +76,7 @@ fn_a(void)
         debug_print("ptr: ");
         debug_printhex32((uint32_t)&dom1_variable_1);
         debug_println("");
+        debug_printhex32(dom1_variable_1);
         rtos_yield_to(1);
     }
 }

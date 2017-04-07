@@ -107,7 +107,7 @@ SECTIONS
 
         {{^base_address}}
         /* Symbol domain */
-        .domain_{{name}} (COPY):
+        .domain_{{name}} :
         {
             . = ALIGN({{domain_size}});
             linker_domain_{{name}}_start = .;
@@ -115,6 +115,8 @@ SECTIONS
             *(.data.{{.}} .bss.{{.}}) /* C identifier? put here */
             *{{.}} (.data* .bss*)     /* Object file? put here */
             {{/symbols}}
+            BYTE(0xEE)                /* Only way to reliably force section contents
+                                         to appear in the output ELF. TODO: Fix */
             . = ALIGN({{domain_size}});
         } > sram_region AT > flash_region
 
