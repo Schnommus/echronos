@@ -45,6 +45,7 @@
     <module name="armv7m.rtos-acamar">
       <memory_protection>true</memory_protection>
       <verbose_protection_faults>true</verbose_protection_faults>
+      <skip_faulting_instructions>true</skip_faulting_instructions>
       <protection_domains>
           <protection_domain>
               <name>dom1</name>
@@ -55,7 +56,7 @@
               </symbols>
           </protection_domain>
           <protection_domain>
-              <name>dom1</name>
+              <name>dom2</name>
               <domain_size>256</domain_size>
               <symbols>
                   <symbol>dom2_variable_1</symbol>

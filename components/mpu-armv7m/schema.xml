@@ -1,5 +1,6 @@
 <entry name="memory_protection" type="bool" default="false"/>
 <entry name="verbose_protection_faults" type="bool" default="false"/>
+<entry name="skip_faulting_instructions" type="bool" default="false"/>
 <entry name="protection_domains" type="list" default="[]" auto_index_field="idx">
     <entry name="protection_domain" type="dict">
         <entry name="name" type="ident" />

@@ -155,6 +155,7 @@ mpu_enable(void)
     hardware_register(MPU_CTRL) |= MPU_CTRL_ENABLE;
 }
 
+__attribute__((unused))
 static void
 mpu_disable(void)
 {
@@ -354,8 +355,8 @@ mpu_configure_for_current_task(void)
     }
 }
 
-bool
-rtos_internal_memmanage_handler(void)
+void
+handle_mpu_fault(void)
 {
     uint32_t fault_status  = hardware_register(NVIC_FAULT_STAT);
 
@@ -370,16 +371,52 @@ rtos_internal_memmanage_handler(void)
 
     /* Clear the fault status register */
     hardware_register(NVIC_FAULT_STAT) = fault_status;
+}
+
+{{#skip_faulting_instructions}}
+__attribute__((naked))
+void
+rtos_internal_memmanage_handler(void)
+{
+
+    /* Load the offending PC, and increment it on the exception stack.
+     * when we RFE, we will resume execution after the bad instruction.
+     * Note that we only add 2 as we are in thumb mode */
+    asm volatile (
+        "mrs r0, msp\n"
+        "ldr r1, [r0, #6*4]\n"
+        "add r1, r1, #2\n"
+        "str r1, [r0, #6*4]\n"
+    );
+
+    handle_mpu_fault();
+
+    /* Must load the lr with this special return value to indicate
+     * an RFE (popping stacked registers (including PC) and
+     * switching to usermode) */
+    asm volatile (
+        "mvn lr, #6\n"
+        "bx lr\n"
+        );
+}
+{{/skip_faulting_instructions}}
+
+{{^skip_faulting_instructions}}
+void
+rtos_internal_memmanage_handler(void)
+{
+
+    handle_mpu_fault();
 
     /* Turn off the MPU in case we managed to block ourselves
      * from doing memory accesses in privileged mode */
     mpu_disable();
 
-    /* An MPU policy violation is a fatal error (for now) */
+    /* An MPU policy violation is a fatal error (normally) */
     {{fatal_error}}(ERROR_ID_MPU_VIOLATION);
 
-    return true;
 }
+{{/skip_faulting_instructions}}
 {{/memory_protection}}
 
 /*| public_functions |*/
