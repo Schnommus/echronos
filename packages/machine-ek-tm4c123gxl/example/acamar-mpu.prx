@@ -55,9 +55,12 @@
               </symbols>
           </protection_domain>
           <protection_domain>
-              <name>peripherals</name>
-              <domain_size>0x20000000</domain_size>
-              <base_address>0x40000000</base_address>
+              <name>dom1</name>
+              <domain_size>256</domain_size>
+              <symbols>
+                  <symbol>dom2_variable_1</symbol>
+                  <symbol>dom2_variable_2</symbol>
+              </symbols>
           </protection_domain>
       </protection_domains>
 
@@ -76,10 +79,10 @@
           <associated_domains>
               <domain>
                   <name>dom1</name>
+                  <writeable>true</writeable>
               </domain>
               <domain>
-                  <name>peripherals</name>
-                  <writeable>true</writeable>
+                  <name>dom2</name>
               </domain>
           </associated_domains>
         </task>
@@ -88,6 +91,15 @@
           <name>b</name>
           <function>fn_b</function>
           <stack_size>256</stack_size>
+          <associated_domains>
+              <domain>
+                  <name>dom1</name>
+              </domain>
+              <domain>
+                  <name>dom2</name>
+                  <writeable>true</writeable>
+              </domain>
+          </associated_domains>
         </task>
 
       </tasks>

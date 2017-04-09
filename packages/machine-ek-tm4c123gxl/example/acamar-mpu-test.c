@@ -37,8 +37,14 @@ void fn_a(void);
 void fn_b(void);
 void fatal(RtosErrorId error_id);
 
-uint32_t dom1_variable_1;
-uint32_t dom1_variable_2;
+/* domX_variable_2 is unused in this example, but remains to
+ * illustrate usage of multiple symbols per domain */
+
+uint32_t dom1_variable_1 = 0;
+uint32_t dom1_variable_2 = 0;
+
+uint32_t dom2_variable_1 = 0;
+uint32_t dom2_variable_2 = 0;
 
 void
 fatal(const RtosErrorId error_id)
@@ -59,24 +65,45 @@ void busfault() { for(;;); }
 
 void usagefault() { for(;;); }
 
-#define REGISTER(x) (*((volatile uint32_t *)(x)))
-
 extern uint8_t rtos_internal_current_task;
+
+void iteration() {
+    debug_print("current task (API): ");
+    debug_printhex32(rtos_task_current());
+    debug_println("");
+
+
+    /* One of these increments should fault depending on
+     * which task is currently executing */
+
+    debug_println("Increment dom1_variable_1...");
+    ++dom1_variable_1;
+
+    debug_println("Increment dom2_variable_1...");
+    ++dom2_variable_1;
+
+    /* Both of these reads should succeed, both tasks have read access */
+
+    debug_print("dom1_variable_1=");
+    debug_printhex32(dom1_variable_1);
+    debug_println("");
+
+    debug_print("dom2_variable_1=");
+    debug_printhex32(dom2_variable_1);
+    debug_println("");
+}
 
 void
 fn_a(void)
 {
+
+    debug_print("current task (KERNEL DATA): ");
+    debug_printhex32(rtos_internal_current_task); /* should fault */
+    debug_println("");
+
     for (;;)
     {
-        debug_println("task a");
-        debug_print("current task (API): ");
-        debug_printhex32(rtos_task_current());
-        debug_println("");
-
-        debug_print("ptr: ");
-        debug_printhex32((uint32_t)&dom1_variable_1);
-        debug_println("");
-        debug_printhex32(dom1_variable_1);
+        iteration();
         rtos_yield_to(1);
     }
 }
@@ -86,13 +113,7 @@ fn_b(void)
 {
     for (;;)
     {
-        int x = 0;
-        debug_println("task b");
-        debug_print("ptr: ");
-        debug_printhex32((uint32_t)&dom1_variable_1);
-        debug_println("");
-        x = dom1_variable_1;
-        ++x;
+        iteration();
         rtos_yield_to(0);
     }
 }
