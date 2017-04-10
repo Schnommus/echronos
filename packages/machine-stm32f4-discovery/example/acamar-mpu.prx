@@ -32,7 +32,6 @@
     <module name="armv7m.ctxt-switch" />
     <module name="armv7m.vectable">
       <flash_load_addr>0x8000000</flash_load_addr>
-      <code_addr>0x8000000</code_addr>
       <flash_size>0x100000</flash_size>
       <sram_size>0x20000</sram_size>
       <nmi>nmi</nmi>

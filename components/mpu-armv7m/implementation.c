@@ -105,9 +105,9 @@ static struct mpu_region mpu_regions[{{tasks.length}}][MPU_MAX_REGIONS-1] =
  *
  * Note the *address* of these symbols must be taken to get their value.
  * This should always be through the 'linker_value' macro defined below.*/
+extern const uint32_t linker_flash_start;
 extern const uint32_t linker_flash_size;
 extern const uint32_t linker_sram_size;
-extern const uint32_t linker_code_start;
 {{#protection_domains}}
 extern const uint32_t linker_domain_{{name}}_start;
 extern const uint32_t linker_domain_{{name}}_size;
@@ -317,10 +317,10 @@ mpu_initialize(void)
 
     /* Create a read-only executable region for our FLASH */
     uint32_t flash_size = linker_value(linker_flash_size);
-    hardware_register(MPU_BASE) = mpu_get_base_flag(0, linker_value(linker_code_start));
+    hardware_register(MPU_BASE) = mpu_get_base_flag(0, linker_value(linker_flash_start));
     hardware_register(MPU_ATTR) = mpu_get_attr_flag(
             mpu_region_size_flag(flash_size) | MPU_P_EXEC | MPU_P_RO | MPU_RGN_ENABLE,
-            linker_value(linker_code_start));
+            linker_value(linker_flash_start));
 
     /* fill up our region table for each task */
     mpu_populate_regions();

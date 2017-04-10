@@ -185,7 +185,7 @@ SECTIONS
         {{#rtos.memory_protection}}
         /* Constants used by the MPU for run-time assertions. Necessary here
          * because these are properties of the vectable module, not the RTOS */
-        linker_code_start = {{code_addr}};
+        linker_flash_start = {{flash_load_addr}};
         linker_flash_size = {{flash_size}};
         linker_sram_size = {{sram_size}};
         {{/rtos.memory_protection}}
