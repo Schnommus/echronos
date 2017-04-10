@@ -37,7 +37,7 @@ def system_build(system):
     inc_path_args = ['-I%s' % i for i in system.include_paths]
     common_flags = ['-mthumb', '-march=armv7-m', '-g']
     a_flags = common_flags
-    c_flags = common_flags + ['-O0', '-fdata-sections', '-fno-common', '-fno-zero-initialized-in-bss', '-fomit-frame-pointer']
+    c_flags = common_flags + ['-O0', '-fdata-sections', '-fno-common', '-fno-zero-initialized-in-bss']
     ld_flags = ['--print-memory-usage']
 
     # Compile all C files.
