@@ -38,11 +38,18 @@ void fn_b(void);
 void fatal(RtosErrorId error_id);
 
 uint32_t dom1_variable = 0;
-uint32_t *dom1_stack_variable_addr = NULL;
-
 uint32_t dom2_variable = 0;
-
+uint32_t *dom1_stack_variable_addr = NULL;
 uint32_t un_owned_global = 0;
+
+extern uint8_t rtos_internal_current_task;
+
+#define REGISTER(x) (*(uint32_t*)(x))
+
+void nmi() { for(;;); }
+void hardfault() { for(;;); }
+void busfault() { for(;;); }
+void usagefault() { for(;;); }
 
 void
 fatal(const RtosErrorId error_id)
@@ -55,21 +62,11 @@ fatal(const RtosErrorId error_id)
     }
 }
 
-void nmi() { for(;;); }
-
-void hardfault() { for(;;); }
-
-void busfault() { for(;;); }
-
-void usagefault() { for(;;); }
-
-extern uint8_t rtos_internal_current_task;
-
-void iteration() {
+void
+iteration() {
     debug_print("current task (API): ");
     debug_printhex32(rtos_task_current());
     debug_println("");
-
 
     /* One of these increments should fault depending on
      * which task is currently executing */
@@ -104,7 +101,7 @@ void iteration() {
     debug_printhex32(*dom1_stack_variable_addr);
     debug_println("");
 
-    /* These should fault */
+    /* These should all fault */
 
     debug_println("access un_owned_global...");
     x = un_owned_global;
@@ -112,6 +109,8 @@ void iteration() {
     debug_println("access kernel data...");
     x = rtos_internal_current_task;
 
+    debug_println("write to peripheral address...");
+    REGISTER(0x400000ff) = 42;
 }
 
 void
