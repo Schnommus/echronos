@@ -236,7 +236,7 @@ class _LicenseOpener:
     def _agpl_sentinel(ext):
         if ext in ['.c', '.h', '.ld', '.s']:
             return _LicenseOpener.AGPL_TAG + '\n */\n'
-        elif ext in ['.py', '.gdb', '.sh']:
+        elif ext in ['.py', '.gdb', '.sh', '.yml']:
             return _LicenseOpener.AGPL_TAG + '\n#\n'
         elif ext in ['.prx', '.xml', '.prj']:
             return _LicenseOpener.AGPL_TAG + '\n  -->\n'
@@ -266,7 +266,7 @@ class _LicenseOpener:
 
         if ext in ['.c', '.h', '.ld', '.s', '.css']:
             lic = self._format_lic(self.license, '/*', ' * ', ' *', ' */')
-        elif ext in ['.py', '.gdb']:
+        elif ext in ['.py', '.gdb', '.yml']:
             lic = self._format_lic(self.license, '#', '# ', '#', '#')
         elif ext in ['.prx', '.xml', '.prj']:
             lic = self._format_lic(self.license, '<!--', '', '', '  -->')
@@ -406,6 +406,7 @@ def build_partials(args):
         for config in get_release_configs():
             release_package = _ReleasePackage(pkg, config)
             _mk_partial(release_package, args.topdir, args.allow_unknown_filetypes)
+    return 0
 
 
 def build_single_release(config, topdir):
@@ -449,9 +450,10 @@ def build_single_release(config, topdir):
         # Run license replacer on all extra files released
         dummy_pkg = _ReleasePackage(None, config)
         for arcname, filename in config.extra_files:
-            lo = _LicenseOpener(dummy_pkg.get_license(), dummy_pkg.get_doc_license(), os.getcwd(), filename=filename)
+            file_path = find_path(filename, topdir)
+            lo = _LicenseOpener(dummy_pkg.get_license(), dummy_pkg.get_doc_license(), topdir, filename=file_path)
             tarfile.bltn_open = lo.open
-            tf.add(filename, arcname='{}/{}'.format(basename, arcname), filter=lo.tar_info_filter)
+            tf.add(file_path, arcname='{}/{}'.format(basename, arcname), filter=lo.tar_info_filter)
             tarfile.bltn_open = open
 
         if 'TEAMCITY_VERSION' in os.environ:
@@ -463,6 +465,8 @@ def build_single_release(config, topdir):
                 build_info += "-unclean"
         build_info += '\n'
         _tar_add_data(tf, '{}/build_info'.format(basename), build_info.encode('utf8'), _tar_info_filter)
+
+        _tar_add_data(tf, '{}/version_info'.format(basename), config.version.encode('utf8'), _tar_info_filter)
 
 
 def release_test_one(archive):
@@ -549,6 +553,7 @@ def test(args):
     """
     for rel in glob(top_path(args.topdir, 'release', '*.tar.gz')):
         release_test_one(rel)
+    return 0
 
 
 def get_release_configs():
@@ -569,8 +574,13 @@ def build(args):
     Additionally, it takes the binary 'prj' files and adds it to the appropriate place in the release tar file.
 
     """
+    result = 0
+
     for config in get_release_configs():
         try:
             build_single_release(config, args.topdir)
         except FileNotFoundError as e:
             logging.warning("Unable to build '{}'. File not found: '{}'".format(config, e.filename))
+            result = 1
+
+    return result

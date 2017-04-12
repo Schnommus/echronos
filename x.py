@@ -78,27 +78,25 @@ So, if `x.py` is building version 3 of a given release, it should ensure old rel
 directory.
 
 """
-import sys
+import argparse
+import logging
 import os
+import sys
 
-externals = ['nose', 'ice', '']
+externals = ['nose', '']
 
-# Make pylib available
+# Make pylib available for importing - this is necessary for x.py wrappers in client repositories to work
 sys.path.append(os.path.dirname(__file__))
 
 from pylib.utils import BASE_DIR
-
 sys.path = [os.path.join(BASE_DIR, 'external_tools', e) for e in externals] + sys.path
 sys.path.insert(0, os.path.join(BASE_DIR, 'prj/app/pystache'))
 if __name__ == '__main__':
     sys.modules['x'] = sys.modules['__main__']
 
-import argparse
-import logging
-
 from pylib.components import Component
-from pylib import release, components, prj, tests, tasks, cmdline, docs
-from pylib.cmdline import add_cmds_in_globals_to_parser
+from pylib import release, components, prj, tests, docs
+from pylib.cmdline import add_subcommands_to_parser
 
 # Set up a specific logger with our desired output level
 logger = logging.getLogger()
@@ -262,7 +260,7 @@ configurations = CORE_CONFIGURATIONS.copy()
 def main():
     """Application main entry point. Parse arguments, and call specified sub-command."""
     parser = argparse.ArgumentParser(prog='x.py')
-    add_cmds_in_globals_to_parser(globals(), parser)
+    add_subcommands_to_parser(globals(), parser)
 
     # parse arbitrary nose options for the 'test systems' command
     # argparse does not seem to provide a better mechanism for this case
@@ -278,6 +276,7 @@ def main():
         # argparse does not support required subparsers so it does not itself reject a command line that lacks a
         # command or subcommand
         parser.print_help()
+        return 1
     else:
         args.topdir = topdir
         args.configurations = configurations
@@ -287,4 +286,12 @@ def main():
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    result = main()
+    # sys.exit(None) makes the process exit with exit code 0, which indicates successful completion.
+    # In the past, e.g. test functions have returned None, even when there were test errors.
+    # To prevent this, require the functions called by main() to consistently return an integer value.
+    if isinstance(result, int):
+        sys.exit(result)
+    else:
+        raise TypeError('The main() function shall return an integer, but returned a value of type {} instead.'
+                        .format(type(result)))

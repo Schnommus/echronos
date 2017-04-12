@@ -31,8 +31,17 @@ ENTRY(vector_table)
 
 MEMORY
 {
-        flash_region(rx) : ORIGIN = {{flash_load_addr}}, LENGTH = {{flash_size}}
-        sram_region(rw) : ORIGIN = {{data_addr}}, LENGTH = {{sram_size}}
+        /* Bounds of physical flash on the device */
+        flash_region(rx) : ORIGIN = {{flash_addr}}, LENGTH = {{flash_size}}
+
+        /* Area of flash we are actually able to put our code in (i.e. excluding bootloaders
+         * or similar that might exist at the start of our physical flash region) */
+        flash_load_region(rx) :
+            ORIGIN = {{flash_load_addr}},
+            LENGTH = {{flash_size}} - ({{flash_load_addr}} - {{flash_addr}})
+
+        /* Bounds of physical SRAM on the device */
+        sram_region(rw) : ORIGIN = {{sram_addr}}, LENGTH = {{sram_size}}
 }
 
 SECTIONS
@@ -45,26 +54,26 @@ SECTIONS
         .vectors :
         {
             *(.vectors)
-        } AT > flash_region
+        } AT > flash_load_region
 
         .text :
         {
             *(.text.startup)
             *(.text)
             . = ALIGN(4);
-        } AT > flash_region
+        } AT > flash_load_region
 
         .rodata :
         {
             *(.rodata*)
             . = ALIGN(4);
-        } AT > flash_region
+        } AT > flash_load_region
 
         .data.bitband :
         {
             *(.data.bitband)
             . = ALIGN(4);
-        } > sram_region AT > flash_region
+        } > sram_region AT > flash_load_region
 
         /* Check that bitband variables don't overflow */
         dummy = ASSERT(SIZEOF(.data.bitband) <= {{bitband_size}}, "bitband variables too large");
@@ -118,7 +127,7 @@ SECTIONS
             BYTE(0xEE)                /* Only way to reliably force section contents
                                          to appear in the output ELF. TODO: Fix */
             . = ALIGN({{domain_size}});
-        } > sram_region AT > flash_region
+        } > sram_region AT > flash_load_region
 
         linker_domain_{{name}}_size = . - linker_domain_{{name}}_start;
 
@@ -135,7 +144,7 @@ SECTIONS
         {
             *(.data*)
             . = ALIGN(4);
-        } > sram_region AT > flash_region
+        } > sram_region AT > flash_load_region
 
         data_load_addr = LOADADDR(.data.bitband);
         data_virt_addr = ADDR(.data.bitband);
@@ -166,6 +175,7 @@ SECTIONS
             {{/rtos.tasks}}
             {{/rtos.memory_protection}}
             *(.bss*)
+            *(COMMON)
             . = ALIGN(4);
         } > sram_region
 

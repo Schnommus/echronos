@@ -32,6 +32,7 @@ import tempfile
 import calendar
 import subprocess
 import traceback
+from collections import namedtuple
 from contextlib import contextmanager
 
 
@@ -50,7 +51,10 @@ def follow_link(l):
     return follow_link(os.path.join(os.path.dirname(l), p))
 
 
+"""Directory containing the core repository."""
 BASE_DIR = os.path.normpath(os.path.join(os.path.dirname(follow_link(__file__)), ".."))
+"""Top directory from which x.py (or a wrapper in the case of a client repository) was invoked."""
+TOP_DIR = os.path.dirname(os.path.normpath(follow_link(os.path.abspath(traceback.extract_stack()[0][0]))))
 BASE_TIME = calendar.timegm((2013, 1, 1, 0, 0, 0, 0, 0, 0))
 
 
@@ -242,17 +246,15 @@ class Git:
     """
     Represents common state applicable to a series of git invocations and provides a pythonic interface to git.
     """
-    def __init__(self, local_repository=os.getcwd(), remote_repository='origin'):
+    def __init__(self, local_repository=os.getcwd()):
         """
-        Create a Git instance with which all commands operate with the given local and remote repositories.
+        Create a Git instance with which all commands operate with the given local repository.
         """
         assert isinstance(local_repository, str)
-        assert isinstance(remote_repository, str)
         # Check whether the local repository is a directory managed by git.
         # Note that '.git' can be a directory in case of a git repository or a file in case of a git submodule
         assert os.path.exists(os.path.join(local_repository, '.git'))
         self.local_repository = local_repository
-        self.remote_repository = remote_repository
         self._sep = None
         self._branches = None
         self._remote_branches = None
@@ -286,16 +288,15 @@ class Git:
         """
         Determine the path separator expected by the git command-line tool.
         """
-        output = self._do(['ls-tree', '-r', '--name-only', 'HEAD:pm/tasks'])
+        output = self._do(['ls-tree', '-r', '--name-only', 'HEAD:pm'])
         for line in output.splitlines():
-            if line.startswith('completed'):
-                line = line.replace('completed', '', 1)
+            if line.startswith('reviews'):
+                line = line.replace('reviews', '', 1)
                 return line[0]
-        raise LookupError('git ls-tree does not list any files in pm/tasks/completed as expected')
+        raise LookupError('git ls-tree does not list any files in pm/reviews as expected')
 
     @property
     def branches(self):
-        """List of local branches."""
         if self._branches is None:
             self._branches = self._get_branches()
         return self._branches
@@ -305,15 +306,18 @@ class Git:
         return [x[2:] for x in self._do(['branch'], as_lines=True)]
 
     @property
-    def origin_branches(self):
-        """List of origin-remote branches"""
-        return self.get_remote_branches()
-
-    def get_remote_branches(self, remote='origin'):
-        """Return a list of remote branches. Remote defaults to 'origin'."""
+    def remote_branches(self):
         if self._remote_branches is None:
-            self._remote_branches = [x[2:].strip() for x in self._do(['branch', '-r'], as_lines=True)]
-        return [x[len(remote) + 1:] for x in self._remote_branches if x.startswith(remote + '/')]
+            self._remote_branches = self._get_remote_branches()
+        return self._remote_branches
+
+    def _get_remote_branches(self):
+        """Return a set of remote branches excluding the remote prefix."""
+        return frozenset([ref.split('/', maxsplit=1)[1] for ref in self._get_remote_refs()])
+
+    def _get_remote_refs(self):
+        """Return a set of remote refs including the remote prefix (typically 'origin/')."""
+        return frozenset([line[2:].strip() for line in self._do(['branch', '-r'], as_lines=True)])
 
     def _do(self, parameters, as_lines=False):
         """
@@ -372,44 +376,45 @@ class Git:
         assert isinstance(revid, str)
         return self._do(['checkout', revid])
 
-    def merge_into_active_branch(self, revid):
+    def merge_into_active_branch(self, revid, *options):
         """
         Merge the specified revision ID into the currently active branch.
         """
         assert isinstance(revid, str)
-        return self._do(['merge', revid])
+        return self._do(['merge'] + list(options) + [revid])
 
-    def fetch(self):
-        """Fetch from the remote origin."""
-        return self._do(['fetch'])
+    def fetch(self, remote='--all', prune=False):
+        """Fetch new revisions from the specified remote."""
+        if prune:
+            prune_option = ['--prune']
+        else:
+            prune_option = []
+        return self._do(['fetch'] + prune_option + [remote])
 
-    def push(self, src=None, dst=None, *, force=False, set_upstream=False):
-        """Push the local revision 'src' into the remote branch 'dst', optionally forcing the update.
+    def push(self, src=None, force=False, set_upstream=False):
+        """Push the local revision 'src' to a remote.
 
-        If 'set_upstream' evaluates to True, 'dst' is set as the upstream / tracking branch of 'src'.
-
+        If 'src' has a remote tracking branch, that is where 'src' is pushed to.
+        If 'src' has no remote tracking branch:
+            - if the local repository contains only one remote, 'src' is pushed there
+            - if the local repository contains multiple remotes, the correct remote is determined interactively
         """
         assert src is None or isinstance(src, str)
-        assert dst is None or isinstance(dst, str)
         assert isinstance(force, bool)
-        revspec = ''
-        if src:
-            revspec = src
-        if dst:
-            revspec += ':' + dst
-        if revspec == '':
-            revspec_args = []
-        else:
-            revspec_args = [revspec]
+
+        if src is None:
+            src = self.get_active_branch()
         if force:
             force_option = ['--force']
         else:
             force_option = []
         if set_upstream:
-            set_upstream_option = ['-u']
+            set_upstream_option = ['--set-upstream']
         else:
             set_upstream_option = []
-        return self._do(['push'] + force_option + set_upstream_option + [self.remote_repository] + revspec_args)
+        remote = self.get_branch_remote(src, interactive=True)
+
+        return self._do(['push'] + force_option + set_upstream_option + [remote, src])
 
     def move(self, src, dst):
         """
@@ -427,6 +432,14 @@ class Git:
     def add(self, files):
         """Add the list of files to the index in preparation of a future commit."""
         return self._do(['add'] + self.convert_paths(files))
+
+    def rm(self, paths, force=True, *args):
+        """Remove the specified paths from the index and, by default, from the file system."""
+        if force:
+            force_option = ['--force']
+        else:
+            force_option = []
+        return self._do(['rm'] + force_option + list(args) + self.convert_paths(paths))
 
     def commit(self, msg, files=None):
         """Commit the changes in the specified 'files' with the given 'message' to the currently active branch.
@@ -450,50 +463,11 @@ class Git:
         assert isinstance(dst, str)
         return self._do(['branch', '-m', src, dst])
 
-    def delete_remote_branch(self, branch):
+    def delete_remote_branch(self, branch, remote=None):
         assert isinstance(branch, str)
-        return self.push(dst=branch)
-
-    def ahead_list(self, branch, base_branch):
-        """Return a list of SHAs for the commits that are in branch, but not base_branch"""
-        return self._do(['log', '{}..{}'.format(base_branch, branch), '--pretty=format:%H'], as_lines=True)
-
-    def branch_contains(self, commits):
-        """Return a set of branches that contain any of the commits."""
-        contains = set()
-        for c in commits:
-            for b in self._do(['branch', '--contains', c], as_lines=True):
-                contains.add(b[2:])
-        return contains
-
-    def count_commits(self, since, until):
-        """Return the number of commit between two commits 'since' and 'until'.
-
-        See git log --help for more details.
-
-        """
-        return len(self._do(['log', '{}..{}'.format(since, until), '--pretty=oneline'], as_lines=True))
-
-    def ahead_behind(self, branch, base_branch):
-        """Return the a tuple for how many commits ahead/behind a branch is when compared
-        to a base_branch.
-
-        """
-        return self.count_commits(base_branch, branch), self.count_commits(branch, base_branch)
-
-    def ahead_behind_string(self, branch, base_branch):
-        """Format git_ahead_behind() as a string for presentation to the user.
-
-        """
-        ahead, behind = self.ahead_behind(branch, base_branch)
-        r = ''
-        if behind > 0:
-            r = '-{:<4} '.format(behind)
-        else:
-            r = '      '
-        if ahead > 0:
-            r += '+{:<4}'.format(ahead)
-        return r
+        if remote is None:
+            remote = self.get_branch_remote(branch)
+        return self._do(['push', '--delete', remote, branch])
 
     def _log_pretty(self, pretty_fmt, branch=None):
         """Return information from the latest commit with a specified `pretty` format.
@@ -516,14 +490,6 @@ class Git:
         cmd.append('--pretty=format:{}'.format(pretty_fmt))
         return self._do(cmd).strip()
 
-    def branch_date(self, branch=None):
-        """Return the date of the latest commit on a given branch as a UNIX timestamp.
-
-        The branch may be ommitted, in which case it defaults to the current head.
-
-        """
-        return int(self._log_pretty('%at', branch=branch))
-
     def branch_hash(self, branch=None):
         """Return the hash of the latest commit on a given branch as a UNIX timestamp.
 
@@ -532,9 +498,88 @@ class Git:
         """
         return self._log_pretty('%H', branch=branch)
 
+    def is_clean(self):
+        return self.working_dir_clean() and not self.get_staged_files()
+
     def working_dir_clean(self):
         """Return True is the working directory is clean."""
         return self._do(['status', '--porcelain']) == ''
+
+
+    def get_staged_files(self):
+        return self._do(['diff', '--name-only', '--cached'], as_lines=True)
+
+    def get_branch_remote(self, branch=None, interactive=False):
+        if branch is None:
+            branch = self.get_active_branch()
+        try:
+            tracking_branch = self.get_tracking_branch()
+            remote = tracking_branch.split('/')[0]
+        except:
+            remotes = list(set([r.name for r in self.get_remotes()]))
+            index = 0
+
+            if len(remotes) > 1:
+                if interactive:
+                    idx_names = ['{}: {}'.format(idx, remote) for idx, remote in enumerate(remotes)]
+                    str_index = input("This repository has multiple git remotes registered. Enter the index of the \
+appropriate one:\n    {}\n".format('\n    '.join(idx_names)))
+                    index = int(str_index)
+                else:
+                    raise
+
+            remote = remotes[index]
+
+        return remote
+
+    def get_tracking_branch(self, ref=None):
+        if ref is None:
+            ref = self.get_active_branch()
+        output = self._do(['branch', '--list', '-vv', ref]).strip()
+        assert '[' in output, 'Branch {} has no remote tracking branch'.format(ref)
+        tracking_branch = output.split('[')[1].split(']')[0].split(':')[0]
+        return tracking_branch
+
+    def get_remotes(self):
+        """Retrieve all remotes known in the local repository as a set of Remote objects."""
+        remotes = set()
+        for line in self._do(['remote', '-v'], as_lines=True):
+            parts = line.split('\t')
+            remotes.add(Remote(parts[0], parts[1]))
+        return remotes
+
+    def get_user_name(self):
+        return self._get_config_value('user.name')
+
+    def get_user_email(self):
+        return self._get_config_value('user.email')
+
+    def _get_config_value(self, name):
+        return self._do(['config', '--get', name]).strip()
+
+    def is_ref_uptodate_with_tracking_branch(self, ref=None, offline=False):
+        if ref is None:
+            ref = self.get_active_branch()
+        if not offline:
+            self.fetch()
+        local_revid = self.branch_hash(ref)
+        remote_ref = self.get_tracking_branch(ref)
+        remote_revid = self.branch_hash(remote_ref)
+        return local_revid == remote_revid
+
+    def rebase(self, upstream, *options):
+        return self._do(['rebase'] + list(options) + [upstream])
+
+    def get_branches_that_contain_revid(self, revid):
+        return [l.strip().replace('* ', '') for l in self._do(['branch', '--contains', revid], as_lines=True)]
+
+
+def string_to_path(string):
+    string = string.replace(' ', '_')
+    safe_path_characters = ('.', '-', '_')
+    return ''.join([c for c in string if c.isalnum() or c in safe_path_characters])
+
+Remote = namedtuple('Remote', ('name', 'url'))
 
 _top_dir = None
 

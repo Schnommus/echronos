@@ -39,7 +39,6 @@
 #include <stdint.h>
 #include "debug.h"
 
-extern void {{ll_debug}}debug_putc(char);
 extern void {{ll_debug}}debug_puts(const char *);
 
 void
@@ -53,7 +52,7 @@ void
 {{prefix}}debug_println(const char *const msg)
 {
     {{prefix}}debug_print(msg);
-    {{ll_debug}}debug_putc('\n');
+    {{ll_debug}}debug_puts("\n");
 }
 
 static char

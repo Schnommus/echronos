@@ -35,17 +35,8 @@ if __name__ == "__main__":
     import sys
     import os
 
-    # When prj is frozen, there is no need to play games with the path.
-    frozen = __file__ == "<frozen>"
-    if not frozen:
-        for pth in ['pystache', 'ply', 'lib']:
-            sys.path.insert(0, os.path.join(os.path.dirname(__file__), pth))
-else:
-    # The prj module is only imported as a module for testing purposes.
-    # In this case it definitely isn't frozen.
-    # FIXME: It likely makes sense to refactor prj.py so that this top level file is purely focused on script
-    # execution and most logic is placed in a separate modules.
-    frozen = False
+    for pth in ['pystache', 'ply', 'lib']:
+        sys.path.insert(0, os.path.join(os.path.dirname(__file__), pth))
 
 from util.util import prepend_tool_binaries_to_path_environment_variable
 # Logging is set up first since this is critical to the rest of the application working correctly.
@@ -335,6 +326,8 @@ class Module:
         If the xml_schema is set, initialisation will set the schema based on the xml_schema.
 
         """
+        self.name = None
+
         if len(set([self.schema, self.xml_schema, self.xml_schema_path])) > 2:
             raise Exception("Class '{}' in {} has multiple schema sources set.".format(self.__class__.__name__,
                             os.path.abspath(inspect.getfile(self.__class__))))
@@ -389,20 +382,26 @@ xml_schema_path) set as a class member.".format(self.__class__.__name__,
                 continue
 
             input_path = os.path.join(module_path, f['input'])
-            output_path = os.path.join(system.output, f.get('output', f['input']))
+            if 'output' in f:
+                output_path = os.path.join(system.output, f['output'])
+            else:
+                output_path = system.get_output_path_for_file(f['input'], self.name)
 
             logger.info("Preparing: template %s -> %s", input_path, output_path)
             try:
                 if f.get('render', False):
                     pystache_render(input_path, output_path, config)
                 else:
+                    os.makedirs(os.path.dirname(output_path), exist_ok=True)
                     shutil.copyfile(input_path, output_path)
             except FileNotFoundError as e:
                 raise SystemBuildError("File not found error during template preparation '{}'.".format(e.filename))
 
             _type = f.get('type')
             if _type is None:
-                pass
+                # make headers discoverable by the compiler
+                if os.path.splitext(f['input'])[1].lower() == '.h':
+                    system.add_include_path(os.path.dirname(output_path))
             elif _type == 'c':
                 system.add_c_file(output_path)
             elif _type == 'asm':
@@ -539,7 +538,8 @@ class SourceModule(NamedModule):
         """
         if self.code_gen is None:
             if copy_all_files:
-                path = os.path.join(system.output, os.path.basename(self.filename))
+                path = system.get_output_path_for_file(self.filename, self.name)
+                os.makedirs(os.path.dirname(path), exist_ok=True)
                 shutil.copyfile(self.filename, path)
                 logger.info("Preparing: copy %s -> %s", self.filename, path)
                 system.add_file(path)
@@ -548,21 +548,22 @@ class SourceModule(NamedModule):
 
         elif self.code_gen == 'template':
             # Create implementation file.
-            ext = os.path.splitext(self.filename)[1]
-            path = os.path.join(system.output, '{}{}'.format(os.path.basename(self.name), ext))
+            path = system.get_output_path_for_file(self.filename, self.name)
             logger.info("Preparing: template %s -> %s (%s)", self.filename, path, config)
             pystache_render(self.filename, path, config)
             system.add_file(path)
 
         # Copy any headers across. This should use templating if that is configured.
         for header in self.headers:
-            path = os.path.join(system.output, os.path.basename(header.path))
+            path = system.get_output_path_for_file(header.path, self.name)
+            os.makedirs(os.path.dirname(path), exist_ok=True)
             try:
                 if header.code_gen is None:
                     shutil.copyfile(header.path, path)
                 elif header.code_gen == 'template':
                     logger.info("Preparing: template %s -> %s (%s)", header.path, path, config)
                     pystache_render(header.path, path, config)
+                system.add_include_path(os.path.dirname(path))
             except FileNotFoundError as e:
                 s = xml_error_str(header.xml_element, "Resource not found: {}".format(header.path))
                 raise ResourceNotFoundError(s)
@@ -616,6 +617,7 @@ class System:
         self._include_paths = []
         self._output = None
         self.__instances = None
+        self._output_names = {}
 
     @property
     def linker_script(self):
@@ -883,6 +885,14 @@ module\'s functionality cannot be invoked.'.format(self, typ.__name__))
     def _get_instances_by_type(self, typ):
         return [i for i in self._instances if isinstance(i._module, typ)]
 
+    def get_output_path_for_file(self, file_path, entity_name):
+        """Derive (but do not create) a unique path in this system's output directory for the given input file."""
+        return os.path.join(self.get_output_path_for_entity(entity_name), os.path.basename(file_path))
+
+    def get_output_path_for_entity(self, entity_name):
+        """Derive (but do not create) a path in this system's output directory corresponding to the given entity."""
+        return os.path.join(self.output, *entity_name.split('.')[:-1])
+
     def __str__(self):
         return "System: %s" % self.name
 
@@ -938,32 +948,6 @@ class Project:
             user_search_paths = [self.project_dir]
 
         built_in_search_paths = []
-        if frozen:
-            base_file = sys.executable if frozen else __file__
-            base_file = follow_link(base_file)
-
-            base_dir = canonical_path(os.path.dirname(base_file))
-
-            def find_share(cur):
-                cur = canonical_path(cur)
-                maybe_share_path = os.path.join(cur, 'share')
-                if os.path.exists(maybe_share_path):
-                    return maybe_share_path
-                else:
-                    up = canonical_path(os.path.join(cur, os.path.pardir))
-                    if up == cur:
-                        return None
-                    return find_share(up)
-            share_dir = find_share(base_dir)
-            if share_dir is None or not os.path.isdir(share_dir):
-                logger.warning("Unable to find 'share' directory.")
-            else:
-                packages_dir = os.path.join(share_dir, 'packages')
-                if not os.path.exists(packages_dir) or not os.path.isdir(packages_dir):
-                    logger.warning("Can't find 'packages' directory in '{}'".format(share_dir))
-                else:
-                    built_in_search_paths.append(packages_dir)
-
         self.search_paths = user_search_paths + built_in_search_paths
 
         logger.debug("search_paths %s", self.search_paths)
@@ -1056,7 +1040,9 @@ class Project:
             elif hasattr(py_module, 'system_load'):
                 return Loader(entity_name, py_module)
             elif hasattr(py_module, 'module'):
-                return py_module.module
+                module = py_module.module
+                module.name = entity_name
+                return module
             else:
                 raise EntityLoadError("Python entity '%s' from path %s doesn't match any interface" %
                                       (entity_name, path))
@@ -1318,9 +1304,43 @@ def report_error(exception):
     return 1
 
 
+def commonpath(paths):
+    if hasattr(os.path, 'commonpath'):
+        return os.path.commonpath(paths)
+    else:
+        prefix = commonprefix(paths)
+        if not os.path.exists(prefix):
+            return os.path.dirname(prefix)
+
+
+def commonprefix(m):
+    if hasattr(os.path, 'commonprefix'):
+        return os.path.commonprefix(m)
+    else:
+        if not m: return ''
+        # Some people pass in a list of pathname parts to operate in an OS-agnostic
+        # fashion; don't try to translate in that case as that's an abuse of the
+        # API and they are already doing what they need to be OS-agnostic and so
+        # they most likely won't be using an os.PathLike object in the sublists.
+        if not isinstance(m[0], (list, tuple)):
+            m = tuple(map(os.fspath, m))
+        s1 = min(m)
+        s2 = max(m)
+        for i, c in enumerate(s1):
+            if c != s2[i]:
+                return s1[:i]
+        return s1
+
+
 def main():
     """Application main entry point. Parse arguments, and call specified sub-command."""
     args = get_command_line_arguments()
+
+    logger.setLevel(_logging.WARNING)
+    if args.verbose:
+        logger.setLevel(_logging.INFO)
+    elif args.quiet:
+        logger.setLevel(_logging.ERROR)
 
     # Initialise project
     try:

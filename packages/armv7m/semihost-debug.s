@@ -28,18 +28,6 @@
 .syntax unified
 .section .text
 
-.global debug_putc
-.type debug_putc,#function
-
-debug_putc:
-        push {r0, lr}
-        mov r0, #3
-        mov r1, sp
-        bkpt 0xab
-        pop {r0, pc}
-
-.size debug_putc, .-debug_putc
-
 .global debug_puts
 .type debug_puts,#function
 
