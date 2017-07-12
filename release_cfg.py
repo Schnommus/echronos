@@ -29,7 +29,7 @@ from pylib.release import Release
 
 
 class Standard(Release):
-    packages = ['armv7m', 'generic', 'rtos-example', 'machine-qemu-simple', 'machine-stm32f4-discovery',
+    packages = ['armv7m', 'generic', 'rtos-example', 'machine-qemu-simple', 'machine-stm32f4-discovery', 'machine-ameba',
                 'machine-armv7m-common']
     platforms = ['x86_64-apple-darwin', 'x86_64-unknown-linux-gnu']
     version = '1.3.13'

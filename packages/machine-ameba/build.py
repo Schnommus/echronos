@@ -26,10 +26,20 @@
 #
 
 import os
+import zipfile
 from prj import execute, commonpath
 
+schema = {
+    'type': 'dict',
+    'name': 'module',
+    'dict_type': ([{'type': 'string', 'name': 'arduino_library', 'default': ''},
+                   ], [])
+}
 
-def run(system, _=None):
+
+def run(system, configuration=None):
+    if configuration['arduino_library']:
+        return system_generate_arduino_library(system, configuration['arduino_library'])
     return system_build(system)
 
 
@@ -63,3 +73,24 @@ def system_build(system):
     # Perform final link
     obj_files = asm_obj_files + c_obj_files
     execute(['arm-none-eabi-ld', '-T', system.linker_script, '-o', system.output_file] + obj_files)
+
+
+def system_generate_arduino_library(system, lib_name):
+    zip_file_path = lib_name + '.zip'
+    with zipfile.ZipFile(zip_file_path, mode='w', compression=zipfile.ZIP_DEFLATED) as zip_file:
+        file_paths = system.asm_files + system.c_files
+
+        for file_path in file_paths:
+            base, ext = os.path.splitext(file_path)
+            if ext != '.h':
+                header_file_path = base + '.h'
+                if os.path.isfile(header_file_path):
+                    file_paths.append(header_file_path)
+
+        for file_path in file_paths:
+            archive_file_path = os.path.join(lib_name, os.path.basename(file_path)).replace(os.sep, '/')
+            archive_file_path = archive_file_path.replace('.s','.S')
+            print(archive_file_path)
+            zip_file.write(file_path, arcname=archive_file_path)
+
+    print("Created Arduino library file '{}'".format(zip_file_path))
