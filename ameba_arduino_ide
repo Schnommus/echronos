@@ -1,0 +1,6 @@
+Have to add the following build pattern:
+
+(in ~/.arduino15/packages/realtek/hardware/ameba/2.0.2/platform.txt)
+
+## Compile S (assembly) files
+recipe.S.o.pattern="{compiler.path}{compiler.c.cmd}" {compiler.c.flags} -mcpu={build.mcu} -DF_CPU={build.f_cpu} -DARDUINO={runtime.ide.version} -DARDUINO_{build.board} -DARDUINO_ARCH_{build.arch} {compiler.c.extra_flags} {build.extra_flags} {compiler.ameba.c.flags} {includes} "{source_file}" -o "{object_file}"
