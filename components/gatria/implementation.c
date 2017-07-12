@@ -51,6 +51,7 @@ void
 {
     {{#tasks}}
     context_init(get_task_context({{idx}}), {{function}}, stack_{{idx}}, {{stack_size}});
+    sched_set_runnable({{idx}});
     {{/tasks}}
 
     context_switch_first(get_task_context({{prefix_const}}TASK_ID_ZERO));
