@@ -104,7 +104,7 @@ class EntryModule(Module):
         for c_file in system.c_files:
             with open(c_file) as file_obj:
                 try:
-                    pre_processor.parse(file_obj.read(), c_file)
+                    pass#pre_processor.parse(file_obj.read(), c_file)
                 except ply.cpp.CppError as exc:
                     raise SystemBuildError(str(exc))
 

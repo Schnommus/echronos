@@ -26,6 +26,7 @@
 #
 
 import os
+import sys
 from prj import execute, commonpath
 
 
@@ -36,13 +37,13 @@ def run(system, _=None):
 def system_build(system):
     inc_path_args = ['-I%s' % i for i in system.include_paths]
 
-    common_flags = ['-Wall','-g','-mlittle-endian','-mthumb','-mcpu=cortex-m3',
+    common_flags = ['-mlittle-endian','-mthumb','-mcpu=cortex-m3',
                     '-mfloat-abi=soft','-mthumb-interwork']
 
     a_flags = common_flags
-    c_flags = common_flags + ['-O0', '-ffunction-sections', '-mlong-calls', '-ffreestanding',
+    c_flags = common_flags + ['-Wall', '-O0', '-g3', '-ffunction-sections', '-mlong-calls', '-ffreestanding',
                               '-fsingle-precision-constant','-fshort-wchar','-fno-short-enums',
-                              '-Wstrict-aliasing=0','-nostdlib']
+                              '-Wstrict-aliasing=0','-nostdlib', '-DLIBC_PRINTF', '-nostartfiles']
 
     all_input_files = system.c_files + system.asm_files
     all_input_files = [os.path.normpath(os.path.abspath(path)) for path in all_input_files]
@@ -65,11 +66,11 @@ def system_build(system):
         os.makedirs(os.path.dirname(obj_file_path), exist_ok=True)
         execute(['arm-none-eabi-as', '-o', obj_file_path, asm_file_path] + a_flags + inc_path_args)
 
-    linker_options = ['--no-gc-sections']
+    linker_options = []
 
     # Perform final link
     obj_files = asm_obj_files + c_obj_files
     execute(['arm-none-eabi-ld', '-T', system.linker_script, '-o', system.output_file + '.elf'] + linker_options + obj_files)
 
     # Create the binary
-    execute(['arm-none-eabi-objcopy', '-O', 'binary', system.output_file, system.output_file + '.bin'])
+    execute(['arm-none-eabi-objcopy', '-O', 'binary', system.output_file + '.elf', system.output_file + '.bin'])

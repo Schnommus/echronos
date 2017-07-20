@@ -27,40 +27,52 @@
   -->
 
 <system>
-  <modules>
-    <module name="machine-rtl8710.build" />
-    <module name="armv7m.ctxt-switch" />
-    <module name="machine-rtl8710.vectable">
-      <flash_addr>0x10001000</flash_addr>
-      <code_addr>0x10001000</code_addr>
-      <flash_size>0x1000</flash_size>
-      <sram_size>0x2000</sram_size>
-      <sram_addr>0x10002000</sram_addr>
-    </module>
-    <module name="armv7m.semihost-debug" />
-    <module name="generic.debug" />
 
-    <module name="armv7m.rtos-acamar">
-      <prefix>rtos</prefix>
-      <taskid_size>8</taskid_size>
-      <tasks>
+    <include_paths>
+        <include_path>packages/machine-rtl8710/lib/libc</include_path>
+        <include_path>packages/machine-rtl8710/lib</include_path>
+        <include_path>packages/machine-rtl8710/lib/cpu/rtl8710</include_path>
+        <include_path>packages/machine-rtl8710/lib/cpu/cortex</include_path>
+    </include_paths>
 
-        <task>
-          <name>a</name>
-          <function>fn_a</function>
-          <stack_size>64</stack_size>
-        </task>
+    <modules>
 
-        <task>
-          <name>b</name>
-          <function>fn_b</function>
-          <stack_size>64</stack_size>
-        </task>
 
-      </tasks>
-    </module>
+        <module name="machine-rtl8710.build" />
+        <module name="armv7m.ctxt-switch" />
+        <module name="machine-rtl8710.vectable">
+            <flash_addr>0x10001000</flash_addr>
+            <code_addr>0x10001000</code_addr>
+            <flash_size>0x4000</flash_size>
+            <sram_size>0x2000</sram_size>
+            <sram_addr>0x10004000</sram_addr>
+        </module>
+        <module name="armv7m.semihost-debug" />
+        <module name="generic.debug" />
 
-    <module name="rtos-example.acamar-test" />
+        <module name="armv7m.rtos-acamar">
+            <prefix>rtos</prefix>
+            <taskid_size>8</taskid_size>
+            <tasks>
 
-  </modules>
+                <task>
+                    <name>a</name>
+                    <function>fn_a</function>
+                    <stack_size>64</stack_size>
+                </task>
+
+                <task>
+                    <name>b</name>
+                    <function>fn_b</function>
+                    <stack_size>64</stack_size>
+                </task>
+
+            </tasks>
+        </module>
+
+        <module name="machine-rtl8710.acamar-test" />
+        <module name="machine-rtl8710.serial" />
+        <module name="machine-rtl8710.lib.libc.libc" />
+
+    </modules>
 </system>
