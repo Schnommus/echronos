@@ -35,9 +35,14 @@ def run(system, _=None):
 
 def system_build(system):
     inc_path_args = ['-I%s' % i for i in system.include_paths]
-    common_flags = ['-mthumb', '-g3', '-mlittle-endian', '-mcpu=cortex-m4', '-mfloat-abi=hard', '-mfpu=fpv4-sp-d16']
+
+    common_flags = ['-Wall','-g','-mlittle-endian','-mthumb','-mcpu=cortex-m3',
+                    '-mfloat-abi=soft','-mthumb-interwork']
+
     a_flags = common_flags
-    c_flags = common_flags + ['-Os']
+    c_flags = common_flags + ['-O0', '-ffunction-sections', '-mlong-calls', '-ffreestanding',
+                              '-fsingle-precision-constant','-fshort-wchar','-fno-short-enums',
+                              '-Wstrict-aliasing=0','-nostdlib']
 
     all_input_files = system.c_files + system.asm_files
     all_input_files = [os.path.normpath(os.path.abspath(path)) for path in all_input_files]
@@ -49,7 +54,7 @@ def system_build(system):
 
     for c_file_path, obj_file_path in zip(system.c_files, c_obj_files):
         os.makedirs(os.path.dirname(obj_file_path), exist_ok=True)
-        execute(['arm-none-eabi-gcc', '-ffreestanding', '-c', c_file_path, '-o', obj_file_path, '-Wall', '-Werror'] +
+        execute(['arm-none-eabi-gcc', '-c', c_file_path, '-o', obj_file_path] +
                 c_flags + inc_path_args)
 
     # Assemble all asm files.
@@ -60,6 +65,11 @@ def system_build(system):
         os.makedirs(os.path.dirname(obj_file_path), exist_ok=True)
         execute(['arm-none-eabi-as', '-o', obj_file_path, asm_file_path] + a_flags + inc_path_args)
 
+    linker_options = ['--no-gc-sections']
+
     # Perform final link
     obj_files = asm_obj_files + c_obj_files
-    execute(['arm-none-eabi-ld', '-T', system.linker_script, '-o', system.output_file] + obj_files)
+    execute(['arm-none-eabi-ld', '-T', system.linker_script, '-o', system.output_file + '.elf'] + linker_options + obj_files)
+
+    # Create the binary
+    execute(['arm-none-eabi-objcopy', '-O', 'binary', system.output_file, system.output_file + '.bin'])
