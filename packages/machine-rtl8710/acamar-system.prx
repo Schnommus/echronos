@@ -41,16 +41,28 @@
         <module name="machine-rtl8710.build" />
         <module name="armv7m.ctxt-switch" />
         <module name="machine-rtl8710.vectable">
-            <flash_addr>0x10001000</flash_addr>
-            <code_addr>0x10001000</code_addr>
-            <flash_size>0x4000</flash_size>
-            <sram_size>0x2000</sram_size>
-            <sram_addr>0x10004000</sram_addr>
+            <code_addr>0x10006000</code_addr>
+            <flash_addr>0x10006000</flash_addr>
+            <flash_size>0x8000</flash_size>
+            <sram_addr>0x10010000</sram_addr>
+            <sram_size>0x8000</sram_size>
+            <nmi>nmi_handler</nmi>
+            <hardfault>hardfault_handler</hardfault>
+            <memmanage>memmanage_handler</memmanage>
+            <busfault>busfault_handler</busfault>
+            <usagefault>usagefault_handler</usagefault>
+            <svcall>svcall_handler</svcall>
+            <debug_monitor>debug_monitor_handler</debug_monitor>
+            <pendsv>pendsv_handler</pendsv>
+            <systick>systick_handler</systick>
         </module>
         <module name="armv7m.semihost-debug" />
         <module name="generic.debug" />
 
         <module name="armv7m.rtos-acamar">
+            <api_asserts>true</api_asserts>
+            <internal_asserts>true</internal_asserts>
+            <fatal_error>fatal</fatal_error>
             <prefix>rtos</prefix>
             <taskid_size>8</taskid_size>
             <tasks>
@@ -58,21 +70,19 @@
                 <task>
                     <name>a</name>
                     <function>fn_a</function>
-                    <stack_size>64</stack_size>
+                    <stack_size>256</stack_size>
                 </task>
 
                 <task>
                     <name>b</name>
                     <function>fn_b</function>
-                    <stack_size>64</stack_size>
+                    <stack_size>256</stack_size>
                 </task>
 
             </tasks>
         </module>
 
         <module name="machine-rtl8710.acamar-test" />
-        <module name="machine-rtl8710.serial" />
-        <module name="machine-rtl8710.lib.libc.libc" />
 
     </modules>
 </system>

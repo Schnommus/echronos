@@ -41,7 +41,7 @@ def system_build(system):
                     '-mfloat-abi=soft','-mthumb-interwork']
 
     a_flags = common_flags
-    c_flags = common_flags + ['-Wall', '-O0', '-g3', '-ffunction-sections', '-mlong-calls', '-ffreestanding',
+    c_flags = common_flags + ['-Wall', '-Os', '-g3', '-ffunction-sections', '-mlong-calls', '-ffreestanding',
                               '-fsingle-precision-constant','-fshort-wchar','-fno-short-enums',
                               '-Wstrict-aliasing=0','-nostdlib', '-DLIBC_PRINTF', '-nostartfiles']
 
@@ -70,7 +70,7 @@ def system_build(system):
 
     # Perform final link
     obj_files = asm_obj_files + c_obj_files
-    execute(['arm-none-eabi-ld', '-T', system.linker_script, '-o', system.output_file + '.elf'] + linker_options + obj_files)
+    execute(['arm-none-eabi-ld', '-T', system.linker_script, '-o', system.output_file + '.elf', '-e0x101'] + linker_options + obj_files)
 
     # Create the binary
     execute(['arm-none-eabi-objcopy', '-O', 'binary', system.output_file + '.elf', system.output_file + '.bin'])

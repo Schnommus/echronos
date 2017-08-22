@@ -5,7 +5,6 @@ proc cortex_bootstrap {start} {
 	mem2array vectors 32 $start 2
 	reg sp $vectors(0)
 	reg pc $vectors(1)
-	resume
 }
 
 proc cortex_reboot {} {

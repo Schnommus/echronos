@@ -35,7 +35,7 @@
 .global vector_table
 vector_table:
         .word stack
-        .word entry
+        .word crt0
         .word {{nmi}}
         .word {{hardfault}}
         .word {{memmanage}}
@@ -98,6 +98,7 @@ The entry function initialises the C run-time and then jumps to main. (Which sho
 
 Specifically, this loads the .data section from flash in to SRAM, and then zeros the .bss section.
 */
+.global entry
 .type entry,#function
 entry:
         /* Load .data section */

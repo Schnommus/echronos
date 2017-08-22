@@ -32,9 +32,56 @@
 #include "cortex.h"
 #include "rtl8710.h"
 #include "mask.h"
-#include "serial.h"
 
 #include "rtos-acamar.h"
+
+extern uint32_t vectors_virt_addr;
+extern uint32_t all_start;
+extern uint32_t all_size;
+
+#define FW_VERSION          (0x0100)
+#define FW_SUBVERSION       (0x0001)
+#define FW_CHIP_ID          (0x8195)
+#define FW_CHIP_VER         (0x01)
+#define FW_BUS_TYPE         (0x01)          // the iNIC firmware type: USB/SDIO
+#define FW_INFO_RSV1        (0x00)          // the firmware information reserved
+#define FW_INFO_RSV2        (0x00)          // the firmware information reserved
+#define FW_INFO_RSV3        (0x00)          // the firmware information reserved
+#define FW_INFO_RSV4        (0x00)          // the firmware information reserved
+
+__attribute__((section(".image2.header1")))
+const uint32_t image2_header1[] = {
+    (uint32_t)&all_size, // Size of data to be copied from flash to ram
+    (uint32_t)&all_start, // Where to start copying to ram
+};
+
+__attribute__((section(".image2.header2")))
+const uint8_t image2_header2[] = {
+    '8', '1', '9', '5', '8', '7', '1', '1',
+};
+
+
+void crt0(void);
+
+__attribute__((section(".image2.header3")))
+const uint32_t image2_header3[] = {
+    (uint32_t)&crt0 + 1 //start by executing crt0, in thumb mode (this was previously InfraStart)
+};
+
+__attribute__((section(".image2.header4")))
+const uint8_t image2_header4[] = {
+	'R', 'T', 'K', 'W', 'i', 'n', 0x0, 0xff, 
+	(FW_VERSION&0xff), ((FW_VERSION >> 8)&0xff),
+	(FW_SUBVERSION&0xff), ((FW_SUBVERSION >> 8)&0xff),
+	(FW_CHIP_ID&0xff), ((FW_CHIP_ID >> 8)&0xff),
+	(FW_CHIP_VER),
+	(FW_BUS_TYPE),
+	(FW_INFO_RSV1),
+	(FW_INFO_RSV2),
+	(FW_INFO_RSV3),
+	(FW_INFO_RSV4)
+};
+
 
 extern void debug_println(const char *msg);
 
@@ -43,6 +90,17 @@ void fn_b(void);
 
 int variable=42;
 
+void fatal(int error) { for(;;); }
+void nmi_handler() { for(;;); }
+void hardfault_handler() { for(;;); }
+void memmanage_handler() { for(;;); }
+void busfault_handler() { for(;;); }
+void usagefault_handler() { for(;;); }
+void svcall_handler() { for(;;); }
+void debug_monitor_handler() { for(;;); }
+void pendsv_handler() { for(;;); }
+void systick_handler() { for(;;); }
+
 void
 fn_a(void)
 {
@@ -50,7 +108,6 @@ fn_a(void)
     {
         rtos_yield_to(1);
         debug_println("task A");
-        printf("In task A...");
     }
 }
 
@@ -61,58 +118,40 @@ fn_b(void)
     {
         rtos_yield_to(0);
         debug_println("task b");
-        printf("In task B...");
     }
 }
 
 #define CORTEX_INTERRUPT_MAX 256
 
+extern void entry(void);
+
+// Linker symbols
+extern uint32_t bss_virt_addr;
+extern uint32_t bss_size;
+
 int
 main(void)
 {
 
-	cortex_interrupts_disable();
+	uint32_t i;
 
-    int i;
+	cortex_interrupts_disable();
 	for(i = 0; i < CORTEX_INTERRUPT_MAX; i++)cortex_interrupt_disable(i);
 
-	SCB->VTOR = 0x10001000;
+    // Relocate vector table (This doesn't currently work?!)
+	SCB->VTOR = (uint32_t)&vectors_virt_addr;
 
-    SCB->CPACR |= ((((uint32_t)0x03) << 20) | (((uint32_t)0x03) << 22));  /* set CP10 and CP11 Full Access */
-	__asm__("dsb"); // wait for store to complete
-	__asm__("isb"); // reset pipeline
-
-	__asm__("mov r2, %0": : "r" (0x10001000));
-	__asm__("ldr r3, [r2, #0]");
-	__asm__("mov sp, r3");
-
-	PERI_ON->CPU_PERIPHERAL_CTRL |= PERI_ON_CPU_PERIPHERAL_CTRL_SWD_PIN_EN; // re-enable SWD
-
-	PERI_ON->PESOC_CLK_CTRL |= PERI_ON_CLK_CTRL_ACTCK_GPIO_EN | PERI_ON_CLK_CTRL_SLPCK_GPIO_EN; // enable gpio peripheral clock
-	PERI_ON->SOC_PERI_FUNC1_EN |= PERI_ON_SOC_PERI_FUNC1_EN_GPIO; // enable gpio peripheral
-
-    serial_init();
-
-    // set system clock
-	mask32_set(SYS->CLK_CTRL1, SYS_CLK_CTRL1_PESOC_OCP_CPU_CK_SEL, 1);
-
-	//PERI_ON->GPIO_SHTDN_CTRL = 0xFF;
-	PERI_ON->GPIO_DRIVING_CTRL = 0xFF;
-
-	GPIO->SWPORTA_DDR |= GPIO_PORTA_GC4;
-
-	cortex_interrupts_enable();
+	interrupts_enable();
 
     debug_println("Starting RTOS...");
     rtos_start();
     for (;;) ;
 }
 
-ssize_t write_stdout(const void *buf, size_t count){
-	size_t i;
-	for(i = 0; i < count; i++){
-		if((((uint8_t *)buf)[i]) == '\n')while(!serial_write("\r", 1));
-		while(!serial_write(&(((uint8_t *)buf)[i]), 1));
-	}
-	return(count);
+void crt0(void){
+
+    // Warning! Data section is uninitialized before 'entry' here
+
+    // Warning2! entry does not return here, it jumps to main
+    entry();
 }

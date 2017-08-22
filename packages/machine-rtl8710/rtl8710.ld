@@ -47,11 +47,22 @@ MEMORY
 SECTIONS
 {
         . = {{code_addr}};
+        all_start = {{code_addr}};
+
+        .image2.header :
+        {
+            /* *(.image2.header1)
+               *(.image2.header2) Don't need these for RAM debug?! */
+            *(.image2.header3)
+            *(.image2.header4)
+        } > flash_load_region
 
         .vectors :
         {
             *(.vectors)
         } AT > flash_load_region
+
+        vectors_virt_addr = ADDR(.vectors);
 
         .text :
         {
@@ -100,6 +111,8 @@ SECTIONS
 
         bss_virt_addr = ADDR(.bss);
         bss_size = SIZEOF(.bss);
+
+        all_size = ADDR(.bss) + SIZEOF(.bss) - all_start;
 
         .stack : {
             . = . + {{stack_size}};

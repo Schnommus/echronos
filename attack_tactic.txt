@@ -1,0 +1,45 @@
+- Do an arduino write and then pull off dump.bin? at the image2 place
+    -> reverse engineer this as a sanity check
+- Use the bare-metal flashing tool to restore sys/boot/image1 etc.
+- Build the echronos image to execute at 0x08000020 XIP (or whatever it is [for image 2, OTA 1])
+    - Ram/data/bss/stack will need to 'see themselves' in RAM though
+    - Figure out what the PICK commands do in application.mk
+    - The entry-point structure is dictated by gImage2EntryFun0 in BOOT_Image2 in startup.c (A struct that is the start of the entry point)
+    - Also look at IMAGE2_VALID_PATTEN_SECTION, seems to be required after the entrypoint structure
+    - Probably these are only necessary as the header will choose the right address?
+- Convert to binary
+- Create that cherry-picked header and tack it on the first 20 bytes
+- Use the bare-metal flashing tool to shove it at 0x080000000
+    - 'loc' seems to be offset from 0x0800...
+    - Because image2 seems to start around 0000_b000 in the bin file (but not exactly?) - there is 8 bytes at 0000_b000 that don't adhere before the image header
+- Try and get that to run natively
+- Might need to set the vector table and run the entrypoint as one of the first instructions?
+- Also, create exception handlers for hard fault / memmanage etc etc to catch things
+    - This may solve the debugger randomly detaching
+
+TAKE 2:
+Steal the image header from the working image that -
+Expects text @ 10006000
+ -> gImage2EntryFun
+ -> VALID_PATTEN
+ -> cus_sig
+
+THEN user code, ram etc.
+2 sections -> one for code, one for ram. we have (in a working binary):
+
+0000b000: 8886 0400 0060 0010 3831 3935 3837 3131  .....`..81958711
+0000b010: 6960 0010 5254 4b57 696e 00ff 0001 0100  i`..RTKWin......
+0000b020: 9581 0101 0000 0000 4375 7374 6f6d 6572  ........Customer
+0000b030: 2053 6967 6e61 7475 7265 2d6d 6f64 656c   Signature-model
+0000b040: 7878 7800 0000 0000 014a 024b 9a60 7047  xxx......J.K.`pG
+
+Size:       0x0004 8688
+Address:    0x1000 6000 (XIP address?)
+Infra:      0x1000 6069 (Not sure)
+>>>>> sig
+
+(This is actually encompassing the entire binary?! No second header...)
+
+Step through boot process... findings: (is InfraStart called??)
+-> InfraStart is definitely called before main. What calls _App_start?
+-> InfraStart calls _AppStart!! After calibrating the flash and doing some other wierd init stuff
