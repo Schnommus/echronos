@@ -28,6 +28,7 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <stddef.h>
+#include <stdarg.h>
 
 #include "cortex.h"
 #include "rtl8710.h"
@@ -101,13 +102,18 @@ void debug_monitor_handler() { for(;;); }
 void pendsv_handler() { for(;;); }
 void systick_handler() { for(;;); }
 
+extern __attribute__ ((long_call)) uint32_t
+DiagPrintf(
+    const char *fmt, ...
+);
+
 void
 fn_a(void)
 {
     for (;;)
     {
         rtos_yield_to(1);
-        debug_println("task A");
+        DiagPrintf("Task A\n");
     }
 }
 
@@ -117,17 +123,13 @@ fn_b(void)
     for (;;)
     {
         rtos_yield_to(0);
-        debug_println("task b");
+        DiagPrintf("Task B\n");
     }
 }
 
 #define CORTEX_INTERRUPT_MAX 256
 
 extern void entry(void);
-
-// Linker symbols
-extern uint32_t bss_virt_addr;
-extern uint32_t bss_size;
 
 int
 main(void)
@@ -143,7 +145,8 @@ main(void)
 
 	interrupts_enable();
 
-    debug_println("Starting RTOS...");
+    DiagPrintf("Starting RTOS...\n");
+
     rtos_start();
     for (;;) ;
 }

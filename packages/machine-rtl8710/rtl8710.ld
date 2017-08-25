@@ -124,6 +124,9 @@ SECTIONS
         {{.}}_bitband = {{bitband_alias}} + (({{.}} - {{bitband_base}}) * 32);
         {{/bit_aliases}}
 
+        /* Realtek ROM functions */
+        DiagPrintf = 0xf39d;
+
         /* Debug sections */
 
         .debug_aranges  0 : { *(.debug_aranges) }

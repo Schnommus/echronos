@@ -104,6 +104,8 @@ lo
 file out/machine-rtl8710/acamar-system/system.elf
 lo
 
+monitor semihosting enable
+
 #Run to main
 b main
 b crt0
