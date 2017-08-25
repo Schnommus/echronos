@@ -93,7 +93,7 @@ monitor MemU32 0x40000300=0x0006005e
 monitor sleep 3
 #===============================================================================
 #Load flash download file
-file /home/seb/dev/ameba/vanilla/sdk-ameba-rtl8710af-v3.5a_without_NDA_GCC_V1.0.0/project/realtek_ameba1_va0_example/GCC-RELEASE/application/Debug/bin/application.axf
+file bootloader_ram.elf
 
 #boot from ram, igonore loading flash
 monitor MemU32 0x40000210=0x8011157
