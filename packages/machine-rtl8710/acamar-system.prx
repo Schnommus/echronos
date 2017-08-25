@@ -41,8 +41,8 @@
         <module name="machine-rtl8710.build" />
         <module name="armv7m.ctxt-switch" />
         <module name="machine-rtl8710.vectable">
-            <code_addr>0x10006000</code_addr>
-            <flash_addr>0x10006000</flash_addr>
+            <code_addr>0x10005FF0</code_addr>
+            <flash_addr>0x10005FF0</flash_addr>
             <flash_size>0x8000</flash_size>
             <sram_addr>0x10010000</sram_addr>
             <sram_size>0x8000</sram_size>

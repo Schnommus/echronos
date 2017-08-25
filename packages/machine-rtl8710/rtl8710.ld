@@ -47,12 +47,12 @@ MEMORY
 SECTIONS
 {
         . = {{code_addr}};
-        all_start = {{code_addr}};
 
         .image2.header :
         {
-            /* *(.image2.header1)
-               *(.image2.header2) Don't need these for RAM debug?! */
+            *(.image2.header1)
+            *(.image2.header2)
+            all_start = .;
             *(.image2.header3)
             *(.image2.header4)
         } > flash_load_region
