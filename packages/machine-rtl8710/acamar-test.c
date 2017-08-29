@@ -39,7 +39,17 @@
 // vectable.py has been modified to match
 #define CORTEX_INTERRUPT_MAX 32
 
+// Linker symbol, used to relocate vector table
 extern uint32_t vectors_virt_addr;
+
+// Registers required to configure the systick interrupt
+#define SYST_CSR_REG 0xE000E010
+#define SYST_RVR_REG 0xE000E014
+#define SYST_CVR_REG 0xE000E018
+
+#define SYST_CSR_WRITE(x) (*((volatile uint32_t*)SYST_CSR_REG) = x)
+#define SYST_RVR_WRITE(x) (*((volatile uint32_t*)SYST_RVR_REG) = x)
+#define SYST_CVR_WRITE(x) (*((volatile uint32_t*)SYST_CVR_REG) = x)
 
 extern void debug_println(const char *msg);
 
@@ -57,12 +67,15 @@ void usagefault_handler() { for(;;); }
 void svcall_handler() { for(;;); }
 void debug_monitor_handler() { for(;;); }
 void pendsv_handler() { for(;;); }
-void systick_handler() { for(;;); }
 
 extern __attribute__ ((long_call)) uint32_t
 DiagPrintf(
     const char *fmt, ...
 );
+
+void systick_handler() {
+    DiagPrintf("Tick...\n");
+}
 
 void
 fn_a(void)
@@ -95,6 +108,13 @@ main(void)
 	for(i = 0; i < CORTEX_INTERRUPT_MAX; i++)cortex_interrupt_disable(i);
 
 	SCB->VTOR = (uint32_t)&vectors_virt_addr;
+
+    // Configure the SysTick interrupt
+    // Note that 0x00FFFFFF is 10Hz, we tick at 100Hz
+    // (Still need to measure precisely, these are rough)
+    SYST_RVR_WRITE(0x001a0000);
+    SYST_CVR_WRITE(0);
+    SYST_CSR_WRITE((1 << 2) | (1 << 1) | 1);
 
 	interrupts_enable();
 
