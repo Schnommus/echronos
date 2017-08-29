@@ -59,10 +59,15 @@ SECTIONS
 
         .vectors :
         {
+            /* Since we *MUST* place the image header at the start of valid ram
+             * for the device to boot, we need to waste some space before placing
+             * the vector table. 128 was found by trial & error to be the smallest
+             * alignment supported by SCB->VTOR on this architecture */
+            . = ALIGN(128);
+            vectors_virt_addr = .;
             *(.vectors)
         } AT > flash_load_region
 
-        vectors_virt_addr = ADDR(.vectors);
 
         .text :
         {

@@ -127,7 +127,8 @@ fn_b(void)
     }
 }
 
-#define CORTEX_INTERRUPT_MAX 256
+// vectable.py has been modified to match
+#define CORTEX_INTERRUPT_MAX 32
 
 extern void entry(void);
 
@@ -138,9 +139,10 @@ main(void)
 	uint32_t i;
 
 	cortex_interrupts_disable();
+
+    // In case the bootloader has enabled some IRQs we can't yet handle
 	for(i = 0; i < CORTEX_INTERRUPT_MAX; i++)cortex_interrupt_disable(i);
 
-    // Relocate vector table (This doesn't currently work?!)
 	SCB->VTOR = (uint32_t)&vectors_virt_addr;
 
 	interrupts_enable();
