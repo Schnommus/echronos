@@ -122,5 +122,8 @@ entry:
         b 1b
 2:
 
+        ldr r0, =stack
+        mov sp, r0
+
         b main
 .size entry, .-entry

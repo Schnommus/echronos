@@ -42,7 +42,7 @@ def system_build(system):
 
     a_flags = common_flags
     c_flags = common_flags + ['-Wall', '-O0', '-g3', '-ffunction-sections', '-mlong-calls', '-ffreestanding',
-                              '-fsingle-precision-constant','-fshort-wchar','-fno-short-enums',
+                              '-fsingle-precision-constant','-fno-short-enums', '-Wno-comment',
                               '-Wstrict-aliasing=0','-nostdlib', '-DLIBC_PRINTF', '-nostartfiles']
 
     all_input_files = system.c_files + system.asm_files
@@ -70,6 +70,9 @@ def system_build(system):
 
     # Perform final link, fix entry point for RAM debugging
     obj_files = asm_obj_files + c_obj_files
+
+    obj_files += ['/home/seb/dev/echronos-sandbox/packages/machine-rtl8710/sdk_ameba_v35/component/soc/realtek/8195a/misc/bsp/lib/common/GCC/lib_platform.a']
+
     execute(['arm-none-eabi-ld', '-T', system.linker_script, '-o', system.output_file + '.elf', '-e0x101'] + linker_options + obj_files)
 
     # Create the binary

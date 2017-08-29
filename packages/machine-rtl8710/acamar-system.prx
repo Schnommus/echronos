@@ -33,6 +33,15 @@
         <include_path>packages/machine-rtl8710/lib</include_path>
         <include_path>packages/machine-rtl8710/lib/cpu/rtl8710</include_path>
         <include_path>packages/machine-rtl8710/lib/cpu/cortex</include_path>
+
+        <include_path>packages/machine-rtl8710/sdk_ameba_v35/component/common/mbed/hal</include_path>
+        <include_path>packages/machine-rtl8710/sdk_ameba_v35/component/common/mbed/targets/hal/rtl8195a</include_path>
+        <include_path>packages/machine-rtl8710/sdk_ameba_v35/component/soc/realtek/8195a/cmsis/device</include_path>
+        <include_path>packages/machine-rtl8710/sdk_ameba_v35/component/soc/realtek/8195a/fwlib/rtl8195a</include_path>
+        <include_path>packages/machine-rtl8710/sdk_ameba_v35/project/realtek_ameba1_va0_example/inc</include_path>
+        <include_path>packages/machine-rtl8710/sdk_ameba_v35/component/soc/realtek/common/bsp</include_path>
+        <include_path>packages/machine-rtl8710/sdk_ameba_v35/component/soc/realtek/8195a/fwlib</include_path>
+        <include_path>packages/machine-rtl8710/sdk_ameba_v35/component/soc/realtek/8195a/cmsis</include_path>
     </include_paths>
 
     <modules>
@@ -84,6 +93,10 @@
 
         <module name="machine-rtl8710.acamar-test" />
         <module name="machine-rtl8710.bootloader-header" />
-
+        <module name="machine-rtl8710.sdk_ameba_v35.component.common.mbed.targets.hal.rtl8195a.gpio_api"/>
+        <module name="machine-rtl8710.sdk_ameba_v35.component.common.mbed.targets.hal.rtl8195a.pinmap"/>
+        <module name="machine-rtl8710.sdk_ameba_v35.component.soc.realtek.8195a.fwlib.src.hal_gpio"/>
+        <module name="machine-rtl8710.sdk_ameba_v35.component.soc.realtek.8195a.fwlib.src.hal_timer"/>
+        <module name="machine-rtl8710.sdk_ameba_v35.component.soc.realtek.8195a.fwlib.rtl8195a.src.rtl8195a_timer"/>
     </modules>
 </system>
