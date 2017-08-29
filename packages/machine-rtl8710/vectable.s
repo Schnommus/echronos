@@ -35,7 +35,7 @@
 .global vector_table
 vector_table:
         .word stack
-        .word crt0
+        .word entry
         .word {{nmi}}
         .word {{hardfault}}
         .word {{memmanage}}

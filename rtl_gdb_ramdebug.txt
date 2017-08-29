@@ -108,5 +108,4 @@ monitor semihosting enable
 
 #Run to main
 b main
-b crt0
 continue

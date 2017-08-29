@@ -83,6 +83,7 @@
         </module>
 
         <module name="machine-rtl8710.acamar-test" />
+        <module name="machine-rtl8710.bootloader-header" />
 
     </modules>
 </system>
