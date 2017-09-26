@@ -2,7 +2,6 @@
 #ifndef __WIFI_API_H
 #define __WIFI_API_H
 
-#include "FreeRTOS.h"
 #include "wifi_constants.h"   
 #include "wifi_structures.h"  
 #include "wifi_util.h"    

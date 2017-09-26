@@ -1,11 +1,4 @@
-#include "FreeRTOS.h"
-#include "task.h"
-#include "semphr.h"
-#include "log_service.h"
 #include "atcmd_wifi.h"
-#include <lwip_netconf.h>
-#include "tcpip.h"
-#include <dhcp/dhcps.h>
 #if CONFIG_WLAN
 #include <wlan/wlan_test_inc.h>
 #include <wifi/wifi_conf.h>

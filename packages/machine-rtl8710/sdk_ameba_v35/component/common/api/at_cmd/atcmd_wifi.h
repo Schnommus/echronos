@@ -1,7 +1,6 @@
 #ifndef __ATCMD_WIFI_H__
 #define __ATCMD_WIFI_H__
 #include "main.h"
-#include "lwip_netconf.h"
 
 #ifndef WLAN0_NAME
   #define WLAN0_NAME		"wlan0"
@@ -68,7 +67,6 @@
 
 #if CONFIG_EXAMPLE_UART_ATCMD
 #include "wifi_structures.h"
-#include <wlan_fast_connect/example_wlan_fast_connect.h>
 typedef struct _UART_LOG_CONF_{
 	u32 BaudRate;
 	u8 DataBits;

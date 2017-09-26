@@ -95,6 +95,7 @@ SECTIONS
         .data :
         {
             *(.data)
+            *(.data*)
             . = ALIGN(4);
         } > sram_region AT > flash_load_region
 
@@ -110,6 +111,7 @@ SECTIONS
         .bss :
         {
             *(.bss)
+            *(.bss*)
             *(COMMON)
             . = ALIGN(4);
         } > sram_region

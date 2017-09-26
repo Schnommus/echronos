@@ -177,6 +177,9 @@ main(void)
 
     DiagPrintf("Starting RTOS...\n");
 
+    init_event_callback_list();
+    fATWS();
+
     rtos_start();
     for (;;) ;
 }
