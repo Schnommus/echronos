@@ -13,6 +13,10 @@ packages/*/rtos-*
 prj.errors
 prj_build*
 
+# vim swapfiles
+*.swo
+*.swp
+
 
 # merge artefacts
 *.orig

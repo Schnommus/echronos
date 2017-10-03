@@ -601,6 +601,8 @@ class System:
         self.project = project
         self._c_files = []
         self._asm_files = []
+        self._compiler_flags = []
+        self._defines = []
         self._linker_script = None
         self._include_paths = []
         self._output = None
@@ -631,6 +633,14 @@ class System:
     @property
     def include_paths(self):
         return [self.output] + self._include_paths
+
+    @property
+    def compiler_flags(self):
+        return self._compiler_flags
+
+    @property
+    def defines(self):
+        return self._defines
 
     @property
     def c_files(self):
@@ -664,6 +674,12 @@ class System:
     def add_include_path(self, path):
         self._include_paths.append(path)
 
+    def add_define(self, define):
+        self._defines.append(define)
+
+    def add_compiler_flag(self, flag):
+        self._compiler_flags.append(flag)
+
     @property
     def image(self):
         """The image of this system once built.
@@ -689,7 +705,9 @@ class System:
         Returns a list of instances of class ModuleInstance.
 
         """
+        self._parse_defines()
         self._parse_include_paths()
+        self._parse_compiler_flags()
 
         # Parse the DOM to load all the entities.
         module_el = single_named_child(self.dom, 'modules')
@@ -785,6 +803,38 @@ class System:
             path = os.path.normpath(path)
             self.add_include_path(path)
             logger.info("Added include path: %s", path)
+
+    def _parse_defines(self):
+        # Parse the DOM to load any additional defines
+        define_el = maybe_single_named_child(self.dom, 'defines')
+
+        if define_el is None:
+            return
+
+        # Find all define elements, ignoring any that are empty
+        define_els = [elem for elem in define_el.childNodes
+                       if elem.nodeType == elem.ELEMENT_NODE and elem.tagName == 'define' and elem.firstChild]
+
+        for i_el in define_els:
+            define = i_el.firstChild.nodeValue
+            self.add_define(define)
+            logger.info("Added define: %s", define)
+
+    def _parse_compiler_flags(self):
+        # Parse the DOM to load any additional compiler_flags
+        compiler_flag_el = maybe_single_named_child(self.dom, 'flags')
+
+        if compiler_flag_el is None:
+            return
+
+        # Find all compiler_flag elements, ignoring any that are empty
+        compiler_flag_els = [elem for elem in compiler_flag_el.childNodes
+                       if elem.nodeType == elem.ELEMENT_NODE and elem.tagName == 'flag' and elem.firstChild]
+
+        for i_el in compiler_flag_els:
+            compiler_flag = i_el.firstChild.nodeValue
+            self.add_compiler_flag(compiler_flag)
+            logger.info("Added compiler_flag: %s", compiler_flag)
 
     def generate(self, *, copy_all_files):
         """Generate the source for the system.

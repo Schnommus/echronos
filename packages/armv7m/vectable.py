@@ -86,10 +86,14 @@ class EntryModule(Module):
         pre_processor = ply.cpp.Preprocessor(include_paths=system.include_paths,
                                              macro_callback=callback)
 
+        define_header = ''
+        for define in system.defines:
+            define_header += "#define {}\n".format(define);
+
         for c_file in system.c_files:
             with open(c_file) as file_obj:
                 try:
-                    pre_processor.parse(file_obj.read(), c_file)
+                    pre_processor.parse(define_header+file_obj.read(), c_file)
                 except ply.cpp.CppError as exc:
                     raise SystemBuildError(str(exc))
 

@@ -508,6 +508,10 @@ class Preprocessor(object):
                     if enable:
                         self._error(lineno, "Error directive")
 
+                elif name == 'warning':
+                    if enable:
+                        self._warning(lineno, "warning directive")
+
                 else:
                     # Unknown preprocessor directive
                     self._error(lineno, "Unknown directive #{}".format(name))

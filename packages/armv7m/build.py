@@ -20,9 +20,18 @@ def run(system, _=None):
 
 def system_build(system):
     inc_path_args = ['-I%s' % i for i in system.include_paths]
-    common_flags = ['-mthumb', '-march=armv7-m', '-g3']
+    common_flags = ['-mthumb', '-g3']
+
+    if system.compiler_flags == []:
+        common_flags += '-march=armv7-m'
+    else:
+        common_flags += system.compiler_flags
+
     a_flags = common_flags
     c_flags = common_flags + ['-Os']
+
+    for define in system.defines:
+        c_flags += ['-D{}'.format(define)]
 
     all_input_files = system.c_files + system.asm_files
     all_input_files = [os.path.normpath(os.path.abspath(path)) for path in all_input_files]
