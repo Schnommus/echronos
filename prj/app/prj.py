@@ -603,6 +603,7 @@ class System:
         self._asm_files = []
         self._compiler_flags = []
         self._defines = []
+        self._libraries = []
         self._linker_script = None
         self._include_paths = []
         self._output = None
@@ -643,6 +644,10 @@ class System:
         return self._defines
 
     @property
+    def libraries(self):
+        return self._libraries
+
+    @property
     def c_files(self):
         return self._c_files
 
@@ -677,6 +682,9 @@ class System:
     def add_define(self, define):
         self._defines.append(define)
 
+    def add_library(self, lib):
+        self._libraries.append(lib)
+
     def add_compiler_flag(self, flag):
         self._compiler_flags.append(flag)
 
@@ -706,6 +714,7 @@ class System:
 
         """
         self._parse_defines()
+        self._parse_libraries()
         self._parse_include_paths()
         self._parse_compiler_flags()
 
@@ -819,6 +828,22 @@ class System:
             define = i_el.firstChild.nodeValue
             self.add_define(define)
             logger.info("Added define: %s", define)
+
+    def _parse_libraries(self):
+        # Parse the DOM to load any additional librarys
+        library_el = maybe_single_named_child(self.dom, 'libraries')
+
+        if library_el is None:
+            return
+
+        # Find all library elements, ignoring any that are empty
+        library_els = [elem for elem in library_el.childNodes
+                       if elem.nodeType == elem.ELEMENT_NODE and elem.tagName == 'library' and elem.firstChild]
+
+        for i_el in library_els:
+            library = i_el.firstChild.nodeValue
+            self.add_library(library)
+            logger.info("Added library: %s", library)
 
     def _parse_compiler_flags(self):
         # Parse the DOM to load any additional compiler_flags
