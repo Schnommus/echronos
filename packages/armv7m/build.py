@@ -54,6 +54,8 @@ def system_build(system):
         os.makedirs(os.path.dirname(obj_file_path), exist_ok=True)
         execute(['arm-none-eabi-as', '-o', obj_file_path, asm_file_path] + a_flags + inc_path_args)
 
+    library_paths = [os.path.normpath(os.path.abspath(path)) for path in system.libraries]
+
     # Perform final link
-    obj_files = asm_obj_files + c_obj_files
+    obj_files = asm_obj_files + c_obj_files + library_paths
     execute(['arm-none-eabi-ld', '-T', system.linker_script, '-o', system.output_file] + obj_files)

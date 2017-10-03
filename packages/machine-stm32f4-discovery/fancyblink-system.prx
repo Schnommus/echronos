@@ -17,12 +17,14 @@
     </defines>
     <flags>
         <flag>-mcpu=cortex-m4</flag>
+        <flag>-mfloat-abi=hard</flag>
+        <flag>-mfpu=fpv4-sp-d16</flag>
     </flags>
     <include_paths>
         <include_path>packages/libopencm3/include</include_path>
     </include_paths>
     <libraries>
-        <library>packages/libopencm3/libopencm3_stm32f4.a</library>
+        <library>packages/libopencm3/lib/libopencm3_stm32f4.a</library>
     </libraries>
     <modules>
         <module name="armv7m.build" />

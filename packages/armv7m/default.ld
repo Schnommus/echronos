@@ -41,7 +41,7 @@ SECTIONS
         .text :
         {
             *(.text.startup)
-            *(.text)
+            *(.text*)
             . = ALIGN(4);
         } AT > flash_load_region
 
@@ -62,7 +62,7 @@ SECTIONS
 
         .data :
         {
-            *(.data)
+            *(.data*)
             . = ALIGN(4);
         } > sram_region AT > flash_load_region
 
