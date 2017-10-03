@@ -16,6 +16,35 @@ import os
 import os.path
 import subprocess
 
+prx_template = """<?xml version="1.0" encoding="UTF-8" ?>
+<system>
+    <defines>{defines}
+    </defines>
+    <flags>{flags}
+    </flags>
+    <include_paths>
+        <include_path>packages/libopencm3/include</include_path>
+    </include_paths>
+    <libraries>{libs}
+    </libraries>
+    <modules>
+        <module name="armv7m.build" />
+        <module name="armv7m.vectable">
+            <flash_addr>{flash_addr}</flash_addr>
+            <flash_size>{flash_size}</flash_size>
+            <sram_size>{sram_addr}</sram_size>
+            <sram_size>{sram_size}</sram_size>
+        </module>
+        <module name="armv7m.semihost-debug" />
+        <module name="generic.debug" />
+        <module name="FIXME" />
+    </modules>
+</system>"""
+
+prx_define_template = """\n        <define>{}</define>"""
+prx_flag_template   = """\n        <flag>{}</flag>"""
+prx_lib_template    = """\n        <library>{}</library>"""
+
 libopencm3_path = "packages/libopencm3/"
 genlink_path = libopencm3_path + "scripts/genlink.awk"
 ld_data_path = libopencm3_path + "ld/devices.data"
@@ -91,8 +120,8 @@ def generate_prx_for_part(part):
         return
 
     part_properties = dict([p[3:].split('=') for p in part_defs.split() if p[:3] == "-D_"])
-    part_rom_size = hex(memory_size_string_to_int(part_properties['ROM']))
-    part_ram_size = hex(memory_size_string_to_int(part_properties['RAM']))
+    part_rom_size = '{0:#010x}'.format(memory_size_string_to_int(part_properties['ROM']))
+    part_ram_size = '{0:#010x}'.format(memory_size_string_to_int(part_properties['RAM']))
     part_rom_off = part_properties['ROM_OFF']
     part_ram_off = part_properties['RAM_OFF']
 
@@ -113,6 +142,16 @@ def generate_prx_for_part(part):
             part, part_family, part_subfamily, part_cpu, part_fpu,
             part_rom_size, part_rom_off, part_ram_size, part_ram_off,
             part_cppflags, arch_flags, libraries, part_defs))
+
+    all_defines = ''.join([prx_define_template.format(d[2:]) for d in part_cppflags.split()])
+    all_flags = ''.join([prx_flag_template.format(f) for f in arch_flags])
+    all_libs = ''.join([prx_lib_template.format(l) for l in libraries])
+
+    prx_string = prx_template.format(
+            defines=all_defines, flags=all_flags, libs=all_libs, flash_addr=part_rom_off,
+            flash_size=part_rom_size, sram_addr=part_ram_off, sram_size=part_ram_size)
+
+    print(prx_string)
 
 
 generate_prx_for_part('stm32f407VGT6')
