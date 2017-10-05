@@ -15,6 +15,7 @@
 import os
 import os.path
 import subprocess
+import json
 
 prx_template = """<?xml version="1.0" encoding="UTF-8" ?>
 <system>
@@ -33,17 +34,28 @@ prx_template = """<?xml version="1.0" encoding="UTF-8" ?>
             <flash_size>{flash_size}</flash_size>
             <sram_size>{sram_addr}</sram_size>
             <sram_size>{sram_size}</sram_size>
+            <include file="{extirq_prx}"/>
         </module>
         <module name="armv7m.semihost-debug" />
         <module name="generic.debug" />
-        <module name="FIXME" />
+        <!-- Add your project implementation files here -->
+        <module name="{project_module}.ADDME" />
     </modules>
 </system>"""
+
+prx_extirq_template = """<?xml version="1.0" encoding="UTF-8" ?>
+<external_irqs>{external_irqs}
+</external_irqs> """
 
 prx_define_template  = """\n        <define>{}</define>"""
 prx_flag_template    = """\n        <flag>{}</flag>"""
 prx_lib_template     = """\n        <library>{}</library>"""
 prx_include_template = """\n        <include_path>{}</include_path>"""
+prx_irq_template     = """
+    <external_irq>
+        <number>{}</number>
+        <handler>{}_isr</handler>
+    </external_irq>"""
 
 readme_template = """# RTOS/libOpenCM3 project template for {part_name}
 
@@ -83,6 +95,17 @@ def get_chip_details(chip, mode):
     result = subprocess.run(awk_command,
             stdout=subprocess.PIPE, check=True, shell=True)
     return result.stdout.decode()
+
+def find_irq_json_path(family):
+    find_command = "find {} -name 'irq.json'".format(libopencm3_real_path)
+    found_paths = subprocess.run(find_command, stdout=subprocess.PIPE,
+                                    check=True, shell=True).stdout.decode().split()
+
+    for found_path in found_paths:
+        if family in os.path.relpath(found_path, libopencm3_real_path).replace("/",""):
+            return found_path
+
+find_irq_json_path("stm32f4")
 
 def memory_size_string_to_int(size):
     postfixes = {
@@ -175,11 +198,27 @@ def generate_project_for_part(part):
     all_libs = ''.join([prx_lib_template.format(l) for l in libraries])
     all_includes = ''.join([prx_include_template.format(i) for i in includes])
 
+    # GENERATE IRQ LINKAGES FOR VECTOR TABLE
+
+    irq_json_path = find_irq_json_path(part_family)
+    all_extirqs = ''
+    with open(irq_json_path) as irq_file:
+        irq_data = json.load(irq_file)
+        irq2name = list(enumerate(irq_data['irqs'])
+                        if isinstance(irq_data['irqs'], list)
+                        else irq_data['irqs'].items())
+        irqnames = [v for (k,v) in irq2name]
+
+        all_extirqs = "".join(prx_irq_template.format(k, v) for (k,v) in irq2name)
+
     # BEGIN CREATING PROJECT FILES
 
     project_name = part
 
     output_dir = os.path.join(this_file_dir, "{}-project".format(project_name))
+
+    prx_filename = "{}-system.prx".format(project_name)
+    prx_extirq_filename = "{}-extirqs.prx".format(project_name)
 
     try:
         os.mkdir(output_dir)
@@ -188,19 +227,29 @@ def generate_project_for_part(part):
                 .format(output_dir))
         return
 
-    with open(os.path.join(output_dir, "{}-system.prx".format(project_name)), "w") as prx_file:
+    def path_to_prj_module(path):
+        path_no_ext = os.path.splitext(path)[0]
+        return path_no_ext.replace("/",".")
+
+    prj_project_dir = os.path.join(this_file_dir_prj_relpath, os.path.basename(output_dir))
+    prj_system_module = path_to_prj_module(os.path.join(prj_project_dir, prx_filename))
+    prj_project_module = path_to_prj_module(prj_project_dir)
+
+    prj_extirq_path = os.path.join(prj_project_dir, prx_extirq_filename)
+
+    with open(os.path.join(output_dir, prx_filename), "w") as prx_file:
         prx_file.write(prx_template.format(
             defines=all_defines, flags=all_flags, libs=all_libs, include_paths=all_includes,
-            flash_addr=part_rom_off, flash_size=part_rom_size, sram_addr=part_ram_off, sram_size=part_ram_size))
-
-    prj_build_dir = os.path.join(this_file_dir_prj_relpath, os.path.basename(output_dir), "{}-system".format(project_name))
-    prj_build_dir = prj_build_dir.replace("/",".")
+            flash_addr=part_rom_off, flash_size=part_rom_size, sram_addr=part_ram_off,
+            sram_size=part_ram_size, project_module=prj_project_module, extirq_prx=prj_extirq_path))
 
     with open(os.path.join(output_dir, "README.md"), "w") as readme_file:
         readme_file.write(readme_template.format(
-            part_name=part, script_dir=this_file_path, prj_dir=prj_build_dir))
+            part_name=part, script_dir=this_file_path, prj_dir=prj_system_module))
+
+    with open(os.path.join(output_dir, prx_extirq_filename), "w") as prx_extirq_file:
+        prx_extirq_file.write(prx_extirq_template.format(external_irqs=all_extirqs))
 
     print("**PROJECT GENERATION COMPLETE**")
-
 
 generate_project_for_part('stm32f407VGT6')
