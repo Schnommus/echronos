@@ -16,6 +16,7 @@ import os
 import os.path
 import subprocess
 import json
+import argparse
 from lxml import etree as ET
 
 def construct_prx(data):
@@ -53,19 +54,27 @@ def construct_prx(data):
     ET.SubElement(vectable, "flash_size").text = data['rom_size']
     ET.SubElement(vectable, "rom_addr").text = data['ram_off']
     ET.SubElement(vectable, "rom_size").text = data['ram_size']
+    ET.SubElement(vectable, "include", file=data['extirq_dir'])
 
-    print(ET.tostring(system, pretty_print=True).decode())
+    stub = addModule(data['module_prx_prefix'] + '.ADDME')
+    stub.addprevious(ET.Comment('Modify the below lines to add your own source'))
 
+    return ET.tostring(system, pretty_print=True, xml_declaration=True, encoding='UTF-8').decode()
 
-prx_extirq_template = """<?xml version="1.0" encoding="UTF-8" ?>
-<external_irqs>{external_irqs}
-</external_irqs> """
+def construct_irq_prx(data):
+    extirqs = ET.Element('external_irqs')
 
-prx_irq_template     = """
-    <external_irq>
-        <number>{}</number>
-        <handler>{}_isr</handler>
-    </external_irq>"""
+    def addIRQ(handler, number):
+        e = ET.SubElement(extirqs, "external_irq")
+        n = ET.SubElement(e, "number")
+        h = ET.SubElement(e, "handler")
+        n.text = number
+        h.text = handler + "_isr"
+
+    for (k, v) in data['irq2name']:
+        addIRQ(str(v), str(k))
+
+    return ET.tostring(extirqs, pretty_print=True, xml_declaration=True, encoding='UTF-8').decode()
 
 readme_template = """# RTOS/libOpenCM3 project template for {part_name}
 
@@ -147,7 +156,7 @@ def memory_size_string_to_int(size):
             print("Unknown postfix on memory size?!")
             return 0
 
-def generate_project_for_part(part):
+def generate_project_for_part(part, project_name):
 
     chip_details = get_chip_details(part)
 
@@ -209,34 +218,17 @@ def generate_project_for_part(part):
 
     includes = [ocm3_relpath_to_prj_relpath(ocm3_include_relpath)]
 
-    prx_data = {}
-    prx_data['defines'] = [d[2:] for d in chip_details['CPPFLAGS'].split()]
-    prx_data['cflags'] = arch_flags
-    prx_data['libs'] = libraries
-    prx_data['incpaths'] = includes
-    prx_data['rom_off'] = chip_details['ROM_OFF']
-    prx_data['ram_off'] = chip_details['RAM_OFF']
-    prx_data['rom_size'] = chip_details['ROM_SIZE']
-    prx_data['ram_size'] = chip_details['RAM_SIZE']
-
-    construct_prx(prx_data)
-
     # GENERATE IRQ LINKAGES FOR VECTOR TABLE
 
-    irq_json_path = find_irq_json_path(part_family)
-    all_extirqs = ''
+    irq_json_path = find_irq_json_path(chip_details['FAMILY'])
+    irq2name = []
     with open(irq_json_path) as irq_file:
         irq_data = json.load(irq_file)
         irq2name = list(enumerate(irq_data['irqs'])
                         if isinstance(irq_data['irqs'], list)
                         else irq_data['irqs'].items())
-        irqnames = [v for (k,v) in irq2name]
 
-        all_extirqs = "".join(prx_irq_template.format(k, v) for (k,v) in irq2name)
-
-    # BEGIN CREATING PROJECT FILES
-
-    project_name = part
+    # SET UP PROJECT DIRECTORIES
 
     output_dir = os.path.join(this_file_dir, "{}-project".format(project_name))
 
@@ -260,19 +252,46 @@ def generate_project_for_part(part):
 
     prj_extirq_path = os.path.join(prj_project_dir, prx_extirq_filename)
 
+    # START PREPARING DATA FOR WRITING
+
+    prx_data = {}
+    prx_data['defines'] = [d[2:] for d in chip_details['CPPFLAGS'].split()]
+    prx_data['cflags'] = arch_flags
+    prx_data['libs'] = libraries
+    prx_data['incpaths'] = includes
+    prx_data['rom_off'] = chip_details['ROM_OFF']
+    prx_data['ram_off'] = chip_details['RAM_OFF']
+    prx_data['rom_size'] = chip_details['ROM_SIZE']
+    prx_data['ram_size'] = chip_details['RAM_SIZE']
+    prx_data['module_prx_prefix'] = prj_project_module
+    prx_data['extirq_dir'] = prj_extirq_path
+
+    prx_irq_data = {}
+    prx_irq_data['irq2name'] = irq2name
+
+    # WRITE FILES
+
     with open(os.path.join(output_dir, prx_filename), "w") as prx_file:
-        prx_file.write(prx_template.format(
-            defines=all_defines, flags=all_flags, libs=all_libs, include_paths=all_includes,
-            flash_addr=part_rom_off, flash_size=part_rom_size, sram_addr=part_ram_off,
-            sram_size=part_ram_size, project_module=prj_project_module, extirq_prx=prj_extirq_path))
+        prx_file.write(construct_prx(prx_data))
+
+    with open(os.path.join(output_dir, prx_extirq_filename), "w") as prx_extirq_file:
+        prx_extirq_file.write(construct_irq_prx(prx_irq_data))
 
     with open(os.path.join(output_dir, "README.md"), "w") as readme_file:
         readme_file.write(readme_template.format(
             part_name=part, script_dir=this_file_path, prj_dir=prj_system_module))
 
-    with open(os.path.join(output_dir, prx_extirq_filename), "w") as prx_extirq_file:
-        prx_extirq_file.write(prx_extirq_template.format(external_irqs=all_extirqs))
-
     print("**PROJECT GENERATION COMPLETE**")
 
-generate_project_for_part('stm32f407VGT6')
+
+parser = argparse.ArgumentParser(description='Generate an eChronos / libopencm3 project template.')
+
+parser.add_argument('part_id', help='Chip ID to generate a project for')
+parser.add_argument('project_name', help='What to name the project. Defaults to part_id.', default=None)
+
+args = parser.parse_args()
+
+if args.project_name == None:
+    args.project_name = args.part_id
+
+generate_project_for_part(args.part_id, args.project_name)
