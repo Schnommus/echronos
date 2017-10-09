@@ -16,41 +16,51 @@ import os
 import os.path
 import subprocess
 import json
+from lxml import etree as ET
 
-prx_template = """<?xml version="1.0" encoding="UTF-8" ?>
-<system>
-    <defines>{defines}
-    </defines>
-    <flags>{flags}
-    </flags>
-    <include_paths>{include_paths}
-    </include_paths>
-    <libraries>{libs}
-    </libraries>
-    <modules>
-        <module name="armv7m.build" />
-        <module name="armv7m.vectable">
-            <flash_addr>{flash_addr}</flash_addr>
-            <flash_size>{flash_size}</flash_size>
-            <sram_size>{sram_addr}</sram_size>
-            <sram_size>{sram_size}</sram_size>
-            <include file="{extirq_prx}"/>
-        </module>
-        <module name="armv7m.semihost-debug" />
-        <module name="generic.debug" />
-        <!-- Add your project implementation files here -->
-        <module name="{project_module}.ADDME" />
-    </modules>
-</system>"""
+def construct_prx(data):
+
+    def addEntriesTo(node, data_key, node_name):
+        for e in data[data_key]:
+            el = ET.SubElement(node, node_name)
+            el.text = e
+
+    system = ET.Element('system')
+
+    defines = ET.SubElement(system, 'defines')
+    addEntriesTo(defines, 'defines', 'define')
+
+    flags = ET.SubElement(system, 'flags')
+    addEntriesTo(flags, 'cflags', 'flag')
+
+    include_paths = ET.SubElement(system, 'include_paths')
+    addEntriesTo(include_paths, 'incpaths', 'include_path')
+
+    libraries = ET.SubElement(system, 'libraries')
+    addEntriesTo(libraries, 'libs', 'library')
+
+    modules = ET.SubElement(system, 'modules')
+
+    def addModule(module_name):
+        return ET.SubElement(modules, "module", name=module_name)
+
+    addModule('armv7m.build')
+    vectable = addModule('armv7m.vectable')
+    addModule('armv7m.semihost-debug')
+    addModule('generic.debug')
+
+    ET.SubElement(vectable, "flash_addr").text = data['rom_off']
+    ET.SubElement(vectable, "flash_size").text = data['rom_size']
+    ET.SubElement(vectable, "rom_addr").text = data['ram_off']
+    ET.SubElement(vectable, "rom_size").text = data['ram_size']
+
+    print(ET.tostring(system, pretty_print=True).decode())
+
 
 prx_extirq_template = """<?xml version="1.0" encoding="UTF-8" ?>
 <external_irqs>{external_irqs}
 </external_irqs> """
 
-prx_define_template  = """\n        <define>{}</define>"""
-prx_flag_template    = """\n        <flag>{}</flag>"""
-prx_lib_template     = """\n        <library>{}</library>"""
-prx_include_template = """\n        <include_path>{}</include_path>"""
 prx_irq_template     = """
     <external_irq>
         <number>{}</number>
@@ -90,11 +100,26 @@ ld_data_realpath = ocm3_relpath_to_os_realpath(ocm3_ld_data_relpath)
 cortex_architectures = ['cortex-m0', 'cortex-m0plus', 'cortex-m3', 'cortex-m4', 'cortex-m7']
 echronos_supported_architectures = ['cortex-m3', 'cortex-m4', 'cortex-m7']
 
-def get_chip_details(chip, mode):
+def get_chip_detail(chip, mode):
     awk_command = """awk -v PAT="{}" -v MODE="{}" -f {} {}""".format(chip, mode, genlink_realpath, ld_data_realpath)
     result = subprocess.run(awk_command,
             stdout=subprocess.PIPE, check=True, shell=True)
     return result.stdout.decode()
+
+def get_chip_details(part):
+    fields = ['FAMILY', 'SUBFAMILY', 'CPU', 'FPU', 'CPPFLAGS', 'DEFS']
+    details = {}
+    for field in fields:
+        details[field] = get_chip_detail(part, field)
+
+    part_properties = dict([p[3:].split('=') for p in details['DEFS'].split() if p[:3] == "-D_"])
+
+    details['ROM_SIZE'] = '{0:#010x}'.format(memory_size_string_to_int(part_properties['ROM']))
+    details['RAM_SIZE'] = '{0:#010x}'.format(memory_size_string_to_int(part_properties['RAM']))
+    details['ROM_OFF'] = part_properties['ROM_OFF']
+    details['RAM_OFF'] = part_properties['RAM_OFF']
+
+    return details
 
 def find_irq_json_path(family):
     find_command = "find {} -name 'irq.json'".format(libopencm3_real_path)
@@ -123,37 +148,35 @@ def memory_size_string_to_int(size):
             return 0
 
 def generate_project_for_part(part):
-    part_family    = get_chip_details(part, 'FAMILY')
-    part_subfamily = get_chip_details(part, 'SUBFAMILY')
-    part_cpu       = get_chip_details(part, 'CPU')
-    part_fpu       = get_chip_details(part, 'FPU')
-    part_cppflags  = get_chip_details(part, 'CPPFLAGS')
-    part_defs      = get_chip_details(part, 'DEFS')
 
-    if len(part_family) == 0:
+    chip_details = get_chip_details(part)
+
+    if len(chip_details['FAMILY']) == 0:
         print("Part not in libopencm3 database")
         return
 
-    arch_flags = ['-mcpu={}'.format(part_cpu)]
+    arch_flags = ['-mcpu={CPU}'.format(**chip_details)]
 
-    if part_cpu not in echronos_supported_architectures:
+    if chip_details['CPU'] not in echronos_supported_architectures:
         print("CPU architecture '{}' is not currently supported by the RTOS".format(part_cpu))
         return
 
     arch_flags += ['-mthumb']
 
-    if part_fpu == "soft":
+    if chip_details['FPU'] == "soft":
         arch_flags += ["-msoft_float"]
-    elif part_fpu == "hard-fpv4-sp-d16":
+    elif chip_details['FPU'] == "hard-fpv4-sp-d16":
         arch_flags += ["-mfloat-abi=hard", "-mfpu=fpv4-sp-d16"]
-    elif part_fpu == "hard-fpv5-sp-d16":
+    elif chip_details['FPU'] == "hard-fpv5-sp-d16":
         arch_flags += ["-mfloat-abi=hard", "-mfpu=fpv5-sp-d16"]
     else:
         print("Nonstandard FPU flag?")
         return
 
-    part_family_lib_relpath = os.path.join(ocm3_libs_relpath,"libopencm3_{}.a".format(part_family))
-    part_subfamily_lib_relpath = os.path.join(ocm3_libs_relpath,"libopencm3_{}.a".format(part_subfamily))
+    part_family_lib_relpath = os.path.join(
+            ocm3_libs_relpath,"libopencm3_{}.a".format(chip_details['FAMILY']))
+    part_subfamily_lib_relpath = os.path.join(
+            ocm3_libs_relpath,"libopencm3_{}.a".format(chip_details['SUBFAMILY']))
 
     libraries = []
 
@@ -167,36 +190,36 @@ def generate_project_for_part(part):
                .format(ocm3_relpath_to_os_realpath(part_family_lib_relpath)))
         return
 
-    part_properties = dict([p[3:].split('=') for p in part_defs.split() if p[:3] == "-D_"])
-    part_rom_size = '{0:#010x}'.format(memory_size_string_to_int(part_properties['ROM']))
-    part_ram_size = '{0:#010x}'.format(memory_size_string_to_int(part_properties['RAM']))
-    part_rom_off = part_properties['ROM_OFF']
-    part_ram_off = part_properties['RAM_OFF']
-
     print((
-        "Fetching part details for {}:\n"
-        "Part family:    {}\n"
-        "Part subfamily: {}\n"
-        "Part CPU:       {}\n"
-        "Part FPU:       {}\n"
-        "Part ROM size:  {}\n"
-        "Part ROM offs.: {}\n"
-        "Part RAM size:  {}\n"
-        "Part RAM offs.: {}\n"
-        "Extra flags:    {}\n"
-        "Arch flags:     {}\n"
-        "Libraries:      {}\n"
-        "Raw defines:    {}\n").format(
-            part, part_family, part_subfamily, part_cpu, part_fpu,
-            part_rom_size, part_rom_off, part_ram_size, part_ram_off,
-            part_cppflags, arch_flags, libraries, part_defs))
+        "Fetching part details for {part_searched}:\n"
+        "Part family:    {FAMILY}\n"
+        "Part subfamily: {SUBFAMILY}\n"
+        "Part CPU:       {CPU}\n"
+        "Part FPU:       {FPU}\n"
+        "Part ROM size:  {ROM_SIZE}\n"
+        "Part ROM offs.: {ROM_OFF}\n"
+        "Part RAM size:  {RAM_SIZE}\n"
+        "Part RAM offs.: {RAM_OFF}\n"
+        "Extra flags:    {CPPFLAGS}\n"
+        "Arch flags:     {aflags}\n"
+        "Libraries:      {libs}\n"
+        "Raw defines:    {DEFS}\n").format(
+            part_searched=part, aflags=arch_flags, libs=libraries,
+            **chip_details))
 
     includes = [ocm3_relpath_to_prj_relpath(ocm3_include_relpath)]
 
-    all_defines = ''.join([prx_define_template.format(d[2:]) for d in part_cppflags.split()])
-    all_flags = ''.join([prx_flag_template.format(f) for f in arch_flags])
-    all_libs = ''.join([prx_lib_template.format(l) for l in libraries])
-    all_includes = ''.join([prx_include_template.format(i) for i in includes])
+    prx_data = {}
+    prx_data['defines'] = [d[2:] for d in chip_details['CPPFLAGS'].split()]
+    prx_data['cflags'] = arch_flags
+    prx_data['libs'] = libraries
+    prx_data['incpaths'] = includes
+    prx_data['rom_off'] = chip_details['ROM_OFF']
+    prx_data['ram_off'] = chip_details['RAM_OFF']
+    prx_data['rom_size'] = chip_details['ROM_SIZE']
+    prx_data['ram_size'] = chip_details['RAM_SIZE']
+
+    construct_prx(prx_data)
 
     # GENERATE IRQ LINKAGES FOR VECTOR TABLE
 
