@@ -26,17 +26,22 @@
 /* load the weak symbols for IRQ_HANDLERS */
 #include "../dispatch/vector_nvic.c"
 
+#ifndef USE_ECHRONOS_VECTABLE
 /* Symbols exported by the linker script(s): */
 extern unsigned _data_loadaddr, _data, _edata, _ebss, _stack;
 typedef void (*funcp_t) (void);
 extern funcp_t __preinit_array_start, __preinit_array_end;
 extern funcp_t __init_array_start, __init_array_end;
 extern funcp_t __fini_array_start, __fini_array_end;
+#endif
 
 void main(void);
 void blocking_handler(void);
 void null_handler(void);
 
+#define USE_ECHRONOS_VECTABLE
+
+#ifndef USE_ECHRONOS_VECTABLE
 __attribute__ ((section(".vectors")))
 vector_table_t vector_table = {
 	.initial_sp_value = &_stack,
@@ -99,6 +104,7 @@ void __attribute__ ((weak, naked)) reset_handler(void)
 	}
 
 }
+#endif
 
 void blocking_handler(void)
 {
