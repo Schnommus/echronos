@@ -52,8 +52,8 @@ def construct_prx(data):
 
     ET.SubElement(vectable, "flash_addr").text = data['rom_off']
     ET.SubElement(vectable, "flash_size").text = data['rom_size']
-    ET.SubElement(vectable, "rom_addr").text = data['ram_off']
-    ET.SubElement(vectable, "rom_size").text = data['ram_size']
+    ET.SubElement(vectable, "sram_addr").text = data['ram_off']
+    ET.SubElement(vectable, "sram_size").text = data['ram_size']
     ET.SubElement(vectable, "include", file=data['extirq_dir'])
 
     stub = addModule(data['module_prx_prefix'] + '.ADDME')
@@ -62,7 +62,8 @@ def construct_prx(data):
     return ET.tostring(system, pretty_print=True, xml_declaration=True, encoding='UTF-8').decode()
 
 def construct_irq_prx(data):
-    extirqs = ET.Element('external_irqs')
+    incroot = ET.Element('include_root')
+    extirqs = ET.SubElement(incroot, 'external_irqs')
 
     def addIRQ(handler, number):
         e = ET.SubElement(extirqs, "external_irq")
@@ -74,7 +75,7 @@ def construct_irq_prx(data):
     for (k, v) in data['irq2name']:
         addIRQ(str(v), str(k))
 
-    return ET.tostring(extirqs, pretty_print=True, xml_declaration=True, encoding='UTF-8').decode()
+    return ET.tostring(incroot, pretty_print=True, xml_declaration=True, encoding='UTF-8').decode()
 
 readme_template = """# RTOS/libOpenCM3 project template for {part_name}
 
@@ -247,8 +248,9 @@ def generate_project_for_part(part, project_name):
         return path_no_ext.replace("/",".")
 
     prj_project_dir = os.path.join(this_file_dir_prj_relpath, os.path.basename(output_dir))
-    prj_system_module = path_to_prj_module(os.path.join(prj_project_dir, prx_filename))
-    prj_project_module = path_to_prj_module(prj_project_dir)
+    prj_project_reldir = os.path.join(os.path.basename(this_file_dir), os.path.basename(output_dir))
+    prj_system_module = path_to_prj_module(os.path.join(prj_project_reldir, prx_filename))
+    prj_project_module = path_to_prj_module(prj_project_reldir)
 
     prj_extirq_path = os.path.join(prj_project_dir, prx_extirq_filename)
 
@@ -264,7 +266,7 @@ def generate_project_for_part(part, project_name):
     prx_data['rom_size'] = chip_details['ROM_SIZE']
     prx_data['ram_size'] = chip_details['RAM_SIZE']
     prx_data['module_prx_prefix'] = prj_project_module
-    prx_data['extirq_dir'] = prj_extirq_path
+    prx_data['extirq_dir'] = os.path.basename(prj_extirq_path)
 
     prx_irq_data = {}
     prx_irq_data['irq2name'] = irq2name
@@ -287,7 +289,7 @@ def generate_project_for_part(part, project_name):
 parser = argparse.ArgumentParser(description='Generate an eChronos / libopencm3 project template.')
 
 parser.add_argument('part_id', help='Chip ID to generate a project for')
-parser.add_argument('project_name', help='What to name the project. Defaults to part_id.', default=None)
+parser.add_argument('--project_name', default=None, help='What to name the project.')
 
 args = parser.parse_args()
 
