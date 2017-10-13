@@ -19,6 +19,14 @@ import json
 import argparse
 from lxml import etree as ET
 
+RTOS_TEMPLATES = {
+    "acamar": {
+            "irq_stubs": ["nmi", "hardfault", "memmanage", "busfault", "usagefault",
+                          "svcall", "debug_monitor", "pendsv", "systick"],
+            "additional_modules": ["armv7m.ctxt-switch"]
+        }
+    }
+
 def construct_prx(data):
 
     def addEntriesTo(node, data_key, node_name):
