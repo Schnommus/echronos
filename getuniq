@@ -1,0 +1,1 @@
+cat undefined.txt | grep -oh "undefined reference to \`.*'" | grep -oh "\`.*'" | sort | uniq

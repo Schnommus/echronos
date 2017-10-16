@@ -14,7 +14,7 @@
 #endif
 
 #if !defined(CONFIG_PLATFORM_AMEBA_X)
-#define PLATFORM_FREERTOS 	1
+#define PLATFORM_ECHRONOS 	1
 #define CONFIG_GSPI_HCI
 #else
 #define CONFIG_LX_HCI
@@ -85,9 +85,6 @@
 #endif
 
 #if defined(CONFIG_PLATFORM_AMEBA_X)
-	#if !defined(CONFIG_PLATFORM_8711B)
-		#define CONFIG_USE_TCM_HEAP 1					/* USE TCM HEAP */
-	#endif
 	#define CONFIG_RECV_TASKLET_THREAD
 	#define CONFIG_XMIT_TASKLET_THREAD
 #else

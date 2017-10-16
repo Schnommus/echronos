@@ -30,7 +30,6 @@
 #endif
 
 #if defined(CONFIG_PLATFORM_8195A)
-	#define CONFIG_USE_TCM_HEAP 1					/* USE TCM HEAP */
 	#define USE_MUTEX_FOR_SPINLOCK	1
 #endif
 
@@ -100,6 +99,8 @@
 #include "freertos_service.h"
 #elif defined( PLATFORM_ECOS)
 #include "ecos/ecos_service.h"
+#elif defined( PLATFORM_ECHRONOS)
+#include "echronos_service.h"
 #endif
 
 #define RTW_MAX_DELAY			0xFFFFFFFF

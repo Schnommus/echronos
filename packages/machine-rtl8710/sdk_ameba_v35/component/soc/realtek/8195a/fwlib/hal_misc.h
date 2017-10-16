@@ -45,7 +45,6 @@ extern _LONG_CALL_ROM_ int *_memcmp( const void *av, const void *bv, SIZE_T len 
 #else
 extern _LONG_CALL_ROM_ int _memcmp( const void *av, const void *bv, SIZE_T len );
 #endif
-extern _LONG_CALL_ROM_ SIZE_T _strlen(const char *s);
 extern _LONG_CALL_ROM_ int _strcmp(const char *cs, const char *ct);
 
 VOID HalSetResetCause(IN HAL_RESET_REASON reason);

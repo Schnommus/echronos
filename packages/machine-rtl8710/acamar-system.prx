@@ -29,6 +29,7 @@
 <system>
 
     <include_paths>
+        <include_path>packages/machine-rtl8710</include_path>
         <include_path>packages/machine-rtl8710/lib/libc</include_path>
         <include_path>packages/machine-rtl8710/lib</include_path>
         <include_path>packages/machine-rtl8710/lib/cpu/rtl8710</include_path>
@@ -42,12 +43,18 @@
         <include_path>packages/machine-rtl8710/sdk_ameba_v35/component/soc/realtek/common/bsp</include_path>
         <include_path>packages/machine-rtl8710/sdk_ameba_v35/component/soc/realtek/8195a/fwlib</include_path>
         <include_path>packages/machine-rtl8710/sdk_ameba_v35/component/soc/realtek/8195a/cmsis</include_path>
+        <include_path>packages/machine-rtl8710/sdk_ameba_v35/component/soc/realtek/8195a/misc/rtl_std_lib/include</include_path>
+
 
         <include_path>packages/machine-rtl8710/sdk_ameba_v35/component/common/drivers/wlan/realtek/include</include_path>
         <include_path>packages/machine-rtl8710/sdk_ameba_v35/component/common/test</include_path>
         <include_path>packages/machine-rtl8710/sdk_ameba_v35/component/common/api</include_path>
         <include_path>packages/machine-rtl8710/sdk_ameba_v35/component/common/api/platform</include_path>
         <include_path>packages/machine-rtl8710/sdk_ameba_v35/component/common/drivers/wlan/realtek/src/osdep</include_path>
+
+        <include_path>packages/machine-rtl8710/sdk_ameba_v35/component/os/os_dep/include</include_path>
+
+        <include_path>packages/machine-rtl8710/sdk_ameba_v35/component/common/mbed/hal_ext</include_path>
     </include_paths>
 
     <modules>
@@ -104,6 +111,12 @@
         <module name="machine-rtl8710.sdk_ameba_v35.component.soc.realtek.8195a.fwlib.src.hal_gpio"/>
         <module name="machine-rtl8710.sdk_ameba_v35.component.soc.realtek.8195a.fwlib.src.hal_timer"/>
         <module name="machine-rtl8710.sdk_ameba_v35.component.soc.realtek.8195a.fwlib.rtl8195a.src.rtl8195a_timer"/>
+        <module name="machine-rtl8710.sdk_ameba_v35.component.os.os_dep.osdep_service"/>
+        <module name="machine-rtl8710.sdk_ameba_v35.component.os.os_dep.device_lock"/>
+
+        <module name="machine-rtl8710.sdk_ameba_v35.component.common.mbed.targets.hal.rtl8195a.flash_api"/>
+
+        <module name="machine-rtl8710.sdk_ameba_v35.component.common.api.wifi.rtw_wpa_supplicant.wpa_supplicant.wifi_eap_config"/>
 
         <module name="machine-rtl8710.wifi" />
         <module name="machine-rtl8710.malloc" />
