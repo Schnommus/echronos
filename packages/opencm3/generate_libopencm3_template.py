@@ -165,8 +165,6 @@ def find_irq_json_path(family):
         if family in os.path.relpath(found_path, libopencm3_real_path).replace("/",""):
             return found_path
 
-find_irq_json_path("stm32f4")
-
 def memory_size_string_to_int(size):
     postfixes = {
             'K': 1024,
@@ -183,6 +181,9 @@ def memory_size_string_to_int(size):
             return 0
 
 def generate_project_for_part(part, project_name, rtos_template):
+
+    project_subdir = os.path.dirname(project_name)
+    project_name = os.path.basename(project_name)
 
     chip_details = get_chip_details(part)
 
@@ -256,7 +257,7 @@ def generate_project_for_part(part, project_name, rtos_template):
 
     # SET UP PROJECT DIRECTORIES
 
-    output_dir = os.path.join(this_file_dir, "projects/{}-project".format(project_name))
+    output_dir = os.path.join(this_file_dir, project_subdir, "{}-project".format(project_name))
     template_dir = os.path.join(this_file_dir, "templates/{}".format(rtos_template))
 
     if not os.path.exists(template_dir):
@@ -342,12 +343,12 @@ def generate_project_for_part(part, project_name, rtos_template):
 parser = argparse.ArgumentParser(description='Generate an eChronos / libopencm3 project template.')
 
 parser.add_argument('part_id', help='Chip ID to generate a project for')
-parser.add_argument('--project_name', default=None, help='What to name the project.')
+parser.add_argument('--project_name', default=None, help='What to name the project, with target subdirectory.')
 parser.add_argument('--template', default="acamar", help='RTOS template to use.')
 
 args = parser.parse_args()
 
 if args.project_name == None:
-    args.project_name = args.part_id + '-' + args.template
+    args.project_name = "projects/" + args.part_id + '-' + args.template
 
 generate_project_for_part(args.part_id, args.project_name, args.template)
