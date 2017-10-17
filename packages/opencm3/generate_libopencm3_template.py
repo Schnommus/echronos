@@ -23,11 +23,12 @@ RTOS_TEMPLATES = {
     "acamar": {
             "irq_stubs": ["nmi", "hardfault", "memmanage", "busfault", "usagefault",
                           "svcall", "debug_monitor", "pendsv", "systick"],
-            "additional_modules": ["armv7m.ctxt-switch"]
+            "additional_modules": ["armv7m.ctxt-switch"],
+            "default_handler": "BLOCKING_HANDLER"
         }
     }
 
-def construct_prx(data):
+def construct_prx(data, rtos_template):
 
     def addEntriesTo(node, data_key, node_name):
         for e in data[data_key]:
@@ -58,14 +59,25 @@ def construct_prx(data):
     addModule('armv7m.semihost-debug')
     addModule('generic.debug')
 
+    ET.SubElement(modules, "include", file=data['rtos_dir'])
+
+    # Additional modules the RTOS may require (i.e context switching implementation)
+    for additional_module in RTOS_TEMPLATES[rtos_template]["additional_modules"]:
+        addModule(additional_module)
+
+    # Note these IRQ stubs are Cortex-M generic. External ones are in irq_prx
+    for irq_stub in RTOS_TEMPLATES[rtos_template]["irq_stubs"]:
+        ET.SubElement(vectable, irq_stub).text = irq_stub + "_isr"
+
     ET.SubElement(vectable, "flash_addr").text = data['rom_off']
     ET.SubElement(vectable, "flash_size").text = data['rom_size']
     ET.SubElement(vectable, "sram_addr").text = data['ram_off']
     ET.SubElement(vectable, "sram_size").text = data['ram_size']
     ET.SubElement(vectable, "include", file=data['extirq_dir'])
 
-    stub = addModule(data['module_prx_prefix'] + '.ADDME')
-    stub.addprevious(ET.Comment('Modify the below lines to add your own source'))
+    stub = addModule(data['module_prx_prefix'] + '.main')
+    stub.addprevious(ET.Comment('Add your own source files here'))
+    stub = addModule(data['module_prx_prefix'] + '.handlers')
 
     return ET.tostring(system, pretty_print=True, xml_declaration=True, encoding='UTF-8').decode()
 
@@ -170,7 +182,7 @@ def memory_size_string_to_int(size):
             print("Unknown postfix on memory size?!")
             return 0
 
-def generate_project_for_part(part, project_name):
+def generate_project_for_part(part, project_name, rtos_template):
 
     chip_details = get_chip_details(part)
 
@@ -244,15 +256,22 @@ def generate_project_for_part(part, project_name):
 
     # SET UP PROJECT DIRECTORIES
 
-    output_dir = os.path.join(this_file_dir, "{}-project".format(project_name))
+    output_dir = os.path.join(this_file_dir, "projects/{}-project".format(project_name))
+    template_dir = os.path.join(this_file_dir, "templates/{}".format(rtos_template))
+
+    if not os.path.exists(template_dir):
+        print("RTOS template '{}' was not found in templates/. Please specify a template that exists"
+                .format(rtos_template))
+        return
 
     prx_filename = "{}-system.prx".format(project_name)
     prx_extirq_filename = "{}-extirqs.prx".format(project_name)
+    prx_rtos_filename = "{}-rtos.prx".format(project_name)
 
     try:
         os.mkdir(output_dir)
     except FileExistsError:
-        print("Directory {} already exists. Please delete or specify an alternate name for this template."
+        print("Directory {} already exists. Please delete or specify an alternate name for this project."
                 .format(output_dir))
         return
 
@@ -260,12 +279,13 @@ def generate_project_for_part(part, project_name):
         path_no_ext = os.path.splitext(path)[0]
         return path_no_ext.replace("/",".")
 
-    prj_project_dir = os.path.join(this_file_dir_prj_relpath, os.path.basename(output_dir))
-    prj_project_reldir = os.path.join(os.path.basename(this_file_dir), os.path.basename(output_dir))
+    prj_project_reldir = os.path.join(os.path.basename(this_file_dir),
+                                      os.path.relpath(output_dir, this_file_dir))
     prj_system_module = path_to_prj_module(os.path.join(prj_project_reldir, prx_filename))
     prj_project_module = path_to_prj_module(prj_project_reldir)
 
-    prj_extirq_path = os.path.join(prj_project_dir, prx_extirq_filename)
+    prj_extirq_path = os.path.join(output_dir, prx_extirq_filename)
+    prj_rtos_path = os.path.join(output_dir, prx_rtos_filename)
 
     # START PREPARING DATA FOR WRITING
 
@@ -280,6 +300,7 @@ def generate_project_for_part(part, project_name):
     prx_data['ram_size'] = chip_details['RAM_SIZE']
     prx_data['module_prx_prefix'] = prj_project_module
     prx_data['extirq_dir'] = os.path.basename(prj_extirq_path)
+    prx_data['rtos_dir'] = os.path.basename(prj_rtos_path)
 
     prx_irq_data = {}
     prx_irq_data['irq2name'] = irq2name
@@ -287,7 +308,7 @@ def generate_project_for_part(part, project_name):
     # WRITE FILES
 
     with open(os.path.join(output_dir, prx_filename), "w") as prx_file:
-        prx_file.write(construct_prx(prx_data))
+        prx_file.write(construct_prx(prx_data, rtos_template))
 
     with open(os.path.join(output_dir, prx_extirq_filename), "w") as prx_extirq_file:
         prx_extirq_file.write(construct_irq_prx(prx_irq_data))
@@ -296,17 +317,37 @@ def generate_project_for_part(part, project_name):
         readme_file.write(readme_template.format(
             part_name=part, script_dir=os.path.basename(this_file_path), prj_dir=prj_system_module))
 
-    print("**PROJECT GENERATION COMPLETE**")
+    # COPY ACROSS TEMPLATES
+
+    with open(os.path.join(template_dir, "rtos.prx"), "r") as rtos_prx_template_file:
+        with open(os.path.join(output_dir, prx_rtos_filename), "w") as prx_rtos_file:
+            prx_rtos_file.write(rtos_prx_template_file.read())
+
+    with open(os.path.join(template_dir, "main.c"), "r") as main_source_file:
+        with open(os.path.join(output_dir, "main.c"), "w") as main_dest_file:
+            main_dest_file.write(main_source_file.read())
+
+
+    with open(os.path.join(template_dir, "handlers.c"), "r") as handlers_source_file:
+        handlers_source = handlers_source_file.read()
+        for (k, v) in irq2name:
+            handlers_source += "\n{}({}_isr)".format(
+                                    RTOS_TEMPLATES[rtos_template]["default_handler"], v)
+        with open(os.path.join(output_dir, "handlers.c"), "w") as handlers_dest_file:
+            handlers_dest_file.write(handlers_source)
+
+    print("** Generated '{}' **".format(output_dir))
 
 
 parser = argparse.ArgumentParser(description='Generate an eChronos / libopencm3 project template.')
 
 parser.add_argument('part_id', help='Chip ID to generate a project for')
 parser.add_argument('--project_name', default=None, help='What to name the project.')
+parser.add_argument('--template', default="acamar", help='RTOS template to use.')
 
 args = parser.parse_args()
 
 if args.project_name == None:
-    args.project_name = args.part_id
+    args.project_name = args.part_id + '-' + args.template
 
-generate_project_for_part(args.part_id, args.project_name)
+generate_project_for_part(args.part_id, args.project_name, args.template)

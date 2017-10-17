@@ -5,19 +5,21 @@
 
 void fn_a(void)
 {
+    debug_println("Started task A");
     for (;;)
     {
-        rtos_yield_to(RTOS_TASK_ID_B);
         debug_println("-> in task A");
+        rtos_yield_to(RTOS_TASK_ID_B);
     }
 }
 
 void fn_b(void)
 {
+    debug_println("Started task B");
     for (;;)
     {
-        rtos_yield_to(RTOS_TASK_ID_A);
         debug_println("-> in task B");
+        rtos_yield_to(RTOS_TASK_ID_A);
     }
 }
 
@@ -33,7 +35,9 @@ int main(void) {
 
     /* rtos_start should never return, spin forever */
 
+    debug_println("rtos_start returned? ...");
+
     while(1);
 
-	return 0;
+    return 0;
 }

@@ -1,0 +1,22 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<include_root>
+  <module name="armv7m.rtos-acamar">
+    <prefix>rtos</prefix>
+    <api_asserts>true</api_asserts>
+    <internal_asserts>true</internal_asserts>
+    <fatal_error>fatal</fatal_error>
+    <taskid_size>8</taskid_size>
+    <tasks>
+      <task>
+        <name>a</name>
+        <function>fn_a</function>
+        <stack_size>256</stack_size>
+      </task>
+      <task>
+        <name>b</name>
+        <function>fn_b</function>
+        <stack_size>256</stack_size>
+      </task>
+    </tasks>
+  </module>
+</include_root>

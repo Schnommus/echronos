@@ -10,15 +10,15 @@
  * easier to figure out which isr was fired.
  * Additionally they spit out the isr ID.*/
 
-#define BLOCKING_HANDLER(handler) \
-    void ##handler(void) \
+#define BLOCKING_HANDLER(NAME_ISR) \
+    void NAME_ISR(void) \
     { \
-        debug_println(#handler " - blocking..."); \
+        debug_println(#NAME_ISR " - blocking..."); \
         for(;;); \
     }
 
-#define NULL_HANDLER(handler) \
-    void ##handler(void) \
+#define NULL_HANDLER(NAME_ISR) \
+    void NAME_ISR(void) \
     { \
     }
 
@@ -30,7 +30,7 @@
 void
 fatal(const RtosErrorId error_id)
 {
-    debug_print("FATAL RTOS ERROR: 0x");
+    debug_print("RTOS FATAL ERROR: ");
     debug_printhex32(error_id);
     debug_println("");
     for (;;)
@@ -53,4 +53,4 @@ BLOCKING_HANDLER(debug_monitor_isr)
 BLOCKING_HANDLER(pendsv_isr)
 BLOCKING_HANDLER(systick_isr)
 
-/* PERIPHERAL/EXTERNAL ISRS */
+/* PERIPHERAL/EXTERNAL ISRS (automatically populated)*/
