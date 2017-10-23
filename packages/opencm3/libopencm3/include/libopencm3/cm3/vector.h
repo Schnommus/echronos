@@ -40,6 +40,12 @@
 #include <libopencm3/cm3/common.h>
 #include <libopencm3/cm3/nvic.h>
 
+void libopencm3_pre_main(void);
+
+#define USE_ECHRONOS_VECTABLE
+
+#ifndef USE_ECHRONOS_VECTABLE
+
 /** Type of an interrupt function. Only used to avoid hard-to-read function
  * pointers in the efm32_vector_table_t struct. */
 typedef void (*vector_table_entry_t)(void);
@@ -60,5 +66,7 @@ typedef struct {
 	vector_table_entry_t systick;
 	vector_table_entry_t irq[NVIC_IRQ_COUNT];
 } vector_table_t;
+
+#endif
 
 #endif

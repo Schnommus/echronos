@@ -26,6 +26,17 @@
 /* load the weak symbols for IRQ_HANDLERS */
 #include "../dispatch/vector_nvic.c"
 
+__attribute__((used))
+void libopencm3_pre_main(void)
+{
+	/* Ensure 8-byte alignment of stack pointer on interrupts */
+	/* Enabled by default on most Cortex-M parts, but not M3 r1 */
+	SCB_CCR |= SCB_CCR_STKALIGN;
+
+	/* might be provided by platform specific vector.c */
+	pre_main();
+}
+
 #ifndef USE_ECHRONOS_VECTABLE
 /* Symbols exported by the linker script(s): */
 extern unsigned _data_loadaddr, _data, _edata, _ebss, _stack;
@@ -104,7 +115,6 @@ void __attribute__ ((weak, naked)) reset_handler(void)
 	}
 
 }
-#endif
 
 void blocking_handler(void)
 {
@@ -130,3 +140,4 @@ void null_handler(void)
 #pragma weak debug_monitor_handler = null_handler
 #endif
 
+#endif

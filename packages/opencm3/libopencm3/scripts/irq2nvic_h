@@ -47,9 +47,13 @@ template_nvic_h = '''\
 
     @{{*/
 
+#define NVIC_IRQ_COUNT {irqcount}
+
 {irqdefinitions}
 
-#define NVIC_IRQ_COUNT {irqcount}
+#define USE_ECHRONOS_VECTABLE
+
+#ifndef USE_ECHRONOS_VECTABLE
 
 /**@}}*/
 
@@ -63,6 +67,8 @@ BEGIN_DECLS
 {isrprototypes}
 
 END_DECLS
+
+#endif
 
 /**@}}*/
 
@@ -78,6 +84,9 @@ template_vector_nvic_c = '''\
  * blocking_handler gets defined due to the way #pragma works.
  */
 
+#define USE_ECHRONOS_VECTABLE
+
+#ifndef USE_ECHRONOS_VECTABLE
 
 /** @defgroup CM3_nvic_isrpragmas_{partname_doxygen} User interrupt service routines (ISR) defaults for {partname_humanreadable}
     @ingroup CM3_nvic_isrpragmas
@@ -95,6 +104,8 @@ template_vector_nvic_c = '''\
 
 #define IRQ_HANDLERS \\
     {vectortableinitialization}
+
+#endif
 '''
 
 template_cmsis_h = '''\

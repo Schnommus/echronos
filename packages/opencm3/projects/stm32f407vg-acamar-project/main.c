@@ -1,4 +1,5 @@
 #include <libopencm3/cm3/common.h>
+#include <libopencm3/cm3/vector.h>
 #include <libopencm3/stm32/rcc.h>
 #include <libopencm3/stm32/gpio.h>
 
@@ -46,6 +47,8 @@ static void gpio_setup(void)
 }
 
 int main(void) {
+
+    libopencm3_pre_main();
 
     debug_println("Initializing peripherals...");
 

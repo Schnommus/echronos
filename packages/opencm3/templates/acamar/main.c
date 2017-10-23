@@ -1,4 +1,5 @@
 #include <libopencm3/cm3/common.h>
+#include <libopencm3/cm3/vector.h>
 
 #include "rtos-acamar.h"
 #include "debug.h"
@@ -24,6 +25,8 @@ void fn_b(void)
 }
 
 int main(void) {
+
+    libopencm3_pre_main();
 
     debug_println("Initializing peripherals...");
 
