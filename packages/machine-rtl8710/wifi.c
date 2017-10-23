@@ -268,10 +268,6 @@ int wifi_scan(rtw_scan_type_t scan_type, rtw_bss_type_t bss_type, void* result_p
     return ret;
 }
 
-uint32_t rtw_get_current_time() {
-    return 0;
-}
-
 int wifi_scan_networks(rtw_scan_result_handler_t results_handler, void* user_data) {
 	unsigned int max_ap_size = 64;
 

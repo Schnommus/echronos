@@ -116,7 +116,7 @@
 
         <module name="machine-rtl8710.sdk_ameba_v35.component.common.mbed.targets.hal.rtl8195a.flash_api"/>
 
-        <module name="machine-rtl8710.sdk_ameba_v35.component.common.api.wifi.rtw_wpa_supplicant.wpa_supplicant.wifi_eap_config"/>
+        <!--<module name="machine-rtl8710.sdk_ameba_v35.component.common.api.wifi.rtw_wpa_supplicant.wpa_supplicant.wifi_eap_config"/>-->
 
         <module name="machine-rtl8710.wifi" />
         <module name="machine-rtl8710.malloc" />

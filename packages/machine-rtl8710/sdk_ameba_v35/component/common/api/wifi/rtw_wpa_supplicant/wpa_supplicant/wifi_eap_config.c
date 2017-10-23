@@ -1,7 +1,6 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#include "FreeRTOS.h"
 #include "task.h"
 #include "main.h"
 #include "queue.h"
@@ -72,7 +71,7 @@ void judge_station_disconnect(void)
 	switch(mode) {
 	case IW_MODE_MASTER:	//In AP mode
 		wifi_off();
-		vTaskDelay(20);
+		rtw_msleep_os(20);	//wait handler done
 		wifi_on(RTW_MODE_STA);
 		break;
 	case IW_MODE_INFRA:		//In STA mode
