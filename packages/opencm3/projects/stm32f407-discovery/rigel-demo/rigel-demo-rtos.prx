@@ -10,22 +10,43 @@
       <task>
         <name>a</name>
         <function>fn_a</function>
-        <stack_size>64</stack_size>
+        <stack_size>256</stack_size>
         <start>true</start>
       </task>
       <task>
         <name>b</name>
         <function>fn_b</function>
-        <stack_size>64</stack_size>
+        <stack_size>256</stack_size>
         <start>true</start>
       </task>
       <task>
         <name>c</name>
         <function>fn_c</function>
-        <stack_size>64</stack_size>
+        <stack_size>256</stack_size>
+        <start>true</start>
+      </task>
+      <task>
+        <name>d</name>
+        <function>fn_d</function>
+        <stack_size>256</stack_size>
         <start>true</start>
       </task>
     </tasks>
+    <signal_labels>
+      <signal_label>
+        <name>tim2</name>
+        <tasks>
+          <task>d</task>
+        </tasks>
+      </signal_label>
+    </signal_labels>
+    <interrupt_events>
+      <interrupt_event>
+        <name>tim2</name>
+        <task>d</task>
+        <sig_set>tim2</sig_set>
+      </interrupt_event>
+    </interrupt_events>
     <mutex>
       <stats>true</stats>
     </mutex>

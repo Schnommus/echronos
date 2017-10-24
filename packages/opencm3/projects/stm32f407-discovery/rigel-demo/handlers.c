@@ -88,7 +88,7 @@ BLOCKING_HANDLER(tim1_brk_tim9_isr)
 BLOCKING_HANDLER(tim1_up_tim10_isr)
 BLOCKING_HANDLER(tim1_trg_com_tim11_isr)
 BLOCKING_HANDLER(tim1_cc_isr)
-BLOCKING_HANDLER(tim2_isr)
+//BLOCKING_HANDLER(tim2_isr) - we are using this!
 BLOCKING_HANDLER(tim3_isr)
 BLOCKING_HANDLER(tim4_isr)
 BLOCKING_HANDLER(i2c1_ev_isr)

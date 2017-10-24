@@ -41,6 +41,9 @@
     <module name="armv7m.ctxt-switch"/>
     <!--Add your own source files here-->
     <module name="opencm3.projects.stm32f407-discovery.rigel-demo.main"/>
+    <module name="opencm3.projects.stm32f407-discovery.rigel-demo.mandelbrot"/>
+    <module name="opencm3.projects.stm32f407-discovery.rigel-demo.blink"/>
+    <module name="opencm3.projects.stm32f407-discovery.rigel-demo.morse"/>
     <module name="opencm3.projects.stm32f407-discovery.rigel-demo.handlers"/>
   </modules>
 </system>

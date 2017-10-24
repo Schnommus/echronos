@@ -4,94 +4,13 @@
 #include <libopencm3/stm32/rcc.h>
 #include <libopencm3/stm32/gpio.h>
 #include <libopencm3/stm32/usart.h>
+#include <libopencm3/stm32/timer.h>
 
 #include "rtos-rigel.h"
 #include "debug.h"
 
 /* Systick interrupt frequency, Hz */
 #define SYSTICK_FREQUENCY 100
-
-
-void fn_a(void)
-{
-    debug_println("task a: starting slow toggle");
-    for (;;)
-    {
-		gpio_toggle(GPIOD, GPIO12);
-        rtos_sleep(50);
-    }
-}
-
-void fn_b(void)
-{
-    debug_println("task b: starting fast toggle");
-    for (;;)
-    {
-		gpio_toggle(GPIOD, GPIO13);
-        rtos_sleep(10);
-    }
-}
-
-/* Mandelbrot calculations */
-
-/* Maximum number of iterations for the escape-time calculation */
-#define maxIter 32
-/* This array converts the iteration count to a character representation. */
-static char color[maxIter+1] = " .:++xxXXX%%%%%%################";
-
-/* Main mandelbrot calculation */
-static int iterate(float px, float py)
-{
-	int it = 0;
-	float x = 0, y = 0;
-	while (it < maxIter) {
-		float nx = x*x;
-		float ny = y*y;
-		if ((nx + ny) > 4) {
-			return it;
-		}
-		/* Zn+1 = Zn^2 + P */
-		y = 2*x*y + py;
-		x = nx - ny + px;
-		it++;
-	}
-	return 0;
-}
-
-void fn_c(void)
-{
-	float scale = 0.25f, centerX = -0.5f, centerY = 0.0f;
-
-    debug_println("task c: starting mandelbrot on USART2 (PA2)");
-
-    for (;;)
-    {
-		gpio_toggle(GPIOD, GPIO14);	/* Toggle LED every time we render a frame */
-
-        int x, y;
-        for (x = -60; x < 60; x++) {
-            for (y = -50; y < 50; y++) {
-                int i = iterate(centerX + x*scale, centerY + y*scale);
-                usart_send_blocking(USART2, color[i]);
-
-                /* yielding here so we don't miss any deadlines */
-                rtos_yield();
-            }
-            usart_send_blocking(USART2, '\r');
-            usart_send_blocking(USART2, '\n');
-        }
-
-		/* Change scale and center */
-		centerX += 0.175f * scale;
-		centerY += 0.522f * scale;
-		scale	*= 0.875f;
-
-		usart_send_blocking(USART2, '\r');
-		usart_send_blocking(USART2, '\n');
-		gpio_toggle(GPIOD, GPIO13);
-        rtos_sleep(10);
-    }
-}
 
 void systick_start(uint32_t systick_frequency, uint32_t ahb_frequency)
 {
@@ -155,6 +74,52 @@ static void usart_setup(void)
 	usart_enable(USART2);
 }
 
+static void tim_setup(void)
+{
+	/* Enable TIM2 clock. */
+	rcc_periph_clock_enable(RCC_TIM2);
+
+	/* Enable TIM2 interrupt. */
+	nvic_enable_irq(NVIC_TIM2_IRQ);
+
+	/* Reset TIM2 peripheral to defaults. */
+	rcc_periph_reset_pulse(RST_TIM2);
+
+	/* Timer global mode:
+	 * - No divider
+	 * - Alignment edge
+	 * - Direction up
+	 * (These are actually default values after reset above, so this call
+	 * is strictly unnecessary, but demos the api for alternative settings)
+	 */
+	timer_set_mode(TIM2, TIM_CR1_CKD_CK_INT,
+		TIM_CR1_CMS_EDGE, TIM_CR1_DIR_UP);
+
+	/*
+	 * Please take note that the clock source for STM32 timers
+	 * might not be the raw APB1/APB2 clocks.  In various conditions they
+	 * are doubled.  See the Reference Manual for full details!
+	 * In our case, TIM2 on APB1 is running at double frequency, so this
+	 * sets the prescaler to have the timer run at 5kHz
+	 */
+	timer_set_prescaler(TIM2, ((rcc_apb1_frequency * 2) / 5000));
+
+	/* Disable preload. */
+	timer_disable_preload(TIM2);
+	timer_continuous_mode(TIM2);
+
+	/* count full range, as we'll update compare value continuously */
+	timer_set_period(TIM2, 65535);
+
+	/* Set the initual output compare value for OC1. */
+	timer_set_oc_value(TIM2, TIM_OC1, 10000);
+
+	/* Counter enable. */
+	timer_enable_counter(TIM2);
+
+	/* Enable Channel 1 compare interrupt to recalculate compare values */
+	timer_enable_irq(TIM2, TIM_DIER_CC1IE);
+}
 
 int main(void)
 {
@@ -167,6 +132,7 @@ int main(void)
 	uint32_t ahb_freq = clock_setup();
 	gpio_setup();
     usart_setup();
+    tim_setup();
 
     /* Start the systick interrupt based on clock settings above */
 
