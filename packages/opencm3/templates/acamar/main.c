@@ -24,8 +24,8 @@ void fn_b(void)
     }
 }
 
-int main(void) {
-
+int main(void)
+{
     libopencm3_pre_main();
 
     debug_println("Initializing peripherals...");
@@ -40,7 +40,7 @@ int main(void) {
 
     debug_println("rtos_start returned? ...");
 
-    while(1);
+    for(;;);
 
     return 0;
 }

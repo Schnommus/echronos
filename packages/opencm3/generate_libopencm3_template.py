@@ -25,7 +25,13 @@ RTOS_TEMPLATES = {
                           "svcall", "debug_monitor", "pendsv", "systick"],
             "additional_modules": ["armv7m.ctxt-switch"],
             "default_handler": "BLOCKING_HANDLER"
-        }
+        },
+    "rigel": {
+            "irq_stubs": ["nmi", "hardfault", "memmanage", "busfault", "usagefault",
+                          "svcall", "debug_monitor", "pendsv", "systick"],
+            "additional_modules": ["armv7m.ctxt-switch"],
+            "default_handler": "BLOCKING_HANDLER"
+        },
     }
 
 def construct_prx(data, rtos_template):
