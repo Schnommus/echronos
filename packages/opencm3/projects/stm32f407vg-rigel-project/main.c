@@ -65,6 +65,9 @@ void fn_a(void)
         debug_print(" - ticks - ");
         debug_printhex32(rtos_timer_current_ticks);
         debug_println("");
+        /* Have to sleep here for a bit as semihosting takes up all the CPU time,
+         * not allowing the systick interrupt to occur */
+        rtos_sleep(1);
         rtos_yield();
     } while (!rtos_timer_check_overflow(RTOS_TIMER_ID_TEST));
 
