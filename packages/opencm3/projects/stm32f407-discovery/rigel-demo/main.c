@@ -3,6 +3,7 @@
 #include <libopencm3/cm3/systick.h>
 #include <libopencm3/stm32/rcc.h>
 #include <libopencm3/stm32/gpio.h>
+#include <libopencm3/stm32/usart.h>
 
 #include "rtos-rigel.h"
 #include "debug.h"
@@ -10,100 +11,85 @@
 /* Systick interrupt frequency, Hz */
 #define SYSTICK_FREQUENCY 100
 
+
 void fn_a(void)
 {
-    volatile int i;
-    uint8_t count;
-
-    rtos_task_start(RTOS_TASK_ID_B);
-
-    if (rtos_task_current() != RTOS_TASK_ID_A)
-    {
-        debug_println("task a: wrong task??");
-        for (;;)
-        {
-        }
-    }
-
-
-    debug_println("task a: taking lock");
-    rtos_mutex_lock(RTOS_MUTEX_ID_TEST);
-    rtos_yield();
-    if (rtos_mutex_try_lock(RTOS_MUTEX_ID_TEST))
-    {
-        debug_println("task a: ERROR: unexpected mutex not locked.");
-    }
-    debug_println("task a: releasing lock");
-    rtos_mutex_unlock(0);
-    rtos_yield();
-
-    for (count = 0; count < 10; count++)
-    {
-        debug_println("task a");
-        if (count % 5 == 0)
-        {
-            debug_println("task a: unblocking b");
-            rtos_signal_send(RTOS_TASK_ID_B, RTOS_SIGNAL_ID_TEST);
-        }
-        debug_println("task a: yield");
-        rtos_yield();
-    }
-
-    /* Do some sleeps */
-    debug_println("task a: sleep 10");
-    rtos_sleep(10);
-    debug_println("task a: sleep done - sleep 5");
-    rtos_sleep(5);
-    debug_println("task a: sleep done");
-
-
-    do {
-        debug_print("task a: remaining test - ");
-        debug_printhex32(rtos_timer_remaining(RTOS_TIMER_ID_TEST));
-        debug_print(" - remaining supervisor - ");
-        debug_printhex32(rtos_timer_remaining(RTOS_TIMER_ID_SUPERVISOR));
-        debug_print(" - ticks - ");
-        debug_printhex32(rtos_timer_current_ticks);
-        debug_println("");
-        /* Have to sleep here for a bit as semihosting takes up all the CPU time,
-         * not allowing the systick interrupt to occur */
-        rtos_sleep(1);
-        rtos_yield();
-    } while (!rtos_timer_check_overflow(RTOS_TIMER_ID_TEST));
-
-
-
-    if (!rtos_signal_poll(RTOS_SIGNAL_ID_TIMER))
-    {
-        debug_println("ERROR: couldn't poll expected timer.");
-    }
-
-    debug_println("task a: sleep for 100");
-    rtos_sleep(100);
-
-    /* Spin for a bit - force a missed ticked */
-    debug_println("task a: start delay");
-    for (i = 0 ; i < 50000000; i++)
-    {
-
-    }
-    debug_println("task a: complete delay");
-    rtos_yield();
-
-    debug_println("task a: now waiting for ticks");
+    debug_println("task a: starting slow toggle");
     for (;;)
     {
-        rtos_signal_wait(RTOS_SIGNAL_ID_TIMER);
-        debug_println("task a: timer tick");
+		gpio_toggle(GPIOD, GPIO12);
+        rtos_sleep(50);
     }
 }
 
 void fn_b(void)
 {
+    debug_println("task b: starting fast toggle");
     for (;;)
     {
-        debug_println("task b: sleeping for 7");
-        rtos_sleep(7);
+		gpio_toggle(GPIOD, GPIO13);
+        rtos_sleep(10);
+    }
+}
+
+/* Mandelbrot calculations */
+
+/* Maximum number of iterations for the escape-time calculation */
+#define maxIter 32
+/* This array converts the iteration count to a character representation. */
+static char color[maxIter+1] = " .:++xxXXX%%%%%%################";
+
+/* Main mandelbrot calculation */
+static int iterate(float px, float py)
+{
+	int it = 0;
+	float x = 0, y = 0;
+	while (it < maxIter) {
+		float nx = x*x;
+		float ny = y*y;
+		if ((nx + ny) > 4) {
+			return it;
+		}
+		/* Zn+1 = Zn^2 + P */
+		y = 2*x*y + py;
+		x = nx - ny + px;
+		it++;
+	}
+	return 0;
+}
+
+void fn_c(void)
+{
+	float scale = 0.25f, centerX = -0.5f, centerY = 0.0f;
+
+    debug_println("task c: starting mandelbrot on USART2 (PA2)");
+
+    for (;;)
+    {
+		gpio_toggle(GPIOD, GPIO14);	/* Toggle LED every time we render a frame */
+
+        int x, y;
+        for (x = -60; x < 60; x++) {
+            for (y = -50; y < 50; y++) {
+                int i = iterate(centerX + x*scale, centerY + y*scale);
+                usart_send_blocking(USART2, color[i]);
+
+                /* yielding here so we don't miss any deadlines */
+                rtos_yield();
+            }
+            usart_send_blocking(USART2, '\r');
+            usart_send_blocking(USART2, '\n');
+        }
+
+		/* Change scale and center */
+		centerX += 0.175f * scale;
+		centerY += 0.522f * scale;
+		scale	*= 0.875f;
+
+		usart_send_blocking(USART2, '\r');
+		usart_send_blocking(USART2, '\n');
+		gpio_toggle(GPIOD, GPIO13);
+        rtos_sleep(10);
     }
 }
 
@@ -132,18 +118,43 @@ uint32_t clock_setup(void)
 {
 	rcc_clock_setup_hse_3v3(&rcc_hse_8mhz_3v3[RCC_CLOCK_3V3_168MHZ]);
 
-	/* Enable GPIOD clock. */
+	/* Enable GPIO clock for LED & USARTs. */
 	rcc_periph_clock_enable(RCC_GPIOD);
+	rcc_periph_clock_enable(RCC_GPIOA);
+
+	/* Enable clocks for USART2. */
+	rcc_periph_clock_enable(RCC_USART2);
 
     return rcc_hse_8mhz_3v3[RCC_CLOCK_3V3_168MHZ].ahb_frequency;
 }
 
 static void gpio_setup(void)
 {
-	/* Set GPIO12-15 (in GPIO port D) to 'output push-pull'. */
+	/* Set GPIO12-15 (in GPIO port D) to 'output push-pull'. (LEDs) */
 	gpio_mode_setup(GPIOD, GPIO_MODE_OUTPUT,
 			GPIO_PUPD_NONE, GPIO12 | GPIO13 | GPIO14 | GPIO15);
+
+	/* Setup GPIO pins for USART2 transmit. */
+	gpio_mode_setup(GPIOA, GPIO_MODE_AF, GPIO_PUPD_NONE, GPIO2);
+
+	/* Setup USART2 TX pin as alternate function. */
+	gpio_set_af(GPIOA, GPIO_AF7, GPIO2);
 }
+
+static void usart_setup(void)
+{
+	/* Setup USART2 parameters. */
+	usart_set_baudrate(USART2, 115200);
+	usart_set_databits(USART2, 8);
+	usart_set_stopbits(USART2, USART_STOPBITS_1);
+	usart_set_mode(USART2, USART_MODE_TX);
+	usart_set_parity(USART2, USART_PARITY_NONE);
+	usart_set_flow_control(USART2, USART_FLOWCONTROL_NONE);
+
+	/* Finally enable the USART. */
+	usart_enable(USART2);
+}
+
 
 int main(void)
 {
@@ -155,6 +166,7 @@ int main(void)
 
 	uint32_t ahb_freq = clock_setup();
 	gpio_setup();
+    usart_setup();
 
     /* Start the systick interrupt based on clock settings above */
 
