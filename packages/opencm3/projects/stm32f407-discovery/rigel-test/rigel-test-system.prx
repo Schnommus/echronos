@@ -33,14 +33,14 @@
       <flash_size>0x00100000</flash_size>
       <sram_addr>0x20000000</sram_addr>
       <sram_size>0x00020000</sram_size>
-      <include file="stm32f407vg-acamar-extirqs.prx"/>
+      <include file="rigel-test-extirqs.prx"/>
     </module>
     <module name="armv7m.semihost-debug"/>
     <module name="generic.debug"/>
-    <include file="stm32f407vg-acamar-rtos.prx"/>
+    <include file="rigel-test-rtos.prx"/>
     <module name="armv7m.ctxt-switch"/>
     <!--Add your own source files here-->
-    <module name="opencm3.projects.stm32f407vg-acamar-project.main"/>
-    <module name="opencm3.projects.stm32f407vg-acamar-project.handlers"/>
+    <module name="opencm3.projects.stm32f407-discovery.rigel-test.main"/>
+    <module name="opencm3.projects.stm32f407-discovery.rigel-test.handlers"/>
   </modules>
 </system>

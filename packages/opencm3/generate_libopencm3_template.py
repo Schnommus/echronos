@@ -263,7 +263,7 @@ def generate_project_for_part(part, project_name, rtos_template):
 
     # SET UP PROJECT DIRECTORIES
 
-    output_dir = os.path.join(this_file_dir, project_subdir, "{}-project".format(project_name))
+    output_dir = os.path.join(this_file_dir, project_subdir, "{}".format(project_name))
     template_dir = os.path.join(this_file_dir, "templates/{}".format(rtos_template))
 
     if not os.path.exists(template_dir):

@@ -1,0 +1,46 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<system>
+  <defines>
+    <define>STM32F407VG</define>
+    <define>STM32F4CCM</define>
+    <define>STM32F4</define>
+  </defines>
+  <flags>
+    <flag>-mcpu=cortex-m4</flag>
+    <flag>-mthumb</flag>
+    <flag>-mfloat-abi=hard</flag>
+    <flag>-mfpu=fpv4-sp-d16</flag>
+  </flags>
+  <include_paths>
+    <include_path>packages/opencm3/libopencm3/include/</include_path>
+  </include_paths>
+  <libraries>
+    <library>packages/opencm3/libopencm3/lib/libopencm3_stm32f4.a</library>
+  </libraries>
+  <modules>
+    <module name="armv7m.build"/>
+    <module name="armv7m.vectable">
+      <nmi>nmi_isr</nmi>
+      <hardfault>hardfault_isr</hardfault>
+      <memmanage>memmanage_isr</memmanage>
+      <busfault>busfault_isr</busfault>
+      <usagefault>usagefault_isr</usagefault>
+      <svcall>svcall_isr</svcall>
+      <debug_monitor>debug_monitor_isr</debug_monitor>
+      <pendsv>pendsv_isr</pendsv>
+      <systick>systick_isr</systick>
+      <flash_addr>0x08000000</flash_addr>
+      <flash_size>0x00100000</flash_size>
+      <sram_addr>0x20000000</sram_addr>
+      <sram_size>0x00020000</sram_size>
+      <include file="rigel-demo-extirqs.prx"/>
+    </module>
+    <module name="armv7m.semihost-debug"/>
+    <module name="generic.debug"/>
+    <include file="rigel-demo-rtos.prx"/>
+    <module name="armv7m.ctxt-switch"/>
+    <!--Add your own source files here-->
+    <module name="opencm3.projects.stm32f407-discovery.rigel-demo.main"/>
+    <module name="opencm3.projects.stm32f407-discovery.rigel-demo.handlers"/>
+  </modules>
+</system>

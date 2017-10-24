@@ -41,6 +41,7 @@ fatal(const RtosErrorId error_id)
 void
 systick_isr(void)
 {
+    debug_println("systick");
     rtos_timer_tick();
 }
 
