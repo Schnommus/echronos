@@ -78,6 +78,8 @@ int main(void)
 
     /* Setup clocks, initialize peripherals etc. here */
 
+    /* TM4C processor requires AHB aperture to be enabled! */
+    gpio_enable_ahb_aperture();
 	clock_setup();
 	gpio_setup();
 
