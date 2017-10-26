@@ -23,18 +23,18 @@ RTOS_TEMPLATES = {
     "acamar": {
             "irq_stubs": ["nmi", "hardfault", "memmanage", "busfault", "usagefault",
                           "svcall", "debug_monitor", "pendsv", "systick"],
-            "additional_modules": ["armv7m.ctxt-switch"],
+            "additional_arch_modules": ["ctxt-switch"],
             "default_handler": "BLOCKING_HANDLER"
         },
     "rigel": {
             "irq_stubs": ["nmi", "hardfault", "memmanage", "busfault", "usagefault",
                           "svcall", "debug_monitor", "pendsv", "systick"],
-            "additional_modules": ["armv7m.ctxt-switch"],
+            "additional_arch_modules": ["ctxt-switch"],
             "default_handler": "BLOCKING_HANDLER"
         },
     }
 
-def construct_prx(data, rtos_template):
+def construct_prx(data, rtos_template, arch):
 
     def addEntriesTo(node, data_key, node_name):
         for e in data[data_key]:
@@ -60,16 +60,20 @@ def construct_prx(data, rtos_template):
     def addModule(module_name):
         return ET.SubElement(modules, "module", name=module_name)
 
-    addModule('armv7m.build')
-    vectable = addModule('armv7m.vectable')
-    addModule('armv7m.semihost-debug')
+    def addArchModule(module_name):
+        module_name = arch + '.' + module_name
+        return ET.SubElement(modules, "module", name=module_name)
+
+    addArchModule('build')
+    vectable = addArchModule('vectable')
+    addArchModule('semihost-debug')
     addModule('generic.debug')
 
-    ET.SubElement(modules, "include", file=data['rtos_dir'])
-
     # Additional modules the RTOS may require (i.e context switching implementation)
-    for additional_module in RTOS_TEMPLATES[rtos_template]["additional_modules"]:
-        addModule(additional_module)
+    for additional_module in RTOS_TEMPLATES[rtos_template]["additional_arch_modules"]:
+        addArchModule(additional_module)
+
+    ET.SubElement(modules, "include", file=data['rtos_dir'])
 
     # Note these IRQ stubs are Cortex-M generic. External ones are in irq_prx
     for irq_stub in RTOS_TEMPLATES[rtos_template]["irq_stubs"]:
@@ -134,7 +138,15 @@ genlink_realpath = ocm3_relpath_to_os_realpath(ocm3_genlink_relpath)
 ld_data_realpath = ocm3_relpath_to_os_realpath(ocm3_ld_data_relpath)
 
 cortex_architectures = ['cortex-m0', 'cortex-m0plus', 'cortex-m3', 'cortex-m4', 'cortex-m7']
-echronos_supported_architectures = ['cortex-m3', 'cortex-m4', 'cortex-m7']
+echronos_supported_architectures = ['cortex-m0', 'cortex-m0plus', 'cortex-m3', 'cortex-m4', 'cortex-m7']
+
+arch_map = {
+        'cortex-m0': 'armv6m',
+        'cortex-m0plus': 'armv6m',
+        'cortex-m3': 'armv7m',
+        'cortex-m4': 'armv7m',
+        'cortex-m7': 'armv7m',
+        }
 
 def get_chip_detail(chip, mode):
     awk_command = """awk -v PAT="{}" -v MODE="{}" -f {} {}""".format(chip, mode, genlink_realpath, ld_data_realpath)
@@ -203,10 +215,12 @@ def generate_project_for_part(part, project_name, rtos_template):
         print("CPU architecture '{}' is not currently supported by the RTOS".format(part_cpu))
         return
 
+    chip_architecture = arch_map[chip_details['CPU']];
+
     arch_flags += ['-mthumb']
 
     if chip_details['FPU'] == "soft":
-        arch_flags += ["-msoft_float"]
+        arch_flags += ["-msoft-float"]
     elif chip_details['FPU'] == "hard-fpv4-sp-d16":
         arch_flags += ["-mfloat-abi=hard", "-mfpu=fpv4-sp-d16"]
     elif chip_details['FPU'] == "hard-fpv5-sp-d16":
@@ -315,7 +329,7 @@ def generate_project_for_part(part, project_name, rtos_template):
     # WRITE FILES
 
     with open(os.path.join(output_dir, prx_filename), "w") as prx_file:
-        prx_file.write(construct_prx(prx_data, rtos_template))
+        prx_file.write(construct_prx(prx_data, rtos_template, chip_architecture))
 
     with open(os.path.join(output_dir, prx_extirq_filename), "w") as prx_extirq_file:
         prx_extirq_file.write(construct_irq_prx(prx_irq_data))
@@ -328,7 +342,7 @@ def generate_project_for_part(part, project_name, rtos_template):
 
     with open(os.path.join(template_dir, "rtos.prx"), "r") as rtos_prx_template_file:
         with open(os.path.join(output_dir, prx_rtos_filename), "w") as prx_rtos_file:
-            prx_rtos_file.write(rtos_prx_template_file.read())
+            prx_rtos_file.write(rtos_prx_template_file.read().format(chip_architecture))
 
     with open(os.path.join(template_dir, "main.c"), "r") as main_source_file:
         with open(os.path.join(output_dir, "main.c"), "w") as main_dest_file:

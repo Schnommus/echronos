@@ -1,0 +1,8 @@
+Traceback (most recent call last):
+  File "prj/app/prj.py", line 573, in run
+    self._py_module.run(system, config)
+  File "packages/armv6m/build.py", line 18, in run
+    return system_build(system)
+  File "packages/armv6m/build.py", line 55, in system_build
+    execute(['arm-none-eabi-as', '-o', obj_file_path, asm_file_path] + a_flags + inc_path_args)
+TypeError: can only concatenate list (not "NoneType") to list

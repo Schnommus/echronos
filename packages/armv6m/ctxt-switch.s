@@ -1,0 +1,52 @@
+/*
+ * eChronos Real-Time Operating System
+ * Copyright (c) 2017, Commonwealth Scientific and Industrial Research
+ * Organisation (CSIRO) ABN 41 687 119 230.
+ *
+ * All rights reserved. CSIRO is willing to grant you a licence to the eChronos
+ * real-time operating system under the terms of the CSIRO_BSD_MIT license. See
+ * the file "LICENSE_CSIRO_BSD_MIT.txt" for details.
+ *
+ * @TAG(CSIRO_BSD_MIT)
+ */
+
+.syntax unified
+.section .text
+
+/*
+ * A subroutine must preserve the contents of the registers r4-r8,
+ * r10, r11 and SP (and r9 in PCS variants that
+ * designate r9 as v6).
+ */
+
+.global rtos_internal_context_switch
+.type rtos_internal_context_switch,#function
+/* void rtos_internal_context_switch(context_t *to, context_t *from); */
+rtos_internal_context_switch:
+        push {r4-r7,r14}
+        mov r4, sp
+        str r4, [r1]
+        /* fallthrough */
+
+
+.global rtos_internal_context_switch_first
+.type rtos_internal_context_switch_first,#function
+/* void rtos_internal_context_switch_first(context_t *to); */
+rtos_internal_context_switch_first:
+        ldr r4, [r0]
+        mov sp, r4
+        pop {r4-r7,pc}
+.size rtos_internal_context_switch_first, .-rtos_internal_context_switch_first
+.size rtos_internal_context_switch, .-rtos_internal_context_switch
+
+.global rtos_internal_trampoline
+.type rtos_internal_trampoline,#function
+/*
+ * This function does not really obey a standard C abi.
+ * It is designed to be used in conjunction with the context
+ * switch code for the initial switch to a particular task.
+ * The tasks entry point is stored in 'r4'.
+ */
+rtos_internal_trampoline:
+        blx r4
+.size rtos_internal_trampoline, .-rtos_internal_trampoline
