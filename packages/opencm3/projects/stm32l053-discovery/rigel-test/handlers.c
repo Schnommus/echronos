@@ -1,6 +1,6 @@
 #include <libopencm3/cm3/common.h>
 
-#include "rtos-acamar.h"
+#include "rtos-rigel.h"
 
 #include "debug.h"
 
@@ -38,6 +38,13 @@ fatal(const RtosErrorId error_id)
     }
 }
 
+void
+systick_isr(void)
+{
+    debug_println("systick");
+    rtos_timer_tick();
+}
+
 /* TODO: Remove the below handlers and redeclare
  * your own handler to use an ISR for your own purposes. */
 
@@ -47,7 +54,6 @@ BLOCKING_HANDLER(nmi_isr)
 BLOCKING_HANDLER(hardfault_isr)
 BLOCKING_HANDLER(svcall_isr)
 BLOCKING_HANDLER(pendsv_isr)
-BLOCKING_HANDLER(systick_isr)
 
 /* PERIPHERAL/EXTERNAL ISRS*/
 

@@ -26,19 +26,12 @@ class EntryModule(Module):
     <entry name="sram_addr" type="int" default="0x20000000" />
     <entry name="sram_size" type="int" />
     <entry name="stack_size" type="int" default="0x1000" />
-    <entry name="bitband_base" type="int" default="0x20000000" />
-    <entry name="bitband_size" type="int" default="0x100000" />
-    <entry name="bitband_alias" type="int" default="0x22000000" />
 
     <entry name="preemption" type="bool" optional="true" default="false" />
 
     <entry name="nmi" type="c_ident" default="reset" />
     <entry name="hardfault" type="c_ident" default="reset" />
-    <entry name="memmanage" type="c_ident" default="reset" />
-    <entry name="busfault" type="c_ident" default="reset" />
-    <entry name="usagefault" type="c_ident" default="reset" />
     <entry name="svcall" type="c_ident" optional="true" />
-    <entry name="debug_monitor" type="c_ident" default="reset" />
     <entry name="pendsv" type="c_ident" optional="true" />
     <entry name="systick" type="c_ident" default="reset" />
     <entry name="external_irqs" type="list" default="[]">
@@ -50,7 +43,6 @@ class EntryModule(Module):
 </schema>"""
 
     files = [
-        {'input': 'bitband.h'},
         {'input': 'vectable.s', 'render': True, 'type': 'asm'},
         {'input': 'default.ld', 'render': True, 'type': 'linker_script', 'stage': 'post_prepare'},
     ]
@@ -58,7 +50,6 @@ class EntryModule(Module):
     def configure(self, xml_config):
         config = {}
         config['external_irqs'] = []
-        config['bit_aliases'] = []  # A list of variables that should have bitband aliases created.
 
         config.update(super().configure(xml_config))
         # Fill in external IRQ vector list
@@ -72,32 +63,5 @@ class EntryModule(Module):
             config['flash_load_addr'] = config['flash_addr']
 
         return config
-
-    def post_prepare(self, system, config):
-        # Now find all the BITBAND variables in all the c_files.
-        def callback(macro_name, expanded_args):
-            bitband_macros = ('BITBAND_VAR', 'BITBAND_VAR_ARRAY',
-                              'VOLATILE_BITBAND_VAR', 'VOLATILE_BITBAND_VAR_ARRAY')
-            if macro_name in bitband_macros and \
-                    len(expanded_args[1]) == 1 and \
-                    expanded_args[1][0].type == 'CPP_ID':
-                config['bit_aliases'].append(expanded_args[1][0].value)
-
-        pre_processor = ply.cpp.Preprocessor(include_paths=system.include_paths,
-                                             macro_callback=callback)
-
-        define_header = ''
-        for define in system.defines:
-            define_header += "#define {}\n".format(define);
-
-        for c_file in system.c_files:
-            with open(c_file) as file_obj:
-                try:
-                    pre_processor.parse(define_header+file_obj.read(), c_file)
-                except ply.cpp.CppError as exc:
-                    raise SystemBuildError(str(exc))
-
-        super().post_prepare(system, config)
-
 
 module = EntryModule()  # pylint: disable=invalid-name

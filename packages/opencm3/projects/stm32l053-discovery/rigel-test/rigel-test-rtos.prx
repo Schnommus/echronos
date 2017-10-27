@@ -1,6 +1,6 @@
 <?xml version='1.0' encoding='UTF-8'?>
 <include_root>
-  <module name="{}.rtos-rigel">
+  <module name="armv6m.rtos-rigel">
     <prefix>rtos</prefix>
     <signalset_size>8</signalset_size>
     <api_asserts>true</api_asserts>

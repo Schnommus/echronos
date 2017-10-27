@@ -23,9 +23,9 @@ vector_table:
         .word entry
         .word {{nmi}}
         .word {{hardfault}}
-        .word {{memmanage}}
-        .word {{busfault}}
-        .word {{usagefault}}
+        .word reset
+        .word reset
+        .word reset
         .word reset
         .word reset
         .word reset
@@ -45,7 +45,7 @@ vector_table:
 {{/svcall}}
 {{/preemption}}
 
-        .word {{debug_monitor}}
+        .word reset
         .word reset
 {{#preemption}}{{#pendsv}}.error "The PendSV vector is not available on preemption-supporting systems"{{/pendsv}}
         /* On preemption-supporting systems, we use the PendSV vector to implement task preemption triggered by an

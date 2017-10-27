@@ -23,7 +23,7 @@ def system_build(system):
     common_flags = ['-mthumb', '-g3']
 
     if system.compiler_flags == []:
-        common_flags += '-march=armv7-m'
+        common_flags += '-march=armv6-m'
     else:
         common_flags += system.compiler_flags
 
@@ -60,4 +60,5 @@ def system_build(system):
 
     # Perform final link
     obj_files = asm_obj_files + c_obj_files + library_paths
-    execute(['arm-none-eabi-ld', '-T', system.linker_script, '-o', system.output_file] + obj_files)
+    linker_flags = common_flags + ["-ffreestanding", "-nostartfiles"]
+    execute(['arm-none-eabi-gcc', '-T', system.linker_script, '-o', system.output_file] + linker_flags + obj_files)

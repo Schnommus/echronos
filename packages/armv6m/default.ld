@@ -51,24 +51,15 @@ SECTIONS
             . = ALIGN(4);
         } AT > flash_load_region
 
-        .data.bitband :
-        {
-            *(.data.bitband)
-            . = ALIGN(4);
-        } > sram_region AT > flash_load_region
-
-        /* Check that bitband variables don't overflow */
-        dummy = ASSERT(SIZEOF(.data.bitband) <= {{bitband_size}}, "bitband variables too large");
-
         .data :
         {
             *(.data*)
             . = ALIGN(4);
         } > sram_region AT > flash_load_region
 
-        data_load_addr = LOADADDR(.data.bitband);
-        data_virt_addr = ADDR(.data.bitband);
-        data_size = SIZEOF(.data.bitband) + SIZEOF(.data);
+        data_load_addr = LOADADDR(.data);
+        data_virt_addr = ADDR(.data);
+        data_size = SIZEOF(.data);
 
         /* Check addresses are correct */
         dummy = ASSERT(data_load_addr % 4 == 0, "data_load_addr not word aligned");
@@ -89,11 +80,6 @@ SECTIONS
             . = . + {{stack_size}};
             stack = .;
         } > sram_region
-
-        /* Aliases for all the bitband variables */
-        {{#bit_aliases}}
-        {{.}}_bitband = {{bitband_alias}} + (({{.}} - {{bitband_base}}) * 32);
-        {{/bit_aliases}}
 
         /* Debug sections */
 

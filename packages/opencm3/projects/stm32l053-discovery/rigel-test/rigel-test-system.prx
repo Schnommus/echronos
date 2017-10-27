@@ -27,14 +27,14 @@
       <flash_size>0x00008000</flash_size>
       <sram_addr>0x20000000</sram_addr>
       <sram_size>0x00002000</sram_size>
-      <include file="acamar-demo-extirqs.prx"/>
+      <include file="rigel-test-extirqs.prx"/>
     </module>
     <module name="armv6m.semihost-debug"/>
     <module name="generic.debug"/>
     <module name="armv6m.ctxt-switch"/>
-    <include file="acamar-demo-rtos.prx"/>
+    <include file="rigel-test-rtos.prx"/>
     <!--Add your own source files here-->
-    <module name="opencm3.projects.stm32l053-discovery.acamar-demo.main"/>
-    <module name="opencm3.projects.stm32l053-discovery.acamar-demo.handlers"/>
+    <module name="opencm3.projects.stm32l053-discovery.rigel-test.main"/>
+    <module name="opencm3.projects.stm32l053-discovery.rigel-test.handlers"/>
   </modules>
 </system>

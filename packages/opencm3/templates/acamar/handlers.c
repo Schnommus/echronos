@@ -40,17 +40,3 @@ fatal(const RtosErrorId error_id)
 
 /* TODO: Remove the below handlers and redeclare
  * your own handler to use an ISR for your own purposes. */
-
-/* CORTEX-M GENERIC ISRS */
-
-BLOCKING_HANDLER(nmi_isr)
-BLOCKING_HANDLER(hardfault_isr)
-BLOCKING_HANDLER(memmanage_isr)
-BLOCKING_HANDLER(busfault_isr)
-BLOCKING_HANDLER(usagefault_isr)
-BLOCKING_HANDLER(svcall_isr)
-BLOCKING_HANDLER(debug_monitor_isr)
-BLOCKING_HANDLER(pendsv_isr)
-BLOCKING_HANDLER(systick_isr)
-
-/* PERIPHERAL/EXTERNAL ISRS (automatically populated)*/

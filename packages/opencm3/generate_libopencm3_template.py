@@ -21,18 +21,31 @@ from lxml import etree as ET
 
 RTOS_TEMPLATES = {
     "acamar": {
-            "irq_stubs": ["nmi", "hardfault", "memmanage", "busfault", "usagefault",
-                          "svcall", "debug_monitor", "pendsv", "systick"],
             "additional_arch_modules": ["ctxt-switch"],
-            "default_handler": "BLOCKING_HANDLER"
+            "default_handler": "BLOCKING_HANDLER",
+            "used_irqs": []
         },
     "rigel": {
-            "irq_stubs": ["nmi", "hardfault", "memmanage", "busfault", "usagefault",
-                          "svcall", "debug_monitor", "pendsv", "systick"],
             "additional_arch_modules": ["ctxt-switch"],
-            "default_handler": "BLOCKING_HANDLER"
+            "default_handler": "BLOCKING_HANDLER",
+            "used_irqs": ["systick"]
         },
     }
+
+SUPPORTED_IRQS = {
+    "armv7m": ["nmi", "hardfault", "memmanage", "busfault", "usagefault",
+               "svcall", "debug_monitor", "pendsv", "systick"],
+    "armv6m": ["nmi", "hardfault", "svcall", "pendsv", "systick"],
+    }
+
+
+ISR_STUBS_TEMPLATE = """
+/* CORTEX-M GENERIC ISRS */
+
+{generic_isr_stubs}
+/* PERIPHERAL/EXTERNAL ISRS*/
+
+{external_isr_stubs} """
 
 def construct_prx(data, rtos_template, arch):
 
@@ -76,7 +89,7 @@ def construct_prx(data, rtos_template, arch):
     ET.SubElement(modules, "include", file=data['rtos_dir'])
 
     # Note these IRQ stubs are Cortex-M generic. External ones are in irq_prx
-    for irq_stub in RTOS_TEMPLATES[rtos_template]["irq_stubs"]:
+    for irq_stub in SUPPORTED_IRQS[arch]:
         ET.SubElement(vectable, irq_stub).text = irq_stub + "_isr"
 
     ET.SubElement(vectable, "flash_addr").text = data['rom_off']
@@ -351,9 +364,24 @@ def generate_project_for_part(part, project_name, rtos_template):
 
     with open(os.path.join(template_dir, "handlers.c"), "r") as handlers_source_file:
         handlers_source = handlers_source_file.read()
+
+        generic_irq_definitions = ""
+        for generic_irq in SUPPORTED_IRQS[chip_architecture]:
+            if generic_irq not in RTOS_TEMPLATES[rtos_template]["used_irqs"]:
+                generic_irq_definitions += "{}({}_isr)\n".format(
+                                    RTOS_TEMPLATES[rtos_template]["default_handler"], generic_irq)
+
+        external_irq_definitions = ""
         for (k, v) in irq2name:
-            handlers_source += "\n{}({}_isr)".format(
+            external_irq_definitions += "{}({}_isr)\n".format(
                                     RTOS_TEMPLATES[rtos_template]["default_handler"], v)
+
+
+        handlers_source += ISR_STUBS_TEMPLATE.format(
+                generic_isr_stubs=generic_irq_definitions,
+                external_isr_stubs=external_irq_definitions
+                )
+
         with open(os.path.join(output_dir, "handlers.c"), "w") as handlers_dest_file:
             handlers_dest_file.write(handlers_source)
 

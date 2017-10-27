@@ -2,12 +2,10 @@
 {{#interrupt_events.length}}
 #include <stdint.h>
 #include <stdbool.h>
-#include "bitband.h"
 {{/interrupt_events.length}}
 
 /*| object_like_macros |*/
 #define interrupt_event rtos_internal_interrupt_event
-#define interrupt_event_bitband rtos_internal_interrupt_event_bitband
 
 /*| types |*/
 
@@ -22,7 +20,7 @@ static inline void interrupt_event_wait(void);
 
 /*| state |*/
 {{#interrupt_events.length}}
-VOLATILE_BITBAND_VAR(uint32_t, rtos_internal_interrupt_event);
+uint32_t rtos_internal_interrupt_event;
 {{/interrupt_events.length}}
 
 /*| function_like_macros |*/
@@ -36,7 +34,12 @@ interrupt_event_process(void)
     while (tmp != 0)
     {
         const {{prefix_type}}InterruptEventId i = __builtin_ffs(tmp) - 1;
-        interrupt_event_bitband[i] = 0;
+
+        /* armv6m has no atomic store instructions, just disable interrupts */
+        asm volatile("cpsid i");
+        interrupt_event &= ~(1U << i);
+        asm volatile("cpsie i");
+
         interrupt_event_handle(i);
         tmp &= ~(1U << i);
     }
@@ -71,6 +74,9 @@ interrupt_event_wait(void)
 void
 {{prefix_func}}interrupt_event_raise(const {{prefix_type}}InterruptEventId interrupt_event_id)
 {
-    interrupt_event_bitband[interrupt_event_id] = 1;
+    /* armv6m has no atomic store instructions, just disable interrupts */
+    asm volatile("cpsid i");
+    interrupt_event |= (1U << interrupt_event_id);
+    asm volatile("cpsie i");
 }
 {{/interrupt_events.length}}
