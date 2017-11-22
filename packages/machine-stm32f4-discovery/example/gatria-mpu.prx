@@ -89,6 +89,13 @@
         </task>
 
       </tasks>
+
+      <mutexes>
+        <mutex>
+          <name>a</name>
+        </mutex>
+      </mutexes>
+
     </module>
 
     <module name="rtos-example.gatria-mpu-test" />

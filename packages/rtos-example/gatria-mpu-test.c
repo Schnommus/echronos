@@ -102,6 +102,12 @@ iteration()
 void
 fn_a(void)
 {
+
+    debug_println("task a -- unblocking all tasks.");
+
+    rtos_unblock(0);
+    rtos_unblock(1);
+
     /* store the address of a variable on stack of task 0 */
     uint32_t x = 0;
     dom1_stack_variable_addr = &x;
@@ -109,6 +115,33 @@ fn_a(void)
     debug_print("dom1_stack_variable_addr=");
     debug_printhex32((uint32_t)dom1_stack_variable_addr);
     debug_println("");
+
+    debug_println("task a -- locking.");
+
+    rtos_mutex_lock(RTOS_MUTEX_ID_A);
+
+    if (rtos_mutex_try_lock(RTOS_MUTEX_ID_A))
+    {
+        debug_println("task a -- unexpected mutex not locked.");
+    }
+
+    /* Try an iteration of task b with the mutex locked
+     * (doesn't perform an iteration in task b as it won't get a lock) */
+
+    rtos_yield();
+
+    /* Now try with the mutex unlocked
+     * (will perform an iteration in task_b) */
+
+    debug_println("task a -- unlocking.");
+
+    rtos_mutex_unlock(RTOS_MUTEX_ID_A);
+
+    rtos_yield();
+
+    /* Task b now holds the lock and will never release it.
+     * System will ping-pong between task a and task b forever */
+
 
     for (;;)
     {
@@ -122,7 +155,17 @@ fn_b(void)
 {
     for (;;)
     {
-        iteration();
+        debug_println("task b -- try lock...");
+        if (rtos_mutex_try_lock(RTOS_MUTEX_ID_A))
+        {
+            debug_println("task b -- got lock, performing iteration...");
+            iteration();
+            rtos_mutex_unlock(RTOS_MUTEX_ID_A);
+        }
+        else
+        {
+            debug_println("task b couldn't get lock...");
+        }
         rtos_yield();
     }
 }
