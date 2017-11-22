@@ -101,7 +101,7 @@
 
       <mutexes>
         <mutex>
-          <name>a</name>
+          <name>test</name>
         </mutex>
       </mutexes>
 
