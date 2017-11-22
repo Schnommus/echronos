@@ -48,6 +48,8 @@ internal_mutex_try_lock(const {{prefix_type}}MutexId m)
 void
 {{prefix_func}}mutex_lock(const {{prefix_type}}MutexId m) {{prefix_const}}REENTRANT
 {
+    rtos_internal_api_begin();
+
     assert_mutex_valid(m);
 
     preempt_disable();
@@ -58,15 +60,21 @@ void
     }
 
     preempt_enable();
+
+    rtos_internal_api_end();
 }
 
 void
 {{prefix_func}}mutex_unlock(const {{prefix_type}}MutexId m)
 {
+    rtos_internal_api_begin();
+
     assert_mutex_valid(m);
 
     /* Note: assumes writing a single word is atomic */
     mutexes[m].locked = false;
+
+    rtos_internal_api_end();
 }
 
 bool
@@ -74,11 +82,15 @@ bool
 {
     bool r;
 
+    rtos_internal_api_begin();
+
     assert_mutex_valid(m);
 
     preempt_disable();
     r = internal_mutex_try_lock(m);
     preempt_enable();
+
+    rtos_internal_api_end();
 
     return r;
 }

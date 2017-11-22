@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+     eChronos Real-Time Operating System
+     Copyright (c) 2017, Commonwealth Scientific and Industrial Research
+     Organisation (CSIRO) ABN 41 687 119 230.
+
+     All rights reserved. CSIRO is willing to grant you a licence to the eChronos
+     real-time operating system under the terms of the CSIRO_BSD_MIT license. See
+     the file "LICENSE_CSIRO_BSD_MIT.txt" for details.
+
+     @TAG(CSIRO_BSD_MIT)
+-->
+
+<system>
+  <modules>
+    <module name="machine-stm32f4-discovery.build_mpu" />
+    <module name="armv7m.ctxt-switch" />
+    <module name="armv7m.vectable">
+      <flash_addr>0x8000000</flash_addr>
+      <flash_size>0x100000</flash_size>
+      <sram_size>0x20000</sram_size>
+      <mpu_enabled>true</mpu_enabled>
+      <nmi>nmi</nmi>
+      <hardfault>hardfault</hardfault>
+      <usagefault>usagefault</usagefault>
+      <busfault>busfault</busfault>
+    </module>
+    <module name="armv7m.semihost-debug" />
+    <module name="generic.debug" />
+
+    <module name="armv7m.rtos-gatria">
+      <mpu_enabled>true</mpu_enabled>
+      <mpu_verbose_faults>true</mpu_verbose_faults>
+      <mpu_skip_faulting_instructions>true</mpu_skip_faulting_instructions>
+      <mpu_protection_domains>
+          <protection_domain>
+              <name>dom1</name>
+              <domain_size>256</domain_size>
+              <symbols>
+                  <symbol>dom1_variable</symbol>
+                  <symbol>dom1_stack_variable_addr</symbol>
+              </symbols>
+          </protection_domain>
+          <protection_domain>
+              <name>dom2</name>
+              <domain_size>256</domain_size>
+              <symbols>
+                  <symbol>dom2_variable</symbol>
+              </symbols>
+          </protection_domain>
+      </mpu_protection_domains>
+
+
+      <prefix>rtos</prefix>
+      <fatal_error>fatal</fatal_error>
+      <internal_asserts>true</internal_asserts>
+      <api_asserts>true</api_asserts>
+      <taskid_size>8</taskid_size>
+      <tasks>
+
+        <task>
+          <name>a</name>
+          <function>fn_a</function>
+          <stack_size>256</stack_size>
+          <mpu_associated_domains>
+              <domain>
+                  <name>dom1</name>
+                  <writeable>true</writeable>
+              </domain>
+              <domain>
+                  <name>dom2</name>
+              </domain>
+          </mpu_associated_domains>
+        </task>
+
+        <task>
+          <name>b</name>
+          <function>fn_b</function>
+          <stack_size>256</stack_size>
+          <mpu_associated_domains>
+              <domain>
+                  <name>dom1</name>
+              </domain>
+              <domain>
+                  <name>dom2</name>
+                  <writeable>true</writeable>
+              </domain>
+          </mpu_associated_domains>
+        </task>
+
+      </tasks>
+    </module>
+
+    <module name="rtos-example.gatria-mpu-test" />
+
+  </modules>
+</system>
