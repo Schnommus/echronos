@@ -45,10 +45,14 @@ unblock(const {{prefix_type}}TaskId task)
 void
 {{prefix_func}}yield(void) {{prefix_const}}REENTRANT
 {
+    rtos_internal_api_begin();
     const {{prefix_type}}TaskId to = sched_get_next();
     yield_to(to);
+    rtos_internal_api_end();
 }
 
+
+/*| public_privileged_functions |*/
 void
 {{prefix_func}}start(void)
 {
@@ -56,7 +60,9 @@ void
     context_init(get_task_context({{idx}}), {{function}}, stack_{{idx}}, {{stack_size}});
     {{/tasks}}
 
+    {{#mpu_enabled}}
+    mpu_initialize();
+    {{/mpu_enabled}}
+
     context_switch_first(get_task_context({{prefix_const}}TASK_ID_ZERO));
 }
-
-/*| public_privileged_functions |*/

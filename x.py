@@ -156,6 +156,7 @@ CORE_SKELETONS = {
              Component('error'),
              Component('task'),
              Component('api-conditions'),
+             Component('mpu', pkg_component=True),
              Component('kraz')],
     'acrux': [Component('reentrant'),
               Component('stack', pkg_component=True),

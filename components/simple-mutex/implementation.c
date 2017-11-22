@@ -80,14 +80,12 @@ void
 bool
 {{prefix_func}}mutex_try_lock(const {{prefix_type}}MutexId m)
 {
-    bool r;
-
     rtos_internal_api_begin();
 
     assert_mutex_valid(m);
 
     preempt_disable();
-    r = internal_mutex_try_lock(m);
+    const bool r = internal_mutex_try_lock(m);
     preempt_enable();
 
     rtos_internal_api_end();

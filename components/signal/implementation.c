@@ -109,13 +109,15 @@ signal_wait_set_blocked_on(const {{prefix_type}}SignalSet requested_signals, con
 {{prefix_type}}SignalSet
 {{prefix_func}}signal_wait_set(const {{prefix_type}}SignalSet requested_signals) {{prefix_const}}REENTRANT
 {
-    {{prefix_type}}SignalSet received_signals;
+    rtos_internal_api_begin();
 
     preempt_disable();
 
-    received_signals = signal_wait_set(requested_signals);
+    const {{prefix_type}}SignalSet received_signals = signal_wait_set(requested_signals);
 
     preempt_enable();
+
+    rtos_internal_api_end();
 
     return received_signals;
 }
@@ -123,6 +125,8 @@ signal_wait_set_blocked_on(const {{prefix_type}}SignalSet requested_signals, con
 {{prefix_type}}SignalSet
 {{prefix_func}}signal_poll_set(const {{prefix_type}}SignalSet requested_signals)
 {
+    rtos_internal_api_begin();
+
     {{prefix_type}}SignalSet *const pending_signals = &PENDING_SIGNALS(get_current_task());
     {{prefix_type}}SignalSet received_signals;
 
@@ -132,19 +136,28 @@ signal_wait_set_blocked_on(const {{prefix_type}}SignalSet requested_signals, con
 
     preempt_enable();
 
+    rtos_internal_api_end();
+
     return received_signals;
 }
 
 {{prefix_type}}SignalSet
 {{prefix_func}}signal_peek_set(const {{prefix_type}}SignalSet requested_signals)
 {
+    rtos_internal_api_begin();
+
     const {{prefix_type}}SignalSet pending_signals = PENDING_SIGNALS(get_current_task());
+
+    rtos_internal_api_end();
+
     return pending_signals & requested_signals;
 }
 
 void
 {{prefix_func}}signal_send_set(const {{prefix_type}}TaskId task_id, const {{prefix_type}}SignalSet signals)
 {
+    rtos_internal_api_begin();
+
     assert_task_valid(task_id);
 
     preempt_disable();
@@ -152,6 +165,8 @@ void
     signal_send_set(task_id, signals);
 
     preempt_enable();
+
+    rtos_internal_api_end();
 }
 
 /*| public_privileged_functions |*/
