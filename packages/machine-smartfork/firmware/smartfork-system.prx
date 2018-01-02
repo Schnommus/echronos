@@ -1,0 +1,67 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<system>
+  <defines>
+    <define>STM32L053C6</define>
+    <define>STM32L0</define>
+    <define>STM32L053xx</define>
+    <define>USE_HAL_DRIVER</define>
+  </defines>
+  <flags>
+    <flag>-mcpu=cortex-m0plus</flag>
+    <flag>-mthumb</flag>
+    <flag>-msoft-float</flag>
+  </flags>
+  <include_paths>
+      <include_path>packages/machine-smartfork/firmware/inc</include_path>
+      <include_path>packages/machine-smartfork/firmware/drivers/STM32L0xx_HAL_Driver/Inc</include_path>
+      <include_path>packages/machine-smartfork/firmware/drivers/STM32L0xx_HAL_Driver/Inc/Legacy</include_path>
+      <include_path>packages/machine-smartfork/firmware/drivers/CMSIS/Device/ST/STM32L0xx/Include</include_path>
+      <include_path>packages/machine-smartfork/firmware/drivers/CMSIS/Include</include_path>
+  </include_paths>
+  <modules>
+    <module name="armv6m.build"/>
+    <module name="armv6m.vectable">
+      <nmi>nmi_isr</nmi>
+      <hardfault>hardfault_isr</hardfault>
+      <svcall>svcall_isr</svcall>
+      <pendsv>pendsv_isr</pendsv>
+      <systick>systick_isr</systick>
+      <flash_addr>0x08000000</flash_addr>
+      <flash_size>0x00008000</flash_size>
+      <sram_addr>0x20000000</sram_addr>
+      <sram_size>0x00002000</sram_size>
+      <include file="smartfork-extirqs.prx"/>
+    </module>
+    <module name="armv6m.semihost-debug"/>
+    <module name="generic.debug"/>
+    <module name="armv6m.ctxt-switch"/>
+    <include file="smartfork-rtos.prx"/>
+
+    <!--Add your own source files here-->
+    <module name="machine-smartfork.firmware.src.main"/>
+    <module name="machine-smartfork.firmware.src.system_stm32l0xx"/>
+    <module name="machine-smartfork.firmware.src.handlers"/>
+    <module name="machine-smartfork.firmware.src.stm32l0xx_hal_msp"/>
+    <module name="machine-smartfork.firmware.drivers.STM32L0xx_HAL_Driver.Src.stm32l0xx_hal_pwr_ex"/>
+    <module name="machine-smartfork.firmware.drivers.STM32L0xx_HAL_Driver.Src.stm32l0xx_hal"/>
+    <module name="machine-smartfork.firmware.drivers.STM32L0xx_HAL_Driver.Src.stm32l0xx_hal_cortex"/>
+    <module name="machine-smartfork.firmware.drivers.STM32L0xx_HAL_Driver.Src.stm32l0xx_hal_i2c"/>
+    <module name="machine-smartfork.firmware.drivers.STM32L0xx_HAL_Driver.Src.stm32l0xx_hal_flash_ex"/>
+    <module name="machine-smartfork.firmware.drivers.STM32L0xx_HAL_Driver.Src.stm32l0xx_hal_rcc_ex"/>
+    <module name="machine-smartfork.firmware.drivers.STM32L0xx_HAL_Driver.Src.stm32l0xx_hal_adc"/>
+    <module name="machine-smartfork.firmware.drivers.STM32L0xx_HAL_Driver.Src.stm32l0xx_hal_tsc"/>
+    <module name="machine-smartfork.firmware.drivers.STM32L0xx_HAL_Driver.Src.stm32l0xx_hal_tim"/>
+    <module name="machine-smartfork.firmware.drivers.STM32L0xx_HAL_Driver.Src.stm32l0xx_hal_dma"/>
+    <module name="machine-smartfork.firmware.drivers.STM32L0xx_HAL_Driver.Src.stm32l0xx_hal_uart_ex"/>
+    <module name="machine-smartfork.firmware.drivers.STM32L0xx_HAL_Driver.Src.stm32l0xx_hal_flash"/>
+    <module name="machine-smartfork.firmware.drivers.STM32L0xx_HAL_Driver.Src.stm32l0xx_hal_uart"/>
+    <module name="machine-smartfork.firmware.drivers.STM32L0xx_HAL_Driver.Src.stm32l0xx_hal_rcc"/>
+    <module name="machine-smartfork.firmware.drivers.STM32L0xx_HAL_Driver.Src.stm32l0xx_hal_i2c_ex"/>
+    <module name="machine-smartfork.firmware.drivers.STM32L0xx_HAL_Driver.Src.stm32l0xx_hal_flash_ramfunc"/>
+    <module name="machine-smartfork.firmware.drivers.STM32L0xx_HAL_Driver.Src.stm32l0xx_hal_gpio"/>
+    <module name="machine-smartfork.firmware.drivers.STM32L0xx_HAL_Driver.Src.stm32l0xx_hal_pwr"/>
+    <module name="machine-smartfork.firmware.drivers.STM32L0xx_HAL_Driver.Src.stm32l0xx_hal_adc_ex"/>
+    <module name="machine-smartfork.firmware.drivers.STM32L0xx_HAL_Driver.Src.stm32l0xx_hal_tim_ex"/>
+
+  </modules>
+</system>

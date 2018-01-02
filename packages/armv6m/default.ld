@@ -69,6 +69,7 @@ SECTIONS
         .bss :
         {
             *(.bss)
+            *(.bss*)
             *(COMMON)
             . = ALIGN(4);
         } > sram_region
@@ -77,6 +78,9 @@ SECTIONS
         bss_size = SIZEOF(.bss);
 
         .stack : {
+            . = ALIGN(8);
+            PROVIDE( end = . );
+            PROVIDE( _end = . );
             . = . + {{stack_size}};
             stack = .;
         } > sram_region

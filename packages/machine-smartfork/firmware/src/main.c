@@ -812,6 +812,7 @@ int main(void)
     // Power is cut here ^
     HAL_Delay(1000);
 
+    return 0;
 }
 
 /** System Clock Configuration
