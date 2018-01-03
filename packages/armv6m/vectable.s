@@ -108,5 +108,6 @@ entry:
         b 1b
 2:
 
-        b main
+        ldr r0, =main
+        mov pc, r0
 .size entry, .-entry

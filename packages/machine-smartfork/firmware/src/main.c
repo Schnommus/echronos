@@ -38,6 +38,7 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "stm32l0xx_hal.h"
+#include "rtos-rigel.h"
 
 #include <math.h>
 #include <string.h>
@@ -157,7 +158,7 @@ int sample_touch_at (int index, int what_to_sample) {
 
     HAL_TSC_IODischarge(&htsc, ENABLE);
 
-    HAL_Delay(1); // Wait for everything to discharge
+    rtos_sleep(1); // Wait for everything to discharge
 
     if(HAL_TSC_Start(&htsc) != HAL_OK) {
         printf("Error in HAL_TSC_Start");
@@ -165,6 +166,7 @@ int sample_touch_at (int index, int what_to_sample) {
 
     while(HAL_TSC_GetState(&htsc) == HAL_TSC_STATE_BUSY) {
         // Wait for the reading to complete
+        rtos_yield();
     }
 
     __HAL_TSC_CLEAR_FLAG(&htsc, (TSC_FLAG_EOA | TSC_FLAG_MCE));
@@ -339,7 +341,7 @@ press_result_t track_presses(int current_pressure) {
 
     if(previously_pressed == 0 && current_pressure > 4000) {
         result.just_pressed = 1;
-        ticks_when_pressed = HAL_GetTick();
+        ticks_when_pressed = rtos_timer_current_ticks;
     }
 
     // Bit of hysteresis here
@@ -347,7 +349,7 @@ press_result_t track_presses(int current_pressure) {
         result.just_released = 1;
     }
 
-    if(result.just_released && HAL_GetTick() - ticks_when_pressed < 100) {
+    if(result.just_released && rtos_timer_current_ticks - ticks_when_pressed < 100) {
         result.just_tapped = 1;
     }
 
@@ -531,7 +533,7 @@ int media_control(average_result_t deltas, press_result_t presses, int cooldown_
 
 void bt_send_cmd(char *s) {
     HAL_UART_Transmit(&huart1, (unsigned char*)s, strlen(s), 100);
-    HAL_Delay(250);
+    rtos_sleep(250);
 }
 
 void bt_send(char *s) {
@@ -541,7 +543,7 @@ void bt_send(char *s) {
 void program_rn42_module() {
     printf("**PROGRAMMING RN-42 MODULE**\n");
 
-    HAL_Delay(500);
+    rtos_sleep(500);
 
     bt_send_cmd("$$$");
     bt_send_cmd("SF,1\r");
@@ -588,8 +590,10 @@ touch_t sample_touch() {
     int y2 = sample_touch_at(1, SAMPLE_Y);
     int y3 = sample_touch_at(2, SAMPLE_Y);
 
-    printf("x1: %d, x2: %d, x3: %d, x4: %d, y1: %d, y2: %d, y3: %d\n",
-            x1, x2, x3, x4, y1, y2, y3);
+    rtos_yield();
+
+    /*printf("x1: %d, x2: %d, x3: %d, x4: %d, y1: %d, y2: %d, y3: %d\n",
+            x1, x2, x3, x4, y1, y2, y3); */
 
     int ignore_count =
         (x1 > IGNORE_MIN_PRESSURE) +
@@ -612,8 +616,15 @@ touch_t sample_touch() {
     int values_x[4] = {x1, x2, x3, x4};
     int values_y[3] = {y1, y2, y3};
 
+    rtos_yield();
+
     interpolation_result_t interp_x = interpolate_touch_values_x(values_x);
+
+    rtos_yield();
+
     interpolation_result_t interp_y = interpolate_touch_values_y(values_y);
+
+    rtos_yield();
 
     int pressure_final = (interp_x.pressure + interp_y.pressure)/10000;
 
@@ -630,15 +641,15 @@ void rgb_cycle() {
     set_led_brightness(RED_CHANNEL, 100);
     set_led_brightness(BLUE_CHANNEL, 0);
     set_led_brightness(GREEN_CHANNEL, 0);
-    HAL_Delay(50);
+    rtos_sleep(50);
     set_led_brightness(RED_CHANNEL, 0);
     set_led_brightness(BLUE_CHANNEL, 100);
     set_led_brightness(GREEN_CHANNEL, 0);
-    HAL_Delay(50);
+    rtos_sleep(50);
     set_led_brightness(RED_CHANNEL, 0);
     set_led_brightness(BLUE_CHANNEL, 0);
     set_led_brightness(GREEN_CHANNEL, 100);
-    HAL_Delay(50);
+    rtos_sleep(50);
     set_led_brightness(RED_CHANNEL, 0);
     set_led_brightness(BLUE_CHANNEL, 0);
     set_led_brightness(GREEN_CHANNEL, 0);
@@ -677,27 +688,11 @@ enum modes {
     MODE_N
 };
 
-int main(void)
+extern bool rtos_ready_for_ticks;
+
+void fn_task_a(void)
 {
-
-    /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
-    HAL_Init();
-
-    /* Configure the system clock */
-    SystemClock_Config();
-
-    /* Initialize all configured peripherals */
-    MX_GPIO_Init();
-    MX_ADC_Init();
-    MX_I2C1_Init();
-    MX_TSC_Init();
-    MX_USART1_UART_Init();
-    MX_TIM2_Init();
-
-    // Latch power on
-    HAL_GPIO_WritePin(PWR_LATCH_GPIO_Port, PWR_LATCH_Pin, GPIO_PIN_SET);
-
-    //program_rn42_module();
+    rtos_ready_for_ticks = true;
 
     // Cycle LEDs to show the world we are now alive
     for( int i = 0; i != 3; ++i ) {
@@ -709,7 +704,7 @@ int main(void)
     rgb_cycle();
 
     // Boot time in systicks
-    int tickStart = HAL_GetTick();
+    int tickStart = rtos_timer_current_ticks;
     int current_mode = MODE_MEDIA;
     int lastButtonUnpressedTicks = tickStart;
     int lastTouchTicks = tickStart;
@@ -723,11 +718,21 @@ int main(void)
 
         touch_t touch = sample_touch();
 
-        printf("X=%03d Y=%03d P=%05d\n", touch.x, touch.y, touch.pressure);
+        //printf("X=%03d Y=%03d P=%05d\n", touch.x, touch.y, touch.pressure);
+
+        rtos_yield();
+        printf("1\n");
+
 
         press_result_t presses = track_presses(touch.pressure);
 
+        rtos_yield();
+        printf("2\n");
+
         average_result_t deltas = average_deltas(touch.x, touch.y, presses.just_pressed);
+
+        rtos_yield();
+        printf("3\n");
 
         int target_brightness = touch.ignore ? 20 : 100;
 
@@ -751,14 +756,17 @@ int main(void)
             break;
         }
 
+        rtos_yield();
+        printf("4\n");
+
         // Manage cooldown - If started, set enable and start time
         // If enough time passed, disable
         if(cooldown.start) {
         	cooldown.enabled = 1;
         	cooldown.start = 0;
-        	cooldown.start_time = HAL_GetTick();
+        	cooldown.start_time = rtos_timer_current_ticks;
         }
-        if(cooldown.enabled == 1 && HAL_GetTick() - cooldown.start_time > COOLDOWN_LENGTH) {
+        if(cooldown.enabled == 1 && rtos_timer_current_ticks - cooldown.start_time > COOLDOWN_LENGTH) {
         	cooldown.enabled = 0;
         	cooldown.start_time = 0;
         }
@@ -766,28 +774,31 @@ int main(void)
         // If power button is held down for longer than specific time
         // turn the device off. If it is pressed for a short time, change modes.
         if(HAL_GPIO_ReadPin(PWR_BUTTON_GPIO_Port, PWR_BUTTON_Pin)) {
-            if(HAL_GetTick() - lastButtonUnpressedTicks > PWROFF_PUSHTIME_MS) {
+            if(rtos_timer_current_ticks - lastButtonUnpressedTicks > PWROFF_PUSHTIME_MS) {
                 break;
             }
         } else {
-            if(HAL_GetTick() - lastButtonUnpressedTicks > MODESWITCH_PUSHTIME_MS) {
+            if(rtos_timer_current_ticks - lastButtonUnpressedTicks > MODESWITCH_PUSHTIME_MS) {
                 ++current_mode;
                 if(current_mode >= MODE_N) {
                     current_mode = 0;
                 }
                 rgb_cycle();
             }
-            lastButtonUnpressedTicks = HAL_GetTick();
+            lastButtonUnpressedTicks = rtos_timer_current_ticks;
         }
+
+        rtos_yield();
+        printf("5\n");
 
         // Resting thumb or press keeps the thing alive
         if(touch.ignore || presses.currently_pressed) {
-            lastTouchTicks = HAL_GetTick();
+            lastTouchTicks = rtos_timer_current_ticks;
         }
 
         // If we haven't touched the device in a while,
         // power it off automatically
-        if(HAL_GetTick() - lastTouchTicks >= PWROFF_INACTIVE_TIME_MS) {
+        if(rtos_timer_current_ticks - lastTouchTicks >= PWROFF_INACTIVE_TIME_MS) {
             break;
         }
 
@@ -800,17 +811,46 @@ int main(void)
     set_led_brightness(BLUE_CHANNEL, 0);
 
     set_led_brightness(RED_CHANNEL, 150);
-    HAL_Delay(100);
+    rtos_sleep(100);
     set_led_brightness(RED_CHANNEL, 0);
-    HAL_Delay(100);
+    rtos_sleep(100);
     set_led_brightness(RED_CHANNEL, 150);
-    HAL_Delay(100);
+    rtos_sleep(100);
 
     // Leave red LED on for possible fading effect
 
     HAL_GPIO_WritePin(PWR_LATCH_GPIO_Port, PWR_LATCH_Pin, GPIO_PIN_RESET);
     // Power is cut here ^
-    HAL_Delay(1000);
+    rtos_sleep(1000);
+}
+
+int main(void)
+{
+
+    /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
+    HAL_Init();
+
+    /* Configure the system clock */
+    SystemClock_Config();
+
+    /* Initialize all configured peripherals */
+    MX_GPIO_Init();
+    MX_ADC_Init();
+    MX_I2C1_Init();
+    MX_TSC_Init();
+    MX_USART1_UART_Init();
+    MX_TIM2_Init();
+
+    // Latch power on
+    HAL_GPIO_WritePin(PWR_LATCH_GPIO_Port, PWR_LATCH_Pin, GPIO_PIN_SET);
+
+    printf("Starting RTOS\n");
+
+    rtos_start();
+
+    printf("Escaped RTOS?!\n");
+
+    for(;;);
 
     return 0;
 }

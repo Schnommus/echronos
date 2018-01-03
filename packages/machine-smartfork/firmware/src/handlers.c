@@ -5,6 +5,8 @@
 #include "stm32l0xx_hal.h"
 #include "stm32l0xx.h"
 
+bool rtos_ready_for_ticks = false;
+
 #define BLOCKING_HANDLER(NAME_ISR) \
     void NAME_ISR(void) \
     { \
@@ -37,13 +39,14 @@ void
 systick_isr(void)
 {
     /* TODO: Remove this once RTOS support is complete!*/
+    /*
     HAL_IncTick();
     HAL_SYSTICK_IRQHandler();
-
-    /* And put this back...
-    debug_println("systick");
-    rtos_timer_tick();
     */
+
+    if(rtos_ready_for_ticks) {
+        rtos_timer_tick();
+    }
 }
 
 /* TODO: Remove the below handlers and redeclare

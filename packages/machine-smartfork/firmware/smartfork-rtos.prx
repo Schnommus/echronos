@@ -9,14 +9,9 @@
     <tasks>
       <task>
         <name>a</name>
-        <function>fn_a</function>
-        <stack_size>64</stack_size>
+        <function>fn_task_a</function>
+        <stack_size>512</stack_size>
         <start>true</start>
-      </task>
-      <task>
-        <name>b</name>
-        <function>fn_b</function>
-        <stack_size>64</stack_size>
       </task>
     </tasks>
     <signal_labels>
@@ -28,7 +23,6 @@
         <name>timer</name>
         <tasks>
           <task>a</task>
-          <task>b</task>
         </tasks>
       </signal_label>
     </signal_labels>
