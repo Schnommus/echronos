@@ -102,6 +102,8 @@
 /* Includes ------------------------------------------------------------------*/
 #include "stm32l0xx_hal.h"
 
+#include <stdbool.h>
+
 /** @addtogroup STM32L0xx_HAL_Driver
   * @{
   */
@@ -2425,11 +2427,26 @@ HAL_StatusTypeDef UART_CheckIdleState(UART_HandleTypeDef *huart)
   * @param  Timeout Timeout duration
   * @retval HAL status
   */
+
+extern bool rtos_ready_for_ticks;
+extern void rtos_yield(void);
+
 HAL_StatusTypeDef UART_WaitOnFlagUntilTimeout(UART_HandleTypeDef *huart, uint32_t Flag, FlagStatus Status, uint32_t Tickstart, uint32_t Timeout)
 {
   /* Wait until flag is set */
   while((__HAL_UART_GET_FLAG(huart, Flag) ? SET : RESET) == Status)
   {
+
+    /* horrendous hack because I didn't have time to get
+     * IRQ-driven UART working.
+     * Stops RTOS from complaining about tick overflows
+     * by allowing other tasks to execute while the UART
+     * driver is busy-waiting */
+
+    if(rtos_ready_for_ticks) {
+        rtos_yield();
+    }
+
     /* Check for the Timeout */
     if(Timeout != HAL_MAX_DELAY)
     {

@@ -39,10 +39,9 @@ void
 systick_isr(void)
 {
     /* TODO: Remove this once RTOS support is complete!*/
-    /*
+
     HAL_IncTick();
     HAL_SYSTICK_IRQHandler();
-    */
 
     if(rtos_ready_for_ticks) {
         rtos_timer_tick();

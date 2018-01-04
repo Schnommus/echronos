@@ -705,7 +705,7 @@ void fn_task_a(void)
 
     // Boot time in systicks
     int tickStart = rtos_timer_current_ticks;
-    int current_mode = MODE_MEDIA;
+    int current_mode = MODE_MOUSE;
     int lastButtonUnpressedTicks = tickStart;
     int lastTouchTicks = tickStart;
 
@@ -721,18 +721,14 @@ void fn_task_a(void)
         //printf("X=%03d Y=%03d P=%05d\n", touch.x, touch.y, touch.pressure);
 
         rtos_yield();
-        printf("1\n");
-
 
         press_result_t presses = track_presses(touch.pressure);
 
         rtos_yield();
-        printf("2\n");
 
         average_result_t deltas = average_deltas(touch.x, touch.y, presses.just_pressed);
 
         rtos_yield();
-        printf("3\n");
 
         int target_brightness = touch.ignore ? 20 : 100;
 
@@ -757,7 +753,6 @@ void fn_task_a(void)
         }
 
         rtos_yield();
-        printf("4\n");
 
         // Manage cooldown - If started, set enable and start time
         // If enough time passed, disable
@@ -789,7 +784,6 @@ void fn_task_a(void)
         }
 
         rtos_yield();
-        printf("5\n");
 
         // Resting thumb or press keeps the thing alive
         if(touch.ignore || presses.currently_pressed) {
