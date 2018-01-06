@@ -1,0 +1,40 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<system>
+  <defines>
+    <define>STM32L053C6</define>
+    <define>STM32L0</define>
+  </defines>
+  <flags>
+    <flag>-mcpu=cortex-m0plus</flag>
+    <flag>-mthumb</flag>
+    <flag>-msoft-float</flag>
+  </flags>
+  <include_paths>
+    <include_path>packages/opencm3/libopencm3/include/</include_path>
+  </include_paths>
+  <libraries>
+    <library>packages/opencm3/libopencm3/lib/libopencm3_stm32l0.a</library>
+  </libraries>
+  <modules>
+    <module name="armv6m.build_mpu"/>
+    <module name="armv6m.vectable">
+      <nmi>nmi_isr</nmi>
+      <hardfault>hardfault_isr</hardfault>
+      <svcall>svcall_isr</svcall>
+      <pendsv>pendsv_isr</pendsv>
+      <systick>systick_isr</systick>
+      <flash_addr>0x08000000</flash_addr>
+      <flash_size>0x00008000</flash_size>
+      <sram_addr>0x20000000</sram_addr>
+      <sram_size>0x00002000</sram_size>
+      <include file="acamar-mpu-extirqs.prx"/>
+    </module>
+    <module name="armv6m.semihost-debug"/>
+    <module name="generic.debug"/>
+    <module name="armv6m.ctxt-switch"/>
+    <include file="acamar-mpu-rtos.prx"/>
+    <!--Add your own source files here-->
+    <module name="opencm3.projects.stm32l053-discovery.acamar-mpu.main"/>
+    <module name="opencm3.projects.stm32l053-discovery.acamar-mpu.handlers"/>
+  </modules>
+</system>

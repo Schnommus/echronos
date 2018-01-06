@@ -1,4 +1,7 @@
 /*| public_headers |*/
+{{#mpu_enabled}}
+#include <stdbool.h>
+{{/mpu_enabled}}
 
 /*| public_types |*/
 
