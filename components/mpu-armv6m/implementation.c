@@ -127,10 +127,8 @@ static bool mpu_hardware_is_unified(void);
 static void mpu_region_disable(uint32_t mpu_region);
 static uint32_t mpu_get_attr_flag(uint32_t mpu_size_and_permission_flags, uint32_t mpu_base_addr);
 static uint32_t mpu_get_base_flag(uint32_t mpu_region_index, uint32_t mpu_base_addr);
-static void mpu_memmanage_interrupt_enable(void);
 static uint32_t mpu_region_size_flag(uint32_t bytes);
 static void mpu_populate_regions(void);
-static void mpu_handle_fault(void);
 static void mpu_initialize(void);
 inline void rtos_internal_mpu_configure_for_current_task(void);
 {{/mpu_enabled}}
@@ -223,17 +221,6 @@ mpu_get_base_flag(const uint32_t mpu_region_index, const uint32_t mpu_base_addr)
     return mpu_region_index | mpu_base_addr | MPU_BASE_VALID;
 }
 
-static void
-mpu_memmanage_interrupt_enable(void)
-{
-    /* Clear the NVIC FSR as it starts off as junk */
-    uint32_t fault_stat = mpu_hardware_register(MPU_NVIC_FAULT_STAT);
-    mpu_hardware_register(MPU_NVIC_FAULT_STAT) = fault_stat;
-
-    /* Enable the interrupt */
-    mpu_hardware_register(MPU_SYS_HND_CTRL) |= MPU_SYS_HND_CTRL_MEM;
-}
-
 static uint32_t
 mpu_region_size_flag(const uint32_t bytes)
 {
@@ -288,24 +275,6 @@ mpu_populate_regions(void)
 }
 
 static void
-mpu_handle_fault(void)
-{
-    uint32_t fault_status = mpu_hardware_register(MPU_NVIC_FAULT_STAT);
-
-{{#mpu_verbose_faults}}
-    uint32_t fault_address = mpu_hardware_register(MPU_NVIC_MM_ADDR);
-    debug_print("protection fault: [address=");
-    debug_printhex32(fault_address);
-    debug_print(", status=");
-    debug_printhex32(fault_status);
-    debug_print("]\n");
-{{/mpu_verbose_faults}}
-
-    /* Clear the fault status register */
-    mpu_hardware_register(MPU_NVIC_FAULT_STAT) = fault_status;
-}
-
-static void
 mpu_initialize(void)
 {
     /* Check hardware registers to see if this processor actually has
@@ -342,9 +311,6 @@ mpu_initialize(void)
     /* fill up our region table for each task */
     mpu_populate_regions();
 
-    /* Enable the memmanage interrupt */
-    mpu_memmanage_interrupt_enable();
-
     /* The MPU itself will only enforce memory protection rules
      * in usermode. We leave it on for the lifetime of our system. */
     mpu_enable();
@@ -361,67 +327,12 @@ rtos_internal_mpu_configure_for_current_task(void)
      * and then disable all the regions that we aren't */
 
     {{prefix_type}}TaskId to = rtos_internal_current_task;
-    uint32_t region_config_addr = (uint32_t)&mpu_regions[to][0];
-
-    /* Load the 7 task-specific MPU regions we're using, by exploiting
-     * the 8 adjacent MPU region alias registers */
-    /* NOTE: Assumes the mpu_regions struct has been packed properly */
-    /* The compiler wasn't intelligent enough to optimize this */
-    asm volatile
-    (
-            "ldm %0, {r2-r6, r8-r10}\n"
-            "stm %1, {r2-r6, r8-r10}\n"
-            "adds %0, #32\n"
-            "ldm %0, {r2-r6, r8}\n"
-            "stm %1, {r2-r6, r8}\n"
-            : "+r" (region_config_addr) : "r" (MPU_BASE)
-            : "memory", "r2", "r3", "r4", "r5", "r6", "r8", "r9", "r10"
-    );
+    for(int i = 0; i != MPU_MAX_REGIONS-1; ++i) {
+        mpu_hardware_register(MPU_BASE) = mpu_regions[to][i].base_flag;
+        mpu_hardware_register(MPU_ATTR) = mpu_regions[to][i].attr_flag;
+    }
 }
 
-{{#mpu_skip_faulting_instructions}}
-__attribute__((naked))
-void
-rtos_internal_memmanage_handler(void)
-{
-    /* Load the offending PC, and increment it on the exception stack.
-     * when we RFE, we will resume execution after the bad instruction.
-     * Note that we only add 2 as we are in thumb mode */
-    asm volatile
-    (
-        "mrs r0, msp\n"
-        "ldr r1, [r0, #6*4]\n"
-        "add r1, r1, #2\n"
-        "str r1, [r0, #6*4]\n"
-    );
-
-    mpu_handle_fault();
-
-    /* Must load the lr with this special return value to indicate
-     * an RFE (popping stacked registers (including PC) and
-     * switching to usermode) */
-    asm volatile
-    (
-        "mvn lr, #6\n"
-        "bx lr\n"
-    );
-}
-{{/mpu_skip_faulting_instructions}}
-
-{{^mpu_skip_faulting_instructions}}
-void
-rtos_internal_memmanage_handler(void)
-{
-    mpu_handle_fault();
-
-    /* Turn off the MPU in case we managed to block ourselves
-     * from doing memory accesses in privileged mode */
-    mpu_disable();
-
-    /* An MPU policy violation is a fatal error (normally) */
-    {{fatal_error}}(ERROR_ID_MPU_VIOLATION);
-}
-{{/mpu_skip_faulting_instructions}}
 {{/mpu_enabled}}
 
 /*| public_functions |*/

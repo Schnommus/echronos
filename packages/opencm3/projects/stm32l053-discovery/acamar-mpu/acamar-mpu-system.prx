@@ -18,9 +18,9 @@
   <modules>
     <module name="armv6m.build_mpu"/>
     <module name="armv6m.vectable">
+      <mpu_enabled>true</mpu_enabled>
       <nmi>nmi_isr</nmi>
       <hardfault>hardfault_isr</hardfault>
-      <svcall>svcall_isr</svcall>
       <pendsv>pendsv_isr</pendsv>
       <systick>systick_isr</systick>
       <flash_addr>0x08000000</flash_addr>

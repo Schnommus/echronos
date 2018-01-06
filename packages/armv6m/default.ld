@@ -124,7 +124,7 @@ SECTIONS
 
         data_load_addr = LOADADDR(.data);
         data_virt_addr = ADDR(.data);
-        data_size = SIZEOF(.data) +
+        data_size = SIZEOF(.data)
             {{#mpu_enabled}}
             /* We must increase the .data size by our symbol protection domain sizes
              * so that they are appropriately initialized when the RTOS starts */

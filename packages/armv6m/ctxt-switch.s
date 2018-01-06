@@ -82,7 +82,8 @@ rtos_internal_elevate_privileges:
 .type rtos_internal_drop_privileges,#function
 rtos_internal_drop_privileges:
     mrs r0, control
-    orr r0, r0, #1
+    movs r1, #1
+    orrs r0, r0, r1
     msr control, r0
     mov pc, lr
 .size rtos_internal_drop_privileges, .-rtos_internal_drop_privileges
@@ -102,7 +103,8 @@ rtos_internal_in_usermode:
 rtos_internal_svc_handler:
     /* Switch to privileged mode */
     mrs r0, control
-    bic r0, r0, #1
+    movs r1, #1
+    bics r0, r0, r1
     msr control, r0
     /* RFE to straight after the offending svc call */
     bx lr
