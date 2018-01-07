@@ -1,0 +1,65 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<include_root>
+    <module name="armv6m.rtos-acamar">
+        <mpu_enabled>true</mpu_enabled>
+        <mpu_verbose_faults>true</mpu_verbose_faults>
+        <mpu_skip_faulting_instructions>true</mpu_skip_faulting_instructions>
+        <mpu_protection_domains>
+            <protection_domain>
+                <name>dom1</name>
+                <domain_size>256</domain_size>
+                <symbols>
+                    <symbol>dom1_variable</symbol>
+                    <symbol>dom1_stack_variable_addr</symbol>
+                </symbols>
+            </protection_domain>
+            <protection_domain>
+                <name>dom2</name>
+                <domain_size>256</domain_size>
+                <symbols>
+                    <symbol>dom2_variable</symbol>
+                </symbols>
+            </protection_domain>
+        </mpu_protection_domains>
+
+
+        <prefix>rtos</prefix>
+        <fatal_error>fatal</fatal_error>
+        <internal_asserts>true</internal_asserts>
+        <api_asserts>true</api_asserts>
+        <taskid_size>8</taskid_size>
+        <tasks>
+
+            <task>
+                <name>a</name>
+                <function>fn_a</function>
+                <stack_size>256</stack_size>
+                <mpu_associated_domains>
+                    <domain>
+                        <name>dom1</name>
+                        <writeable>true</writeable>
+                    </domain>
+                    <domain>
+                        <name>dom2</name>
+                    </domain>
+                </mpu_associated_domains>
+            </task>
+
+            <task>
+                <name>b</name>
+                <function>fn_b</function>
+                <stack_size>256</stack_size>
+                <mpu_associated_domains>
+                    <domain>
+                        <name>dom1</name>
+                    </domain>
+                    <domain>
+                        <name>dom2</name>
+                        <writeable>true</writeable>
+                    </domain>
+                </mpu_associated_domains>
+            </task>
+
+        </tasks>
+    </module>
+</include_root>

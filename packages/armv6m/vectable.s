@@ -40,9 +40,12 @@ vector_table:
 {{#svcall}}
         .word {{svcall}}
 {{/svcall}}
-{{^svcall}}
+{{#mpu_enabled}}
+        .word rtos_internal_svc_handler
+{{/mpu_enabled}}
+{{^svcall}}{{^mpu_enabled}}
         .word reset
-{{/svcall}}
+{{/mpu_enabled}}{{/svcall}}
 {{/preemption}}
 
         .word reset

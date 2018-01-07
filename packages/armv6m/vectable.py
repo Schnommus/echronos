@@ -28,10 +28,15 @@ class EntryModule(Module):
     <entry name="stack_size" type="int" default="0x1000" />
 
     <entry name="preemption" type="bool" optional="true" default="false" />
+    <entry name="mpu_enabled" type="bool" optional="true" default="false" />
 
     <entry name="nmi" type="c_ident" default="reset" />
     <entry name="hardfault" type="c_ident" default="reset" />
+    <entry name="memmanage" type="c_ident" optional="true" />
+    <entry name="busfault" type="c_ident" default="reset" />
+    <entry name="usagefault" type="c_ident" default="reset" />
     <entry name="svcall" type="c_ident" optional="true" />
+    <entry name="debug_monitor" type="c_ident" default="reset" />
     <entry name="pendsv" type="c_ident" optional="true" />
     <entry name="systick" type="c_ident" default="reset" />
     <entry name="external_irqs" type="list" default="[]">

@@ -31,10 +31,11 @@ class EntryModule(Module):
     <entry name="bitband_alias" type="int" default="0x22000000" />
 
     <entry name="preemption" type="bool" optional="true" default="false" />
+    <entry name="mpu_enabled" type="bool" optional="true" default="false" />
 
     <entry name="nmi" type="c_ident" default="reset" />
     <entry name="hardfault" type="c_ident" default="reset" />
-    <entry name="memmanage" type="c_ident" default="reset" />
+    <entry name="memmanage" type="c_ident" optional="true" />
     <entry name="busfault" type="c_ident" default="reset" />
     <entry name="usagefault" type="c_ident" default="reset" />
     <entry name="svcall" type="c_ident" optional="true" />

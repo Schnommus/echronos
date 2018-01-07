@@ -1,0 +1,29 @@
+<entry name="mpu_enabled" type="bool" default="false"/>
+<entry name="mpu_verbose_faults" type="bool" default="false"/>
+<entry name="mpu_skip_faulting_instructions" type="bool" default="false"/>
+<entry name="mpu_protection_domains" type="list" default="[]" auto_index_field="idx">
+    <entry name="protection_domain" type="dict">
+        <entry name="name" type="ident" />
+        <entry name="domain_size" type="int" optional="false" />
+        <entry name="symbols" type="list" optional="true">
+            <entry name="symbol" type="c_ident" />
+        </entry>
+        <entry name="base_address" type="int" optional="true" />
+        <constraint name="constraint0" type="one_of">
+            <entry name="symbols">symbols</entry>
+            <entry name="base_address">base_address</entry>
+        </constraint>
+    </entry>
+</entry>
+<entry name="tasks" type="list" auto_index_field="idx">
+    <entry name="task" type="dict">
+        <entry name="mpu_associated_domains" type="list" default="[]" auto_index_field="domx">
+            <entry name="domain" type="dict">
+                <entry name="name" type="ident"/>
+                <entry name="readable" type="bool" default="true"/>
+                <entry name="writeable" type="bool" default="false"/>
+                <entry name="executable" type="bool" default="false"/>
+            </entry>
+        </entry>
+    </entry>
+</entry>
