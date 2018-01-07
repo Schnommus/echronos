@@ -18,6 +18,11 @@
                     <symbol>rtos_ready_for_ticks</symbol>
                 </symbols>
             </protection_domain>
+            <protection_domain>
+                <name>peripherals</name>
+                <domain_size>0x40000</domain_size>
+                <base_address>0x40000000</base_address>
+            </protection_domain>
         </mpu_protection_domains>
         <signalset_size>8</signalset_size>
         <api_asserts>true</api_asserts>
@@ -32,6 +37,10 @@
                 <mpu_associated_domains>
                     <domain>
                         <name>globals</name>
+                        <writeable>true</writeable>
+                    </domain>
+                    <domain>
+                        <name>peripherals</name>
                         <writeable>true</writeable>
                     </domain>
                 </mpu_associated_domains>
