@@ -821,8 +821,6 @@ void fn_task_a(void)
 int main(void)
 {
 
-    rtos_ready_for_ticks = false; /* Need to initialize globals to zero! */
-
     /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
     HAL_Init();
 
@@ -919,7 +917,6 @@ static void MX_ADC_Init(void)
     /**Configure the global features of the ADC (Clock, Resolution, Data Alignment and number of conversion) 
     */
     hadc.Instance = ADC1;
-    hadc.State = 0; /* Globals should be initialized to zero?! */
     hadc.Init.OversamplingMode = DISABLE;
     hadc.Init.ClockPrescaler = ADC_CLOCK_SYNC_PCLK_DIV1;
     hadc.Init.Resolution = ADC_RESOLUTION_12B;

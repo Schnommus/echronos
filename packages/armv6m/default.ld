@@ -78,6 +78,10 @@ SECTIONS
          * These simply use a base address and size to declare a domain. */
         {{#rtos.mpu_protection_domains}}
 
+        .domain_dummy :
+        {
+        } > sram_region AT > flash_load_region
+
         dummy = ASSERT({{domain_size}} == (1 << LOG2CEIL({{domain_size}})),
             "Protection domain {{name}} has size that is not power-of-2.");
 
@@ -122,9 +126,9 @@ SECTIONS
             . = ALIGN(4);
         } > sram_region AT > flash_load_region
 
-        data_load_addr = LOADADDR(.data);
-        data_virt_addr = ADDR(.data);
-        data_size = SIZEOF(.data)
+        data_load_addr = LOADADDR(.domain_dummy);
+        data_virt_addr = ADDR(.domain_dummy);
+        data_size = SIZEOF(.data) + SIZEOF(.domain_dummy)
             {{#mpu_enabled}}
             /* We must increase the .data size by our symbol protection domain sizes
              * so that they are appropriately initialized when the RTOS starts */
