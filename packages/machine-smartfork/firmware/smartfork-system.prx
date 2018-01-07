@@ -19,17 +19,18 @@
       <include_path>packages/machine-smartfork/firmware/drivers/CMSIS/Include</include_path>
   </include_paths>
   <modules>
-    <module name="armv6m.build"/>
+    <module name="armv6m.build_mpu"/>
     <module name="armv6m.vectable">
+      <mpu_enabled>true</mpu_enabled>
       <nmi>nmi_isr</nmi>
       <hardfault>hardfault_isr</hardfault>
-      <svcall>svcall_isr</svcall>
       <pendsv>pendsv_isr</pendsv>
       <systick>systick_isr</systick>
       <flash_addr>0x08000000</flash_addr>
       <flash_size>0x00008000</flash_size>
       <sram_addr>0x20000000</sram_addr>
       <sram_size>0x00002000</sram_size>
+      <stack_size>0x500</stack_size>
       <include file="smartfork-extirqs.prx"/>
     </module>
     <module name="armv6m.semihost-debug"/>

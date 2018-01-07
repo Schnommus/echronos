@@ -30,7 +30,7 @@ def system_build(system):
     a_flags = common_flags
     a_flags.remove('-msoft-float')
 
-    c_flags = common_flags + ['-O0', '-fdata-sections', '-fno-common', '-fno-zero-initialized-in-bss']
+    c_flags = common_flags + ['-O0', '-fdata-sections', '-ffunction-sections', '-fno-common', '-fno-zero-initialized-in-bss']
 
     for define in system.defines:
         c_flags += ['-D{}'.format(define)]
@@ -60,5 +60,5 @@ def system_build(system):
 
     # Perform final link
     obj_files = asm_obj_files + c_obj_files + library_paths
-    linker_flags = common_flags + ["-ffreestanding", "-nostartfiles"]
+    linker_flags = common_flags + ["-ffreestanding", "-nostartfiles", "-Wl,--gc-sections", "-lm", "-lnosys", "-specs=rdimon.specs", "-lc", "--specs=nano.specs", "-u _printf_float", "-lrdimon"]
     execute(['arm-none-eabi-gcc', '-T', system.linker_script, '-o', system.output_file] + linker_flags + obj_files)

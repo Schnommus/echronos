@@ -48,14 +48,45 @@ systick_isr(void)
     }
 }
 
+__attribute__((naked))
+void
+hardfault_isr(void)
+{
+    /* Load the offending PC, and increment it on the exception stack.
+     * when we RFE, we will resume execution after the bad instruction.
+     * Note that we only add 2 as we are in thumb mode */
+    asm volatile
+    (
+        "mrs r0, msp\n"
+        "ldr r1, [r0, #6*4]\n"
+        "add r1, r1, #2\n"
+        "str r1, [r0, #6*4]\n"
+    );
+
+    register int sp asm ("sp");
+
+    debug_print("[hardfault @pc=");
+    debug_printhex32(*(uint32_t*)(sp+0x18));
+    debug_println(" - ignore]");
+
+    /* Must load the lr with this special return value to indicate
+     * an RFE (popping stacked registers (including PC) and
+     * switching to usermode) */
+    asm volatile
+    (
+        "mov r1, #6\n"
+        "mvn r0, r1\n"
+        "mov lr, r0\n"
+        "bx lr\n"
+    );
+}
+
 /* TODO: Remove the below handlers and redeclare
  * your own handler to use an ISR for your own purposes. */
 
 /* CORTEX-M GENERIC ISRS */
 
 BLOCKING_HANDLER(nmi_isr)
-BLOCKING_HANDLER(hardfault_isr)
-BLOCKING_HANDLER(svcall_isr)
 BLOCKING_HANDLER(pendsv_isr)
 
 /* PERIPHERAL/EXTERNAL ISRS*/

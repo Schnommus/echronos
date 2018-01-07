@@ -189,6 +189,7 @@ CORE_SKELETONS = {
               # of the Task Configuration chapter.
               Component('task', {'task_start_api': True, 'scheduler': True}),
               Component('api-conditions'),
+              Component('mpu', pkg_component=True),
               Component('rigel')],
     'kochab': [Component('docs'),
                Component('reentrant'),

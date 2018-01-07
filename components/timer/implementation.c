@@ -177,18 +177,21 @@ timer_tick_process(void)
 void
 {{prefix_func}}sleep(const {{prefix_type}}TicksRelative ticks) {{prefix_const}}REENTRANT
 {
+    rtos_internal_api_begin();
     preempt_disable();
 
     timer_oneshot(task_timers[get_current_task()], ticks);
     signal_wait({{prefix_const}}SIGNAL_ID__TASK_TIMER);
 
     preempt_enable();
+    rtos_internal_api_end();
 }
 
 {{#timers.length}}
 void
 {{prefix_func}}timer_enable(const {{prefix_type}}TimerId timer_id)
 {
+    rtos_internal_api_begin();
     assert_timer_valid(timer_id);
 
     preempt_disable();
@@ -196,19 +199,23 @@ void
     timer_enable(timer_id);
 
     preempt_enable();
+    rtos_internal_api_end();
 }
 
 void
 {{prefix_func}}timer_disable(const {{prefix_type}}TimerId timer_id)
 {
+    rtos_internal_api_begin();
     assert_timer_valid(timer_id);
 
     timer_disable(timer_id);
+    rtos_internal_api_end();
 }
 
 void
 {{prefix_func}}timer_oneshot(const {{prefix_type}}TimerId timer_id, const {{prefix_type}}TicksRelative timeout)
 {
+    rtos_internal_api_begin();
     assert_timer_valid(timer_id);
 
     preempt_disable();
@@ -216,11 +223,13 @@ void
     timer_oneshot(timer_id, timeout);
 
     preempt_enable();
+    rtos_internal_api_end();
 }
 
 bool
 {{prefix_func}}timer_check_overflow(const {{prefix_type}}TimerId timer_id)
 {
+    rtos_internal_api_begin();
     bool r;
 
     assert_timer_valid(timer_id);
@@ -232,12 +241,16 @@ bool
 
     preempt_enable();
 
+    rtos_internal_api_end();
+
     return r;
 }
 
 {{prefix_type}}TicksRelative
 {{prefix_func}}timer_remaining(const {{prefix_type}}TimerId timer_id)
 {
+    rtos_internal_api_begin();
+
     {{prefix_type}}TicksRelative remaining;
 
     assert_timer_valid(timer_id);
@@ -248,6 +261,8 @@ bool
 
     preempt_enable();
 
+    rtos_internal_api_end();
+
     return remaining;
 }
 
@@ -255,14 +270,20 @@ bool
 void
 {{prefix_func}}timer_reload_set(const {{prefix_type}}TimerId timer_id, const {{prefix_type}}TicksRelative reload)
 {
+    rtos_internal_api_begin();
+
     assert_timer_valid(timer_id);
 
     timer_reload_set(timer_id, reload);
+
+    rtos_internal_api_end();
 }
 
 void
 {{prefix_func}}timer_signal_set(const {{prefix_type}}TimerId timer_id, const {{prefix_type}}TaskId task_id, const {{prefix_type}}SignalSet signal_set)
 {
+    rtos_internal_api_begin();
+
     assert_timer_valid(timer_id);
     assert_task_valid(task_id);
     api_assert(signal_set != {{prefix_const}}SIGNAL_SET_EMPTY, ERROR_ID_TIMER_SIGNAL_SET_IS_EMPTY);
@@ -274,14 +295,20 @@ void
     timers[timer_id].signal_set = signal_set;
 
     preempt_enable();
+
+    rtos_internal_api_end();
 }
 
 void
 {{prefix_func}}timer_error_set(const {{prefix_type}}TimerId timer_id, const {{prefix_type}}ErrorId error_id)
 {
+    rtos_internal_api_begin();
+
     assert_timer_valid(timer_id);
 
     timers[timer_id].error_id = error_id;
+
+    rtos_internal_api_end();
 }
 {{/timers.length}}
 

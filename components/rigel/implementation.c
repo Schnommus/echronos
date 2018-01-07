@@ -86,15 +86,19 @@ entry_{{name}}(void)
 void
 {{prefix_func}}task_start(const {{prefix_type}}TaskId task)
 {
+    rtos_internal_api_begin();
     assert_task_valid(task);
     {{prefix_func}}signal_send(task, {{prefix_const}}SIGNAL_ID__RTOS_UTIL);
+    rtos_internal_api_end();
 }
 
 void
 {{prefix_func}}yield(void) {{prefix_const}}REENTRANT
 {
+    rtos_internal_api_begin();
     {{prefix_type}}TaskId to = interrupt_event_get_next();
     yield_to(to);
+    rtos_internal_api_end();
 }
 
 /*| public_privileged_functions |*/
@@ -107,6 +111,10 @@ void
     context_init(get_task_context({{idx}}), entry_{{name}}, stack_{{idx}}, {{stack_size}});
     sched_set_runnable({{idx}});
     {{/tasks}}
+
+    {{#mpu_enabled}}
+    mpu_initialize();
+    {{/mpu_enabled}}
 
     context_switch_first(get_task_context({{prefix_const}}TASK_ID_ZERO));
 }
