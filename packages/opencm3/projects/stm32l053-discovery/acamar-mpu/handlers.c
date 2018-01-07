@@ -1,5 +1,3 @@
-#include <libopencm3/cm3/common.h>
-
 #include "rtos-acamar.h"
 
 #include "debug.h"

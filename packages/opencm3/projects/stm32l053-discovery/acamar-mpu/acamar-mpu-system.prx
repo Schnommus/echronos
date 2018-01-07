@@ -9,12 +9,6 @@
     <flag>-mthumb</flag>
     <flag>-msoft-float</flag>
   </flags>
-  <include_paths>
-    <include_path>packages/opencm3/libopencm3/include/</include_path>
-  </include_paths>
-  <libraries>
-    <library>packages/opencm3/libopencm3/lib/libopencm3_stm32l0.a</library>
-  </libraries>
   <modules>
     <module name="armv6m.build_mpu"/>
     <module name="armv6m.vectable">
