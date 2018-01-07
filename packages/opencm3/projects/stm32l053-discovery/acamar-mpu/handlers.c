@@ -51,7 +51,11 @@ hardfault_isr(void)
         "str r1, [r0, #6*4]\n"
     );
 
-    debug_println("[hardfault - ignoring]");
+    register int sp asm ("sp");
+
+    debug_print("[hardfault @pc=");
+    debug_printhex32(*(uint32_t*)(sp+0x18));
+    debug_println(" - ignore]");
 
     /* Must load the lr with this special return value to indicate
      * an RFE (popping stacked registers (including PC) and
