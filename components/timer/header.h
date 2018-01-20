@@ -19,11 +19,12 @@ typedef uint16_t {{prefix_type}}TicksRelative;
 
 /*| public_state |*/
 /*@unused@*/
-extern {{prefix_type}}TicksAbsolute {{prefix_func}}timer_current_ticks;
 
 /*| public_function_declarations |*/
 /*@unused@*/
 void {{prefix_func}}sleep({{prefix_type}}TicksRelative ticks) {{prefix_const}}REENTRANT;
+uint32_t {{prefix_func}}get_current_ticks( void );
+
 {{#timers.length}}
 /*@unused@*/
 void {{prefix_func}}timer_enable({{prefix_type}}TimerId timer_id);

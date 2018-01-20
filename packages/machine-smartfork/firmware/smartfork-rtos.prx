@@ -8,7 +8,7 @@
         <mpu_protection_domains>
             <protection_domain>
                 <name>globals</name>
-                <domain_size>512</domain_size>
+                <domain_size>1024</domain_size>
                 <symbols>
                     <symbol>hadc</symbol>
                     <symbol>hi2c1</symbol>
@@ -16,12 +16,27 @@
                     <symbol>huart1</symbol>
                     <symbol>htim2</symbol>
                     <symbol>rtos_ready_for_ticks</symbol>
+                    <symbol>touch_matrix</symbol>
+                    <symbol>previously_pressed</symbol>
+                    <symbol>ticks_when_pressed</symbol>
+                    <symbol>last_x</symbol>
+                    <symbol>last_y</symbol>
+                    <symbol>averages_x</symbol>
+                    <symbol>averages_y</symbol>
+                    <symbol>index_x</symbol>
+                    <symbol>index_y</symbol>
+                    <symbol>uwTick</symbol>
                 </symbols>
             </protection_domain>
             <protection_domain>
-                <name>peripherals</name>
+                <name>bus_peripherals</name>
                 <domain_size>0x40000</domain_size>
                 <base_address>0x40000000</base_address>
+            </protection_domain>
+            <protection_domain>
+                <name>io_peripherals</name>
+                <domain_size>0x40000</domain_size>
+                <base_address>0x50000000</base_address>
             </protection_domain>
         </mpu_protection_domains>
         <signalset_size>8</signalset_size>
@@ -40,7 +55,11 @@
                         <writeable>true</writeable>
                     </domain>
                     <domain>
-                        <name>peripherals</name>
+                        <name>bus_peripherals</name>
+                        <writeable>true</writeable>
+                    </domain>
+                    <domain>
+                        <name>io_peripherals</name>
                         <writeable>true</writeable>
                     </domain>
                 </mpu_associated_domains>

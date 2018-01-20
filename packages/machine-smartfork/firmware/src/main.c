@@ -75,6 +75,11 @@ static void MX_TIM2_Init(void);
 
 void HAL_TIM_MspPostInit(TIM_HandleTypeDef *htim);
 
+void fatal_user(void) {
+    //use debugger to inspect...
+    for(;;);
+}
+
 /* USER CODE BEGIN PFP */
 /* Private function prototypes -----------------------------------------------*/
 
@@ -111,6 +116,14 @@ typedef struct _touch_pad {
     int32_t calibration_touch;
 } touch_pad_t;
 
+#define SAMPLE_X 0
+#define SAMPLE_Y 1
+
+#define COMMAND_START       0xFD
+#define COMMAND_KEYBOARD_TYPE 0x01
+#define COMMAND_MOUSE_TYPE  0x02
+#define COMMAND_CONSUMER_TYPE 0x03
+
 touch_pad_t touch_matrix[TOUCH_SIZE_X + TOUCH_SIZE_Y] = {
     // X PADS
     {TSC_GROUP1_IO2, TSC_GROUP1_IO1, TSC_GROUP1_IDX, 255, 33}, // 2 diamonds closest to chip (x1)
@@ -123,13 +136,6 @@ touch_pad_t touch_matrix[TOUCH_SIZE_X + TOUCH_SIZE_Y] = {
     {TSC_GROUP4_IO2, TSC_GROUP4_IO1, TSC_GROUP4_IDX, 288, 25}, // Y, Switch side (y3)
 };
 
-#define SAMPLE_X 0
-#define SAMPLE_Y 1
-
-#define COMMAND_START       0xFD
-#define COMMAND_KEYBOARD_TYPE 0x01
-#define COMMAND_MOUSE_TYPE  0x02
-#define COMMAND_CONSUMER_TYPE 0x03
 
 // Index is 0 for first pad at that index
 // Return in range 1 to 100
@@ -137,12 +143,12 @@ int sample_touch_at (int index, int what_to_sample) {
 
     if(what_to_sample == SAMPLE_X) {
         if(index >= TOUCH_SIZE_X) {
-            printf("Trying to sample out-of-range X touch pad");
+            fatal_user();
             return 0;
         }
     } else {
         if(index >= TOUCH_SIZE_Y) {
-            printf("Trying to sample out-of-range Y touch pad");
+            fatal_user();
             return 0;
         }
         index += 4;
@@ -161,7 +167,7 @@ int sample_touch_at (int index, int what_to_sample) {
     rtos_sleep(1); // Wait for everything to discharge
 
     if(HAL_TSC_Start(&htsc) != HAL_OK) {
-        printf("Error in HAL_TSC_Start");
+        fatal_user();
     }
 
     while(HAL_TSC_GetState(&htsc) == HAL_TSC_STATE_BUSY) {
@@ -183,7 +189,7 @@ int sample_touch_at (int index, int what_to_sample) {
         return v;
     }
 
-    printf("Touch read didn't complete?\n");
+    fatal_user();
 
     return -1;
 }
@@ -275,17 +281,14 @@ typedef struct _average_result {
 
 #define N_AV 5
 
+int last_x = 0;
+int last_y = 0;
+int averages_x[N_AV];
+int averages_y[N_AV];
+int index_x = 0;
+int index_y = 0;
+
 average_result_t average_deltas(int x_now, int y_now, int justPressed) {
-
-
-    static int last_x = 0;
-    static int last_y = 0;
-
-    static int averages_x[N_AV];
-    static int averages_y[N_AV];
-
-    static int index_x = 0;
-    static int index_y = 0;
 
     int8_t dx = x_now - last_x;
     int8_t dy = y_now - last_y;
@@ -330,10 +333,10 @@ typedef struct _press_result {
     int currently_pressed;
 } press_result_t;
 
-press_result_t track_presses(int current_pressure) {
+int previously_pressed = 0;
+int ticks_when_pressed = 0;
 
-    static int previously_pressed = 0;
-    static int ticks_when_pressed = 0;
+press_result_t track_presses(int current_pressure) {
 
     press_result_t result = {0, 0, 0, 0};
 
@@ -341,7 +344,7 @@ press_result_t track_presses(int current_pressure) {
 
     if(previously_pressed == 0 && current_pressure > 4000) {
         result.just_pressed = 1;
-        ticks_when_pressed = rtos_timer_current_ticks;
+        ticks_when_pressed = rtos_get_current_ticks();
     }
 
     // Bit of hysteresis here
@@ -349,7 +352,7 @@ press_result_t track_presses(int current_pressure) {
         result.just_released = 1;
     }
 
-    if(result.just_released && rtos_timer_current_ticks - ticks_when_pressed < 100) {
+    if(result.just_released && rtos_get_current_ticks() - ticks_when_pressed < 100) {
         result.just_tapped = 1;
     }
 
@@ -480,56 +483,6 @@ void scroll_mouse(average_result_t deltas, press_result_t presses) {
     issue_hid_mouse_command( 0, 0, scroll_delta, 0);
 }
 
-#define SKIP_THRESHOLD 2
-
-int media_control(average_result_t deltas, press_result_t presses, int cooldown_curr) {
-
-	int volume_control = deltas.x/15;
-	int skip_control = -deltas.y/15;
-
-	uint8_t command_low_byte = RELEASE;
-	uint8_t command_high_byte = RELEASE;
-
-	int cooldown_start = 0;
-
-	// Ignore the movement if it's probably bogus
-    if(presses.just_pressed || !presses.currently_pressed) {
-        volume_control = 0;
-        skip_control = 0;
-    }
-
-	// Control volume
-	if(volume_control > 0) {
-		command_low_byte = VOLUME_UP_LOW_BYTE;
-		command_high_byte = VOLUME_UP_HIGH_BYTE;
-	} else if(volume_control < 0) {
-		command_low_byte = VOLUME_DOWN_LOW_BYTE;
-		command_high_byte = VOLUME_DOWN_HIGH_BYTE;
-	}
-
-	// Control skips
-	if(skip_control > SKIP_THRESHOLD && cooldown_curr == 0) {
-		command_low_byte = NEXT_LOW_BYTE;
-		command_high_byte = NEXT_HIGH_BYTE;
-		cooldown_start = 1;
-	} else if(skip_control < -1 * SKIP_THRESHOLD && cooldown_curr == 0) {
-		command_low_byte = PREV_LOW_BYTE;
-		command_high_byte = PREV_HIGH_BYTE;
-		cooldown_start = 1;
-	}
-
-	// Control play/pause
-	if(presses.just_tapped) {
-		command_low_byte = PLAY_PAUSE_LOW_BYTE;
-		command_high_byte = PLAY_PAUSE_HIGH_BYTE;
-	}
-
-	issue_hid_consumer_report(command_low_byte, command_high_byte);
-	issue_hid_consumer_report(RELEASE, RELEASE);
-
-	return cooldown_start;
-
-}
 
 void bt_send_cmd(char *s) {
     HAL_UART_Transmit(&huart1, (unsigned char*)s, strlen(s), 100);
@@ -682,7 +635,6 @@ typedef struct _timer {
 enum modes {
     MODE_MOUSE = 0,
     MODE_SCROLL,
-    MODE_MEDIA,
     MODE_ARROWS,
     // Insert extra modes here
     MODE_N
@@ -695,16 +647,10 @@ void fn_task_a(void)
     rtos_ready_for_ticks = true;
 
     // Cycle LEDs to show the world we are now alive
-    for( int i = 0; i != 3; ++i ) {
-        rgb_cycle();
-    }
-
-    printf("Starting main loop\n");
-
     rgb_cycle();
 
     // Boot time in systicks
-    int tickStart = rtos_timer_current_ticks;
+    int tickStart = rtos_get_current_ticks();
     int current_mode = MODE_MOUSE;
     int lastButtonUnpressedTicks = tickStart;
     int lastTouchTicks = tickStart;
@@ -741,10 +687,6 @@ void fn_task_a(void)
                 set_led_brightness(GREEN_CHANNEL, target_brightness);
                 scroll_mouse(deltas, presses);
             break;
-            case MODE_MEDIA:
-            	set_led_brightness(BLUE_CHANNEL, target_brightness);
-            	cooldown.start = media_control(deltas, presses, cooldown.enabled);
-            break;
             case MODE_ARROWS:
             	set_led_brightness(BLUE_CHANNEL, target_brightness);
             	set_led_brightness(RED_CHANNEL, target_brightness);
@@ -759,9 +701,9 @@ void fn_task_a(void)
         if(cooldown.start) {
         	cooldown.enabled = 1;
         	cooldown.start = 0;
-        	cooldown.start_time = rtos_timer_current_ticks;
+        	cooldown.start_time = rtos_get_current_ticks();
         }
-        if(cooldown.enabled == 1 && rtos_timer_current_ticks - cooldown.start_time > COOLDOWN_LENGTH) {
+        if(cooldown.enabled == 1 && rtos_get_current_ticks() - cooldown.start_time > COOLDOWN_LENGTH) {
         	cooldown.enabled = 0;
         	cooldown.start_time = 0;
         }
@@ -769,30 +711,30 @@ void fn_task_a(void)
         // If power button is held down for longer than specific time
         // turn the device off. If it is pressed for a short time, change modes.
         if(HAL_GPIO_ReadPin(PWR_BUTTON_GPIO_Port, PWR_BUTTON_Pin)) {
-            if(rtos_timer_current_ticks - lastButtonUnpressedTicks > PWROFF_PUSHTIME_MS) {
+            if(rtos_get_current_ticks() - lastButtonUnpressedTicks > PWROFF_PUSHTIME_MS) {
                 break;
             }
         } else {
-            if(rtos_timer_current_ticks - lastButtonUnpressedTicks > MODESWITCH_PUSHTIME_MS) {
+            if(rtos_get_current_ticks() - lastButtonUnpressedTicks > MODESWITCH_PUSHTIME_MS) {
                 ++current_mode;
                 if(current_mode >= MODE_N) {
                     current_mode = 0;
                 }
                 rgb_cycle();
             }
-            lastButtonUnpressedTicks = rtos_timer_current_ticks;
+            lastButtonUnpressedTicks = rtos_get_current_ticks();
         }
 
         rtos_yield();
 
         // Resting thumb or press keeps the thing alive
         if(touch.ignore || presses.currently_pressed) {
-            lastTouchTicks = rtos_timer_current_ticks;
+            lastTouchTicks = rtos_get_current_ticks();
         }
 
         // If we haven't touched the device in a while,
         // power it off automatically
-        if(rtos_timer_current_ticks - lastTouchTicks >= PWROFF_INACTIVE_TIME_MS) {
+        if(rtos_get_current_ticks() - lastTouchTicks >= PWROFF_INACTIVE_TIME_MS) {
             break;
         }
 

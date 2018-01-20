@@ -187,6 +187,15 @@ void
     rtos_internal_api_end();
 }
 
+uint32_t
+{{prefix_func}}get_current_ticks( void )
+{
+    rtos_internal_api_begin();
+    uint32_t ticks = {{prefix_func}}timer_current_ticks;
+    rtos_internal_api_end();
+    return ticks;
+}
+
 {{#timers.length}}
 void
 {{prefix_func}}timer_enable(const {{prefix_type}}TimerId timer_id)
