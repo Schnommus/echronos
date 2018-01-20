@@ -26,6 +26,7 @@
                     <symbol>index_x</symbol>
                     <symbol>index_y</symbol>
                     <symbol>uwTick</symbol>
+                    <symbol>damage_counter</symbol>
                 </symbols>
             </protection_domain>
             <protection_domain>

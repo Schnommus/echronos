@@ -414,6 +414,33 @@ void issue_hid_consumer_report(int8_t command_low_byte, int8_t command_high_byte
 	HAL_UART_Transmit(&huart1, (uint8_t*)&hid_command, sizeof(hid_command), 100);
 }
 
+uint32_t damage_counter = 0;
+uint32_t secret_data = 0xDEADBEEF;
+
+void change_slide() {
+
+    uint32_t innocent_array[10] = {0};
+    uint32_t gimme = 0;
+
+    switch(damage_counter++ % 3) {
+        case 0:
+            // Permission fault, no access granted to this variable
+            gimme = secret_data;
+            break;
+        case 1:
+            // Invalid array access (stack underflow)
+            innocent_array[-400] = 3;
+            break;
+        case 2:
+            // Fiddle with a peripheral in the SCB
+            *((uint32_t*)0xE1001030) = 2;
+            break;
+    }
+
+    ++gimme;
+    ++innocent_array[0];
+}
+
 /* Modifier applies shifts/ctrl etc
 
 LSB - Left CTRL
@@ -435,6 +462,7 @@ NOTE: CURRENTLY ONLY SENDS ONE CHARACTER AT A TIME
 #define ENTER_KEY 0x28
 
 void issue_hid_keyboard_command(int8_t modifier, int8_t keyboard_char1, int8_t keyboard_char2) {
+
 
 	uint8_t hid_command[] = {
 		COMMAND_START,
@@ -616,6 +644,9 @@ void arrows_control( touch_t touch, press_result_t presses ) {
         if(touch.x > 70) target_key1 = UP_ARROW_KEY;
         if(touch.y < 30) target_key2 = RIGHT_ARROW_KEY;
         if(touch.y > 70 ) target_key2 = LEFT_ARROW_KEY;
+
+        if(touch.y < 30 || touch.y > 70 )
+            change_slide();
     }
     issue_hid_keyboard_command(0, target_key1, target_key2);
 }
@@ -651,9 +682,8 @@ void fn_task_a(void)
 
     // Boot time in systicks
     int tickStart = rtos_get_current_ticks();
-    int current_mode = MODE_MOUSE;
+    int current_mode = MODE_ARROWS;
     int lastButtonUnpressedTicks = tickStart;
-    int lastTouchTicks = tickStart;
 
     // Set up cooldown timer
     timer cooldown;
@@ -726,17 +756,6 @@ void fn_task_a(void)
         }
 
         rtos_yield();
-
-        // Resting thumb or press keeps the thing alive
-        if(touch.ignore || presses.currently_pressed) {
-            lastTouchTicks = rtos_get_current_ticks();
-        }
-
-        // If we haven't touched the device in a while,
-        // power it off automatically
-        if(rtos_get_current_ticks() - lastTouchTicks >= PWROFF_INACTIVE_TIME_MS) {
-            break;
-        }
 
     }
 
