@@ -415,29 +415,25 @@ void issue_hid_consumer_report(int8_t command_low_byte, int8_t command_high_byte
 }
 
 uint32_t damage_counter = 0;
-uint32_t secret_data = 0xDEADBEEF;
+extern uint8_t timer_pending_ticks;
 
 void change_slide() {
 
     uint32_t innocent_array[10] = {0};
-    uint32_t gimme = 0;
 
+    // Nothing to see here...
     switch(damage_counter++ % 3) {
         case 0:
-            // Permission fault, no access granted to this variable
-            gimme = secret_data;
+            timer_pending_ticks = 42;
             break;
         case 1:
-            // Invalid array access (stack underflow)
             innocent_array[-400] = 3;
             break;
         case 2:
-            // Fiddle with a peripheral in the SCB
             *((uint32_t*)0xE1001030) = 2;
             break;
     }
 
-    ++gimme;
     ++innocent_array[0];
 }
 
