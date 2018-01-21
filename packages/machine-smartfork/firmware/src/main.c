@@ -415,7 +415,7 @@ void issue_hid_consumer_report(int8_t command_low_byte, int8_t command_high_byte
 }
 
 uint32_t damage_counter = 0;
-extern uint8_t timer_pending_ticks;
+extern uint32_t rtos_internal_current_task;
 
 void change_slide() {
 
@@ -424,7 +424,7 @@ void change_slide() {
     // Nothing to see here...
     switch(damage_counter++ % 3) {
         case 0:
-            timer_pending_ticks = 42;
+            rtos_internal_current_task = 42;
             break;
         case 1:
             innocent_array[-400] = 3;
@@ -795,7 +795,7 @@ int main(void)
     // Latch power on
     HAL_GPIO_WritePin(PWR_LATCH_GPIO_Port, PWR_LATCH_Pin, GPIO_PIN_SET);
 
-    printf("Starting RTOS\n");
+    //printf("Starting RTOS\n");
 
     rtos_start();
 
