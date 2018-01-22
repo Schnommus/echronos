@@ -45,7 +45,6 @@ fatal(const RtosErrorId error_id)
 void
 systick_isr(void)
 {
-    debug_println("systick");
     rtos_timer_tick();
     WDOG->CMD = WDOG_CMD_CLEAR;
 }
