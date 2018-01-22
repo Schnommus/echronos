@@ -10,6 +10,43 @@
      @TAG(CSIRO_BSD_MIT)
 -->
 
+# eChronos RTOS on the [Tomu](http://tomu.im)
+
+Little demo of the `rigel` RTOS variant blinking some LEDs on the tomu, works alongside the pre-installed bootloader (on boards rev. v0.3).
+
+Disclaimer: this codebase is based on my bleeding edge (unreleased/unreviewed) armv6m RTOS port test branch.
+
+## Dependencies
+
+See below 'ordinary' RTOS readme for armv7m build dependencies.
+Main thing is that you need an `arm-none-eabi` or similar cross-compiler.
+
+## Building
+
+To create an RTOS firmware image (`.elf`):
+
+    prj/app/prj.py build machine-tomu.rigel-test.rigel-test-system
+
+To create a binary that you can copy to the tomu using XMODEM during boot:
+
+    arm-none-eabi-objcopy -O binary out/machine-tomu/rigel-test/rigel-test-system/system tomu-rigel-test.bin
+
+## Flashing
+
+Flash the `.bin` image using XMODEM as described in the tomu documentation.
+
+## Hacking
+
+The 'interesting' bits are all at:
+
+    packages/machine-tomu/rigel-test/*
+
+Prebuilt RTOS documentation for `rigel` (for armv7m, but the API is the same as for armv6m) can be found [here](https://github.com/echronos/echronos/wiki/Manuals/rigel-armv7m.pdf)
+
+Unfortunately getting `printf`/`debug_print` to work requires pulling across a USB stack - maybe I'll get some time for that later...
+
+### 'Ordinary' RTOS readme follows...
+
 Core repository:
 [![Core Build Status on Linux](https://travis-ci.org/echronos/echronos.svg?branch=master)](https://travis-ci.org/echronos/echronos)
 [![Core Build Status on Windows](https://ci.appveyor.com/api/projects/status/u0l9tcx3r8x9fwj0/branch/master?svg=true)](https://ci.appveyor.com/project/stefangotz/echronos/branch/master)
