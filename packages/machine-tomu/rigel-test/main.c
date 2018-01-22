@@ -1,6 +1,13 @@
 #include "rtos-rigel.h"
 #include "debug.h"
 
+#include "em_chip.h"
+#include "em_cmu.h"
+#include "em_device.h"
+#include "em_emu.h"
+#include "em_gpio.h"
+#include "em_wdog.h"
+
 /* Systick interrupt frequency, Hz */
 #define SYSTICK_FREQUENCY 100
 
@@ -98,6 +105,10 @@ void fn_b(void)
     {
         debug_println("task b: sleeping for 7");
         rtos_sleep(7);
+        GPIO_PinOutClear(gpioPortA, 0);
+        debug_println("task b: sleeping for 7");
+        rtos_sleep(7);
+        GPIO_PinOutSet(gpioPortA, 0);
     }
 }
 
@@ -105,12 +116,30 @@ int main(void)
 {
     debug_println("Initializing peripherals...");
 
-    /* TODO: Setup clocks, initialize peripherals etc. here */
+    // Runs the Silicon Labs chip initialisation stuff, that also deals with
+    // errata (implements workarounds, etc).
+    CHIP_Init();
 
-    /* TODO: Set the ahb frequency based on your clock settings above
-     * Usually this has the same value as the main clock frequency */
+    WDOG->CTRL = WDOG_CTRL_CLKSEL_ULFRCO | WDOG_CTRL_EN | (1 << _WDOG_CTRL_PERSEL_SHIFT);
 
-    /* TODO: Configure systick, 100Hz */
+    // Switch on the clock for GPIO. Even though there's no immediately obvious
+    // timing stuff going on beyond the SysTick below, it still needs to be
+    // enabled for the GPIO to work.
+    CMU_ClockEnable(cmuClock_GPIO, true);
+
+    // Sets up and enable the `SysTick_Handler' interrupt to fire once every 1ms.
+    // ref: http://community.silabs.com/t5/Official-Blog-of-Silicon-Labs/Chapter-5-MCU-Clocking-Part-2-The-SysTick-Interrupt/ba-p/145297
+    if (SysTick_Config(CMU_ClockFreqGet(cmuClock_CORE) / SYSTICK_FREQUENCY)) {
+    // Something went wrong.
+    while (1);
+    }
+
+    // Set up two pins with the GPIO controller and configure them to be open
+    // drain:
+    //  - PA0 == green
+    //  - PB7 == red
+    GPIO_PinModeSet(gpioPortA, 0, gpioModeWiredAnd, 0);
+    GPIO_PinModeSet(gpioPortB, 7, gpioModeWiredAnd, 0);
 
     debug_println("Starting RTOS...");
 

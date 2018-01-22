@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='UTF-8'?>
 <system>
   <defines>
-    <define>EFM32HG</define>
+      <define>EFM32HG309F64</define>
   </defines>
   <flags>
     <flag>-mcpu=cortex-m0plus</flag>
@@ -9,6 +9,10 @@
     <flag>-msoft-float</flag>
   </flags>
   <include_paths>
+      <include_path>packages/machine-tomu/Gecko_SDK/platform/CMSIS/Include</include_path>
+      <include_path>packages/machine-tomu/Gecko_SDK/platform/Device/SiliconLabs/EFM32HG/Include</include_path>
+      <include_path>packages/machine-tomu/Gecko_SDK/hardware/kit/common/drivers</include_path>
+      <include_path>packages/machine-tomu/Gecko_SDK/platform/emlib/inc</include_path>
   </include_paths>
   <libraries>
   </libraries>
@@ -34,5 +38,9 @@
     <!--Add your own source files here-->
     <module name="machine-tomu.rigel-test.main"/>
     <module name="machine-tomu.rigel-test.handlers"/>
+    <module name="machine-tomu.Gecko_SDK.platform.Device.SiliconLabs.EFM32HG.Source.system_efm32hg"/>
+    <module name="machine-tomu.Gecko_SDK.platform.emlib.src.em_cmu"/>
+    <module name="machine-tomu.Gecko_SDK.platform.emlib.src.em_emu"/>
+    <module name="machine-tomu.Gecko_SDK.platform.emlib.src.em_gpio"/>
   </modules>
 </system>

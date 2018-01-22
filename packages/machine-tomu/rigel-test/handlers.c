@@ -1,6 +1,12 @@
 #include "rtos-rigel.h"
-
 #include "debug.h"
+
+#include "em_chip.h"
+#include "em_cmu.h"
+#include "em_device.h"
+#include "em_emu.h"
+#include "em_gpio.h"
+#include "em_wdog.h"
 
 /* NOTE: these handlers are different to
  * libopencm3's default null/blocking handlers -
@@ -41,6 +47,7 @@ systick_isr(void)
 {
     debug_println("systick");
     rtos_timer_tick();
+    WDOG->CMD = WDOG_CMD_CLEAR;
 }
 
 /* TODO: Remove the below handlers and redeclare
