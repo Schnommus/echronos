@@ -20,5 +20,9 @@
 #if defined(EFM32LG)
 #	include <libopencm3/efm32/lg/gpio.h>
 #else
+#if defined(EFM32HG)
+#	include <libopencm3/efm32/hg/gpio.h>
+#else
 #	error "efm32 family not defined."
+#endif
 #endif

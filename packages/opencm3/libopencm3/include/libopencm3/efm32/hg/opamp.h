@@ -14,13 +14,8 @@
  * GNU Lesser General Public License for more details.
  *
  * You should have received a copy of the GNU Lesser General Public License
- * along with this library. If not, see <http://www.gnu.org/licenses/>.
+ * along with this library.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#if defined(EFM32LG)
-#	include <libopencm3/efm32/lg/rmu.h>
-#if defined(EFM32HG)
-#	include <libopencm3/efm32/hg/rmu.h>
-#else
-#	error "efm32 family not defined."
-#endif
+/* OpAmp register are in dac.h */
+#include <libopencm3/efm32/dac.h>
