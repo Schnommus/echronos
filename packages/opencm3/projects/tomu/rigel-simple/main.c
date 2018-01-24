@@ -71,23 +71,11 @@ int main(void)
 
     debug_println("Initializing peripherals...");
 
-    cmu_disable_lock();
-
     cmu_periph_clock_enable(CMU_GPIO);
-
-    cmu_enable_lock();
-
-    gpio_disable_lock();
+    //*(uint32_t*)(0x400c8044) = (1 << 8);
 
     gpio_mode_setup(GPIOA, GPIO_MODE_WIRED_AND, GPIO0);
     gpio_mode_setup(GPIOB, GPIO_MODE_WIRED_AND, GPIO7);
-
-    gpio_enable_lock();
-
-    /* TODO: Setup clocks, initialize peripherals etc. here */
-
-    /* TODO: Set the ahb frequency based on your clock settings above
-     * Usually this has the same value as the main clock frequency */
 
     uint32_t ahb_freq = 14000000;
 
