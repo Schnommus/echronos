@@ -17,6 +17,7 @@
         <name>b</name>
         <function>fn_b</function>
         <stack_size>64</stack_size>
+        <start>true</start>
       </task>
     </tasks>
     <signal_labels>

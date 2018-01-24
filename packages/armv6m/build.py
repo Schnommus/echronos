@@ -30,7 +30,7 @@ def system_build(system):
     a_flags = common_flags
     a_flags.remove('-msoft-float')
 
-    c_flags = common_flags + ['-Os']
+    c_flags = common_flags + ['-O0']
 
     for define in system.defines:
         c_flags += ['-D{}'.format(define)]

@@ -1,4 +1,5 @@
 #include <libopencm3/cm3/common.h>
+#include <libopencm3/efm32/wdog.h>
 
 #include "rtos-rigel.h"
 
@@ -41,8 +42,8 @@ fatal(const RtosErrorId error_id)
 void
 systick_isr(void)
 {
-    debug_println("systick");
     rtos_timer_tick();
+    WDOG_CMD = WDOG_CMD_CLEAR;
 }
 
 /* TODO: Remove the below handlers and redeclare
