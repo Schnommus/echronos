@@ -24,13 +24,13 @@
       <pendsv>pendsv_isr</pendsv>
       <systick>systick_isr</systick>
       <flash_addr>0x00000000</flash_addr>
-      <flash_load_addr>0x00004000</flash_load_addr>
+      <flash_load_addr>0x00000000</flash_load_addr>
       <flash_size>0x00010000</flash_size>
       <sram_addr>0x20000000</sram_addr>
       <sram_size>0x00002000</sram_size>
       <include file="rigel-usb-extirqs.prx"/>
     </module>
-    <module name="armv6m.semihost-debug"/>
+    <module name="machine-tomu.debugnull"/>
     <module name="generic.debug"/>
     <module name="armv6m.ctxt-switch"/>
     <include file="rigel-usb-rtos.prx"/>

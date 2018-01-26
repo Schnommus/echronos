@@ -47,11 +47,16 @@ static struct _usbd_device _usbd_dev;
 static usbd_device *efm32hg_usbd_init(void)
 {
 	/* Enable clock */
-	CMU_HFCORECLKEN0 |= CMU_HFCORECLKEN0_USB | CMU_HFCORECLKEN0_USBC;
-	CMU_CMD = CMU_CMD_USBCCLKSEL_HFCLKNODIV;
+    CMU_HFCORECLKEN0 |= CMU_HFCORECLKEN0_LE |
+                        CMU_HFCORECLKEN0_USBC |
+                        CMU_HFCORECLKEN0_USB;
 
-	/* wait till clock not selected */
-	while (!(CMU_STATUS & CMU_STATUS_USBCHFCLKSEL));
+    CMU_LFCCLKEN0 |= CMU_LFBCLKEN0_USBLE;
+
+    CMU_OSCENCMD |= CMU_OSCENCMD_LFRCOEN | CMU_OSCENCMD_USHFRCOEN;
+
+	CMU_CMD = CMU_CMD_USBCCLKSEL_USHFRCO;
+	while (!(CMU_STATUS & CMU_STATUS_USBCUSHFRCOSEL));
 
 	USB_GINTSTS = USB_GINTSTS_MMIS;
 

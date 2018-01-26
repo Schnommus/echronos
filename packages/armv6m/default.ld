@@ -68,7 +68,7 @@ SECTIONS
 
         .bss :
         {
-            *(.bss)
+            *(.bss*)
             *(COMMON)
             . = ALIGN(4);
         } > sram_region
