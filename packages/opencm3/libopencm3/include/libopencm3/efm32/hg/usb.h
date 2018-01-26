@@ -32,7 +32,19 @@
 #define USB_ROUTE			MMIO32(USB_BASE + 0x018)
 
 /* USB_CTRL */
-#define USB_CTRL_DMPUAP			(1 << 1)
+#define USB_CTRL_BIASPROGEM23       (0x3 << 24)
+#define USB_CTRL_BIASPROGEM01       (0x3 << 20)
+#define USB_CTRL_VREGOSEN           (1 << 17)
+#define USB_CTRL_VREGDIS            (1 << 16)
+#define USB_CTRL_LEMIDLEEN          (1 << 9)
+#define USB_CTRL_LEMPHYCTRL         (1 << 7)
+#define USB_CTRL_LEMPHYCTRL_NONE    (0 << 7)
+#define USB_CTRL_LEMPHYCTRL_LEM     (1 << 7)
+#define USB_CTRL_LEMOSCCTRL_MASK    (0x3 << 4)
+#define USB_CTRL_LEMOSCCTRL_NONE    (0x0 << 4)
+#define USB_CTRL_LEMOSCCTRL_GATE    (0x1 << 4)
+#define USB_CTRL_LEMOSCCTRL_SUSPEND (0x2 << 4)
+#define USB_CTRL_DMPUAP			    (1 << 1)
 
 /* USB_ROUTE */
 #define USB_ROUTE_DMPUPEN		(1 << 2)

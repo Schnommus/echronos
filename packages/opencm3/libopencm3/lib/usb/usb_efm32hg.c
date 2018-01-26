@@ -58,26 +58,33 @@ static usbd_device *efm32hg_usbd_init(void)
 	CMU_CMD = CMU_CMD_USBCCLKSEL_USHFRCO;
 	while (!(CMU_STATUS & CMU_STATUS_USBCUSHFRCOSEL));
 
-	//USB_GINTSTS = USB_GINTSTS_MMIS; // Bit doesn't exist
+    USB_CTRL = USB_CTRL_LEMOSCCTRL_GATE;
 
-	USB_CTRL &= ~USB_CTRL_DMPUAP;
-	USB_ROUTE = USB_ROUTE_DMPUPEN | USB_ROUTE_PHYPEN;
+	USB_ROUTE = USB_ROUTE_PHYPEN;
 
-	/* Wait for AHB idle. */
-	while (!(USB_GRSTCTL & USB_GRSTCTL_AHBIDL));
+    /* Begin core reset */
+	/* Restart the PHY clock. */
+	USB_PCGCCTL = 0;
+
 	/* Do core soft reset. */
 	USB_GRSTCTL |= USB_GRSTCTL_CSRST;
 	while (USB_GRSTCTL & USB_GRSTCTL_CSRST);
 
+	/* Wait for AHB idle. */
+	while (!(USB_GRSTCTL & USB_GRSTCTL_AHBIDL));
+    /* end core reset */
+
 	/* Force peripheral only mode. */
-	//USB_GUSBCFG |= USB_GUSBCFG_FDMOD | USB_GUSBCFG_TRDT_16BIT; //FDMOD doesn't exist
-	USB_GUSBCFG |= USB_GUSBCFG_TRDT_16BIT;
 
 	/* Full speed device. */
-	USB_DCFG |= USB_DCFG_DEVSPD_FS;
+    USB_DCFG = ( USB_DCFG & ~USB_DCFG_DEVSPD_MASK ) | 3;
 
-	/* Restart the PHY clock. */
-	USB_PCGCCTL = 0;
+    /* Stall on nonzero len status OUT packets */
+    USB_DCFG |= USB_DCFG_NZSTSOUTHSHK;
+
+    /* Set periodic frame interval to 80% */
+    USB_DCFG &= ~USB_DCFG_PERFRINT_MASK;
+
 
 	USB_GRXFSIZ = efm32hg_usb_driver.rx_fifo_size;
 	_usbd_dev.fifo_mem_top = efm32hg_usb_driver.rx_fifo_size;
