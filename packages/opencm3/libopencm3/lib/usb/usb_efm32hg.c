@@ -43,7 +43,7 @@
 
 static struct _usbd_device _usbd_dev;
 
-/** Initialize the USB_FS device controller hardware of the STM32. */
+/** Initialize the USB device controller hardware of the EFM32HG. */
 static usbd_device *efm32hg_usbd_init(void)
 {
 	/* Enable clock */
@@ -58,7 +58,7 @@ static usbd_device *efm32hg_usbd_init(void)
 	CMU_CMD = CMU_CMD_USBCCLKSEL_USHFRCO;
 	while (!(CMU_STATUS & CMU_STATUS_USBCUSHFRCOSEL));
 
-	USB_GINTSTS = USB_GINTSTS_MMIS;
+	//USB_GINTSTS = USB_GINTSTS_MMIS; // Bit doesn't exist
 
 	USB_CTRL &= ~USB_CTRL_DMPUAP;
 	USB_ROUTE = USB_ROUTE_DMPUPEN | USB_ROUTE_PHYPEN;
@@ -70,10 +70,11 @@ static usbd_device *efm32hg_usbd_init(void)
 	while (USB_GRSTCTL & USB_GRSTCTL_CSRST);
 
 	/* Force peripheral only mode. */
-	USB_GUSBCFG |= USB_GUSBCFG_FDMOD | USB_GUSBCFG_TRDT_16BIT;
+	//USB_GUSBCFG |= USB_GUSBCFG_FDMOD | USB_GUSBCFG_TRDT_16BIT; //FDMOD doesn't exist
+	USB_GUSBCFG |= USB_GUSBCFG_TRDT_16BIT;
 
 	/* Full speed device. */
-	USB_DCFG |= USB_DCFG_DSPD;
+	USB_DCFG |= USB_DCFG_DEVSPD_FS;
 
 	/* Restart the PHY clock. */
 	USB_PCGCCTL = 0;
@@ -98,7 +99,7 @@ static void efm32hg_set_address(usbd_device *usbd_dev, uint8_t addr)
 {
 	(void)usbd_dev;
 
-	USB_DCFG = (USB_DCFG & ~USB_DCFG_DAD) | (addr << 4);
+	USB_DCFG = (USB_DCFG & ~USB_DCFG_DEVADDR_MASK) | (addr << 4);
 }
 
 static void efm32hg_ep_setup(usbd_device *usbd_dev, uint8_t addr, uint8_t type,

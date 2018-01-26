@@ -36,7 +36,7 @@
 
 /* USB_ROUTE */
 #define USB_ROUTE_DMPUPEN		(1 << 2)
-#define USB_ROUTE_VBUSENPEN		(1 << 1)
+/* Bit 1 - Reserved */
 #define USB_ROUTE_PHYPEN		(1 << 0)
 
 /* Core Global Control and Status Registers */
@@ -132,45 +132,40 @@
 /* AHB configuration register (USB_GAHBCFG) */
 #define USB_GAHBCFG_GLBLINTRMSK		0x0001
 #define USB_GAHBCFG_TXFELVL		0x0080
-#define USB_GAHBCFG_PTXFELVL		0x0100
 
 /* USB configuration register (USB_GUSBCFG) */
-#define USB_GUSBCFG_TOCAL		0x00000003
-#define USB_GUSBCFG_SRPCAP		0x00000100
-#define USB_GUSBCFG_HNPCAP		0x00000200
+#define USB_GUSBCFG_CURRUPTTXPKT         (1 << 31)
+/* Bits 30:29 - Reserved */
+#define USB_GUSBCFGTXENDDELAY           (1 << 28)
+/* Bits 27:23 - Reserved */
+#define USB_GUSBCFG_TERMSELDLPULSE       (1 << 22)
+/* Bits 21:14 - Reserved */
 #define USB_GUSBCFG_TRDT_MASK		(0xf << 10)
 #define USB_GUSBCFG_TRDT_16BIT		(0x5 << 10)
 #define USB_GUSBCFG_TRDT_8BIT		(0x9 << 10)
-#define USB_GUSBCFG_NPTXRWEN		0x00004000
-#define USB_GUSBCFG_FHMOD		0x20000000
-#define USB_GUSBCFG_FDMOD		0x40000000
-#define USB_GUSBCFG_CTXPKT		0x80000000
-#define USB_GUSBCFG_PHYSEL		(1 << 7)
+/* Bits 9:6 - Reserved */
+#define USB_GUSBCFG_FSINTF      (1 << 5)
+/* Bits 4:3 - Reserved */
+#define USB_GUSBCFG_TOCAL_MASK		0x3
 
 /* reset register (USB_GRSTCTL) */
 #define USB_GRSTCTL_AHBIDL		(1 << 31)
-/* Bits 30:11 - Reserved */
-#define USB_GRSTCTL_TXFNUM_MASK		(0x1f << 6)
+#define USB_GRSTCTL_DMAREQ		(1 << 30)
+/* Bits 29:11 - Reserved */
+#define USB_GRSTCTL_TXFNUM_MASK	(0x1f << 6)
 #define USB_GRSTCTL_TXFFLSH		(1 << 5)
 #define USB_GRSTCTL_RXFFLSH		(1 << 4)
-/* Bit 3 - Reserved */
-#define USB_GRSTCTL_FCRST		(1 << 2)
+/* Bit 3:2 - Reserved */
 #define USB_GRSTCTL_HSRST		(1 << 1)
 #define USB_GRSTCTL_CSRST		(1 << 0)
 
 /* interrupt status register (USB_GINTSTS) */
 #define USB_GINTSTS_WKUPINT		(1 << 31)
-#define USB_GINTSTS_SRQINT		(1 << 30)
-#define USB_GINTSTS_DISCINT		(1 << 29)
-#define USB_GINTSTS_CIDSCHG		(1 << 28)
-/* Bit 27 - Reserved */
-#define USB_GINTSTS_PTXFE		(1 << 26)
-#define USB_GINTSTS_HCINT		(1 << 25)
-#define USB_GINTSTS_HPRTINT		(1 << 24)
-/* Bits 23:22 - Reserved */
-#define USB_GINTSTS_IPXFR		(1 << 21)
-#define USB_GINTSTS_INCOMPISOOUT	(1 << 21)
-#define USB_GINTSTS_IISOIXFR		(1 << 20)
+/* Bits 30:24 - Reserved */
+#define USB_GINTSTS_RESETDET	(1 << 23)
+#define USB_GINTSTS_FETSUSP		(1 << 22)
+#define USB_GINTSTS_INCOMPLP   	(1 << 21)
+#define USB_GINTSTS_INCOMPISOIN	(1 << 20)
 #define USB_GINTSTS_OEPINT		(1 << 19)
 #define USB_GINTSTS_IEPINT		(1 << 18)
 /* Bits 17:16 - Reserved */
@@ -181,42 +176,36 @@
 #define USB_GINTSTS_USBSUSP		(1 << 11)
 #define USB_GINTSTS_ESUSP		(1 << 10)
 /* Bits 9:8 - Reserved */
-#define USB_GINTSTS_GONAKEFF		(1 << 7)
-#define USB_GINTSTS_GINAKEFF		(1 << 6)
-#define USB_GINTSTS_NPTXFE		(1 << 5)
+#define USB_GINTSTS_GONAKEFF	(1 << 7)
+#define USB_GINTSTS_GINAKEFF	(1 << 6)
+/* Bit 5 - Reserved */
 #define USB_GINTSTS_RXFLVL		(1 << 4)
 #define USB_GINTSTS_SOF			(1 << 3)
-#define USB_GINTSTS_OTGINT		(1 << 2)
-#define USB_GINTSTS_MMIS		(1 << 1)
+/* Bits 2:1 - Reserved */
 #define USB_GINTSTS_CMOD		(1 << 0)
 
 /* interrupt mask register (USB_GINTMSK) */
-#define USB_GINTMSK_MMISM		0x00000002
-#define USB_GINTMSK_OTGINT		0x00000004
-#define USB_GINTMSK_SOFM		0x00000008
-#define USB_GINTMSK_RXFLVLM		0x00000010
-#define USB_GINTMSK_NPTXFEM		0x00000020
-#define USB_GINTMSK_GINAKEFFM		0x00000040
-#define USB_GINTMSK_GONAKEFFM		0x00000080
-#define USB_GINTMSK_ESUSPM		0x00000400
-#define USB_GINTMSK_USBSUSPM		0x00000800
-#define USB_GINTMSK_USBRST		0x00001000
-#define USB_GINTMSK_ENUMDNEM		0x00002000
-#define USB_GINTMSK_ISOODRPM		0x00004000
-#define USB_GINTMSK_EOPFM		0x00008000
-#define USB_GINTMSK_EPMISM		0x00020000
-#define USB_GINTMSK_IEPINT		0x00040000
-#define USB_GINTMSK_OEPINT		0x00080000
-#define USB_GINTMSK_IISOIXFRM		0x00100000
-#define USB_GINTMSK_IISOOXFRM		0x00200000
-#define USB_GINTMSK_IPXFRM		0x00200000
-#define USB_GINTMSK_PRTIM		0x01000000
-#define USB_GINTMSK_HCIM		0x02000000
-#define USB_GINTMSK_PTXFEM		0x04000000
-#define USB_GINTMSK_CIDSCHGM		0x10000000
-#define USB_GINTMSK_DISCINT		0x20000000
-#define USB_GINTMSK_SRQIM		0x40000000
-#define USB_GINTMSK_WUIM		0x80000000
+#define USB_GINTMSK_MMISM		(1 << 1)
+#define USB_GINTMSK_SOFM		(1 << 3)
+#define USB_GINTMSK_RXFLVLM		(1 << 4)
+
+#define USB_GINTMSK_GINAKEFFM	(1 << 6)
+#define USB_GINTMSK_GONAKEFFM	(1 << 7)
+
+#define USB_GINTMSK_ESUSPM		(1 << 10)
+#define USB_GINTMSK_USBSUSPM	(1 << 11)
+#define USB_GINTMSK_USBRST		(1 << 12)
+#define USB_GINTMSK_ENUMDNEM	(1 << 13)
+#define USB_GINTMSK_ISOODRPM	(1 << 14)
+#define USB_GINTMSK_EOPFM		(1 << 15)
+
+#define USB_GINTMSK_IEPINT	   	   (1 << 18)
+#define USB_GINTMSK_OEPINT	       (1 << 19)
+#define USB_GINTMSK_INCOMPISOINMSK (1 << 20)
+#define USB_GINTMSK_INCOMPLPMSK	   (1 << 21)
+#define USB_GINTMSK_FETSUSPMSK	   (1 << 22)
+#define USB_GINTMSK_RESETDETMSK	   (1 << 23)
+#define USB_GINTMSK_WUIM	       (1 << 31)
 
 /* Receive Status Pop Register (USB_GRXSTSP) */
 /* Bits 31:25 - Reserved */
@@ -260,10 +249,17 @@
 #define USB_DCTL_RWUSIG			(1 << 0)
 
 /* device configuration register (USB_DCFG) */
-#define USB_DCFG_DSPD			0x0003
-#define USB_DCFG_NZLSOHSK		0x0004
-#define USB_DCFG_DAD			0x07F0
-#define USB_DCFG_PFIVL			0x1800
+#define USB_RESVALID_MASK           (0x3F << 26)
+/* Bits 25:16 - Reserved */
+#define USB_DCFG_ERRATICINTMASK      (1 << 15)
+/* Bits 14:13 - Reserved */
+#define USB_DCFG_PERFRINT_MASK    	(0x2 << 11)
+#define USB_DCFG_DEVADDR_MASK		(0x7F << 4)
+#define USB_DCFG_ENA32KHZUSP		(1 << 3)
+#define USB_DCFG_NZSTSOUTHSHK		(1 << 2)
+#define USB_DCFG_DEVSPD_MASK		(0x3 << 0)
+#define USB_DCFG_DEVSPD_FS	    	(0x3 << 0)
+#define USB_DCFG_DEVSPD_LS	    	(0x2 << 0)
 
 /* Device IN Endpoint Common Interrupt Mask Register (USB_DIEPMSK) */
 /* Bits 31:10 - Reserved */
