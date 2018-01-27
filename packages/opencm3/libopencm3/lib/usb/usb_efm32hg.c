@@ -29,7 +29,7 @@
 /* Receive FIFO size in 32-bit words. */
 #define RX_FIFO_SIZE 256
 
-/* FIME: EFM32LG have 6 bidirectonal-endpoint
+/* FIME: EFM32HG have 6 bidirectonal-endpoint
  *  problem is "uint32_t doeptsiz[4];" in usb_private.h
  *  doeptsiz is fixed size of length 4,
  *  if we it to be of length 6
@@ -46,58 +46,60 @@ static struct _usbd_device _usbd_dev;
 /** Initialize the USB device controller hardware of the EFM32HG. */
 static usbd_device *efm32hg_usbd_init(void)
 {
-	/* Enable clock */
-    CMU_HFCORECLKEN0 |= CMU_HFCORECLKEN0_LE |
-                        CMU_HFCORECLKEN0_USBC |
-                        CMU_HFCORECLKEN0_USB;
+    /* USB Initialization: See section 14.3.2 of EFM32HG-RM.pdf */
 
-    CMU_LFCCLKEN0 |= CMU_LFBCLKEN0_USBLE;
+    CMU_HFCORECLKEN0 |= CMU_HFCORECLKEN0_USB;
 
-    CMU_OSCENCMD |= CMU_OSCENCMD_LFRCOEN | CMU_OSCENCMD_USHFRCOEN;
+	USB_ROUTE = USB_ROUTE_PHYPEN;
+
+    CMU_OSCENCMD |= CMU_OSCENCMD_USHFRCOEN;
+
+    CMU_HFCORECLKEN0 |= CMU_HFCORECLKEN0_USBC;
 
 	CMU_CMD = CMU_CMD_USBCCLKSEL_USHFRCO;
 	while (!(CMU_STATUS & CMU_STATUS_USBCUSHFRCOSEL));
 
-    USB_CTRL = USB_CTRL_LEMOSCCTRL_GATE;
-
-	USB_ROUTE = USB_ROUTE_PHYPEN;
-
-    /* Begin core reset */
-	/* Restart the PHY clock. */
-	USB_PCGCCTL = 0;
-
 	/* Do core soft reset. */
-	USB_GRSTCTL |= USB_GRSTCTL_CSRST;
-	while (USB_GRSTCTL & USB_GRSTCTL_CSRST);
+	USB_GRSTCTL |= USB_GRSTCTL_CSFTRST;
+	while (USB_GRSTCTL & USB_GRSTCTL_CSFTRST);
 
 	/* Wait for AHB idle. */
-	while (!(USB_GRSTCTL & USB_GRSTCTL_AHBIDL));
-    /* end core reset */
+	while (!(USB_GRSTCTL & USB_GRSTCTL_AHBIDLE));
 
-	/* Force peripheral only mode. */
+    /* Program the USB core: See section 14.4.1 of EFM32HG-RM.pdf */
 
-	/* Full speed device. */
-    USB_DCFG = ( USB_DCFG & ~USB_DCFG_DEVSPD_MASK ) | 3;
+    USB_GAHBCFG |= USB_GAHBCFG_GLBLINTRMSK;
 
-    /* Stall on nonzero len status OUT packets */
-    USB_DCFG |= USB_DCFG_NZSTSOUTHSHK;
+    USB_GINTMSK |= USB_GINTMSK_MODEMISMSK;
 
-    /* Set periodic frame interval to 80% */
-    USB_DCFG &= ~USB_DCFG_PERFRINT_MASK;
+    /* Device mode initialization: See section 14.4.1.2 of EFM32HG-RM.pdf */
 
+    USB_DCFG = USB_DCFG_DEVSPD_FS | USB_DCFG_NZSTSOUTHSHK;
+
+    USB_GINTMSK |= USB_GINTMSK_USBRSTMSK |
+                   USB_GINTMSK_ENUMDONEMSK |
+                   USB_GINTMSK_ERLYSUSPMSK |
+                   USB_GINTMSK_USBSUSPMSK;
+
+    /* Do 'ordinary' libopencm3 init */
+
+	/* Restart the PHY clock. */
+	USB_PCGCCTL = 0;
 
 	USB_GRXFSIZ = efm32hg_usb_driver.rx_fifo_size;
 	_usbd_dev.fifo_mem_top = efm32hg_usb_driver.rx_fifo_size;
 
 	/* Unmask interrupts for TX and RX. */
-	USB_GAHBCFG |= USB_GAHBCFG_GLBLINTRMSK;
-	USB_GINTMSK = USB_GINTMSK_ENUMDNEM |
-			 USB_GINTMSK_RXFLVLM |
-			 USB_GINTMSK_IEPINT |
-			 USB_GINTMSK_USBSUSPM |
-			 USB_GINTMSK_WUIM;
-	USB_DAINTMSK = 0xF;
-	USB_DIEPMSK = USB_DIEPMSK_XFRCM;
+	USB_GINTMSK |= USB_GINTMSK_RXFLVLMSK |
+                   USB_GINTMSK_IEPINTMSK |
+                   USB_GINTMSK_WKUPINTMSK;
+	USB_DAINTMSK = 0xF; /* unmask IN endpoint interrupts 3:0 */
+	USB_DIEPMSK = USB_DIEPMSK_XFERCOMPLMSK;
+
+    /* In device mode, just after Power On Reset or a Soft Reset,
+     * the USB_GINTSTS.SOF bit is set to 1 for debug purposes.
+     * This status must be cleared and can be ignored. */
+    USB_GINTSTS = USB_GINTSTS & (~USB_GINTSTS_SOF);
 
 	return &_usbd_dev;
 }
@@ -133,14 +135,14 @@ static void efm32hg_ep_setup(usbd_device *usbd_dev, uint8_t addr, uint8_t type,
 		}
 
 		USB_DIEP0TSIZ =
-			(max_size & USB_DIEP0TSIZ_XFRSIZ_MASK);
+			(max_size & USB_DIEP0TSIZ_XFERSIZE_MASK);
 		USB_DIEP0CTL |=
 			USB_DIEP0CTL_EPENA | USB_DIEP0CTL_SNAK;
 
 		/* Configure OUT part. */
 		usbd_dev->doeptsiz[0] = USB_DIEP0TSIZ_STUPCNT_1 |
 			USB_DIEP0TSIZ_PKTCNT |
-			(max_size & USB_DIEP0TSIZ_XFRSIZ_MASK);
+			(max_size & USB_DIEP0TSIZ_XFERSIZE_MASK);
 		USB_DOEPx_TSIZ(0) = usbd_dev->doeptsiz[0];
 		USB_DOEPx_CTL(0) |=
 		    USB_DOEP0CTL_EPENA | USB_DIEP0CTL_SNAK;
@@ -159,10 +161,10 @@ static void efm32hg_ep_setup(usbd_device *usbd_dev, uint8_t addr, uint8_t type,
 		usbd_dev->fifo_mem_top += max_size / 4;
 
 		USB_DIEPx_TSIZ(addr) =
-		    (max_size & USB_DIEP0TSIZ_XFRSIZ_MASK);
+		    (max_size & USB_DIEP0TSIZ_XFERSIZE_MASK);
 		USB_DIEPx_CTL(addr) |=
 		    USB_DIEP0CTL_EPENA | USB_DIEP0CTL_SNAK | (type << 18)
-		    | USB_DIEP0CTL_USBAEP | USB_DIEP0CTL_SD0PID
+		    | USB_DIEP0CTL_USBACTEP | USB_DIEP0CTL_SETD0PIDEF
 		    | (addr << 22) | max_size;
 
 		if (callback) {
@@ -173,11 +175,11 @@ static void efm32hg_ep_setup(usbd_device *usbd_dev, uint8_t addr, uint8_t type,
 
 	if (!dir) {
 		usbd_dev->doeptsiz[addr] = USB_DIEP0TSIZ_PKTCNT |
-				 (max_size & USB_DIEP0TSIZ_XFRSIZ_MASK);
+				 (max_size & USB_DIEP0TSIZ_XFERSIZE_MASK);
 		USB_DOEPx_TSIZ(addr) = usbd_dev->doeptsiz[addr];
 		USB_DOEPx_CTL(addr) |= USB_DOEP0CTL_EPENA |
-		    USB_DOEP0CTL_USBAEP | USB_DIEP0CTL_CNAK |
-		    USB_DOEP0CTL_SD0PID | (type << 18) | max_size;
+		    USB_DOEP0CTL_USBACTEP  | USB_DOEP0CTL_CNAK |
+		    USB_DOEP0CTL_SETD0PIDEF | (type << 18) | max_size;
 
 		if (callback) {
 			usbd_dev->user_callback_ctr[addr][USB_TRANSACTION_OUT] =
@@ -211,14 +213,14 @@ static void efm32hg_ep_stall_set(usbd_device *usbd_dev, uint8_t addr,
 			USB_DIEPx_CTL(addr) |= USB_DIEP0CTL_STALL;
 		} else {
 			USB_DIEPx_CTL(addr) &= ~USB_DIEP0CTL_STALL;
-			USB_DIEPx_CTL(addr) |= USB_DIEP0CTL_SD0PID;
+			USB_DIEPx_CTL(addr) |= USB_DIEP0CTL_SETD0PIDEF;
 		}
 	} else {
 		if (stall) {
 			USB_DOEPx_CTL(addr) |= USB_DOEP0CTL_STALL;
 		} else {
 			USB_DOEPx_CTL(addr) &= ~USB_DOEP0CTL_STALL;
-			USB_DOEPx_CTL(addr) |= USB_DOEP0CTL_SD0PID;
+			USB_DOEPx_CTL(addr) |= USB_DOEP0CTL_SETD0PIDEF;
 		}
 	}
 }
@@ -315,9 +317,9 @@ static void efm32hg_poll(usbd_device *usbd_dev)
 	uint32_t intsts = USB_GINTSTS;
 	int i;
 
-	if (intsts & USB_GINTSTS_ENUMDNE) {
+	if (intsts & USB_GINTSTS_ENUMDONE) {
 		/* Handle USB RESET condition. */
-		USB_GINTSTS = USB_GINTSTS_ENUMDNE;
+		USB_GINTSTS = USB_GINTSTS_ENUMDONE;
 		usbd_dev->fifo_mem_top = usbd_dev->driver->rx_fifo_size;
 		_usbd_reset(usbd_dev);
 		return;
@@ -328,14 +330,14 @@ static void efm32hg_poll(usbd_device *usbd_dev)
 		/* Receive FIFO non-empty. */
 		uint32_t rxstsp = USB_GRXSTSP;
 		uint32_t pktsts = rxstsp & USB_GRXSTSP_PKTSTS_MASK;
-		if ((pktsts != USB_GRXSTSP_PKTSTS_OUT) &&
-		    (pktsts != USB_GRXSTSP_PKTSTS_SETUP)) {
+		if ((pktsts != USB_GRXSTSP_PKTSTS_PKTRCV) &&
+		    (pktsts != USB_GRXSTSP_PKTSTS_SETUPRCV)) {
 			return;
 		}
 
-		uint8_t ep = rxstsp & USB_GRXSTSP_EPNUM_MASK;
+		uint8_t ep = rxstsp & USB_GRXSTSP_CHEPNUM_MASK;
 		uint8_t type;
-		if (pktsts == USB_GRXSTSP_PKTSTS_SETUP) {
+		if (pktsts == USB_GRXSTSP_PKTSTS_SETUPRCV) {
 			type = USB_TRANSACTION_SETUP;
 		} else {
 			type = USB_TRANSACTION_OUT;
@@ -370,7 +372,7 @@ static void efm32hg_poll(usbd_device *usbd_dev)
 	 * The XFRC bit must be checked in each USB_DIEPx_INT(x).
 	 */
 	for (i = 0; i < ENDPOINT_COUNT; i++) { /* Iterate over endpoints. */
-		if (USB_DIEPx_INT(i) & USB_DIEP_INT_XFRC) {
+		if (USB_DIEPx_INT(i) & USB_DIEP_INT_XFERCOMPL) {
 			/* Transfer complete. */
 			if (usbd_dev->user_callback_ctr[i]
 						       [USB_TRANSACTION_IN]) {
@@ -378,7 +380,7 @@ static void efm32hg_poll(usbd_device *usbd_dev)
 					[USB_TRANSACTION_IN](usbd_dev, i);
 			}
 
-			USB_DIEPx_INT(i) = USB_DIEP_INT_XFRC;
+			USB_DIEPx_INT(i) = USB_DIEP_INT_XFERCOMPL;
 		}
 	}
 
@@ -389,11 +391,11 @@ static void efm32hg_poll(usbd_device *usbd_dev)
 		USB_GINTSTS = USB_GINTSTS_USBSUSP;
 	}
 
-	if (intsts & USB_GINTSTS_WKUPINT) {
+	if (intsts & USB_GINTSTS_WKUPINTMSK) {
 		if (usbd_dev->user_callback_resume) {
 			usbd_dev->user_callback_resume();
 		}
-		USB_GINTSTS = USB_GINTSTS_WKUPINT;
+		USB_GINTSTS = USB_GINTSTS_WKUPINTMSK;
 	}
 
 	if (intsts & USB_GINTSTS_SOF) {
@@ -404,9 +406,9 @@ static void efm32hg_poll(usbd_device *usbd_dev)
 	}
 
 	if (usbd_dev->user_callback_sof) {
-		USB_GINTMSK |= USB_GINTMSK_SOFM;
+		USB_GINTMSK |= USB_GINTMSK_SOFMSK;
 	} else {
-		USB_GINTMSK &= ~USB_GINTMSK_SOFM;
+		USB_GINTMSK &= ~USB_GINTMSK_SOFMSK;
 	}
 }
 
@@ -415,9 +417,9 @@ static void efm32hg_disconnect(usbd_device *usbd_dev, bool disconnected)
 	(void)usbd_dev;
 
 	if (disconnected) {
-		USB_DCTL |= USB_DCTL_SDIS;
+		USB_DCTL |= USB_DCTL_SFTDISCON;
 	} else {
-		USB_DCTL &= ~USB_DCTL_SDIS;
+		USB_DCTL &= ~USB_DCTL_SFTDISCON;
 	}
 }
 
