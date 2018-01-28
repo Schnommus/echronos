@@ -29,7 +29,7 @@
 /* Receive FIFO size in 32-bit words. */
 #define RX_FIFO_SIZE 256
 
-/* FIME: EFM32HG have 6 bidirectonal-endpoint
+/* FIXME: EFM32HG have 6 bidirectonal-endpoint
  *  problem is "uint32_t doeptsiz[4];" in usb_private.h
  *  doeptsiz is fixed size of length 4,
  *  if we it to be of length 6
@@ -43,72 +43,105 @@
 
 static struct _usbd_device _usbd_dev;
 
-/** Initialize the USB device controller hardware of the EFM32HG. */
-static usbd_device *efm32hg_usbd_init(void)
-{
-    /* USB Initialization: See section 14.3.2 of EFM32HG-RM.pdf */
-
-    CMU_HFCORECLKEN0 |= CMU_HFCORECLKEN0_USB;
-
-	USB_ROUTE = USB_ROUTE_PHYPEN;
-
-    CMU_OSCENCMD |= CMU_OSCENCMD_USHFRCOEN;
-
-    CMU_HFCORECLKEN0 |= CMU_HFCORECLKEN0_USBC;
-
-	CMU_CMD = CMU_CMD_USBCCLKSEL_USHFRCO;
-	while (!(CMU_STATUS & CMU_STATUS_USBCUSHFRCOSEL));
-
-	/* Do core soft reset. */
-	USB_GRSTCTL |= USB_GRSTCTL_CSFTRST;
-	while (USB_GRSTCTL & USB_GRSTCTL_CSFTRST);
-
-	/* Wait for AHB idle. */
-	while (!(USB_GRSTCTL & USB_GRSTCTL_AHBIDLE));
-
-    /* Program the USB core: See section 14.4.1 of EFM32HG-RM.pdf */
-
-    USB_GAHBCFG |= USB_GAHBCFG_GLBLINTRMSK;
-
-    USB_GINTMSK |= USB_GINTMSK_MODEMISMSK;
-
-    /* Device mode initialization: See section 14.4.1.2 of EFM32HG-RM.pdf */
-
-    USB_DCFG = USB_DCFG_DEVSPD_FS | USB_DCFG_NZSTSOUTHSHK;
-
-    USB_GINTMSK |= USB_GINTMSK_USBRSTMSK |
-                   USB_GINTMSK_ENUMDONEMSK |
-                   USB_GINTMSK_ERLYSUSPMSK |
-                   USB_GINTMSK_USBSUSPMSK;
-
-    /* Do 'ordinary' libopencm3 init */
-
-	/* Restart the PHY clock. */
-	USB_PCGCCTL = 0;
-
-	USB_GRXFSIZ = efm32hg_usb_driver.rx_fifo_size;
-	_usbd_dev.fifo_mem_top = efm32hg_usb_driver.rx_fifo_size;
-
-	/* Unmask interrupts for TX and RX. */
-	USB_GINTMSK |= USB_GINTMSK_RXFLVLMSK |
-                   USB_GINTMSK_IEPINTMSK |
-                   USB_GINTMSK_WKUPINTMSK;
-	USB_DAINTMSK = 0xF; /* unmask IN endpoint interrupts 3:0 */
-	USB_DIEPMSK = USB_DIEPMSK_XFERCOMPLMSK;
-
-    /* In device mode, just after Power On Reset or a Soft Reset,
-     * the USB_GINTSTS.SOF bit is set to 1 for debug purposes.
-     * This status must be cleared and can be ignored. */
-    USB_GINTSTS = USB_GINTSTS & (~USB_GINTSTS_SOF);
-
-	return &_usbd_dev;
-}
-
 static void efm32hg_set_address(usbd_device *usbd_dev, uint8_t addr)
 {
 	(void)usbd_dev;
 
 	USB_DCFG = (USB_DCFG & ~USB_DCFG_DEVADDR_MASK) | (addr << 4);
+}
+
+/** Initialize the USB device controller hardware of the EFM32HG. */
+static usbd_device *efm32hg_usbd_init(void)
+{
+    CMU_HFCORECLKEN0 = CMU_HFCORECLKEN0_LE | CMU_HFCORECLKEN0_USB | CMU_HFCORECLKEN0_USBC;
+
+    /* Select LFRCO as LFCCLK clock */
+    CMU_LFCLKSEL = (CMU_LFCLKSEL & ~0x30UL) | (0x1 /* LFRCO */ << 4 /* LFC */);
+
+    CMU_LFCCLKEN0 |= CMU_LFCCLKEN0_USBLE;
+
+    CMU_LFCLKSEL = (CMU_LFCLKSEL & ~CMU_LFCLKSEL_LFC_MASK) | CMU_LFCLKSEL_LFC_LFRCO;
+    CMU_LFCCLKEN0 |= CMU_LFCCLKEN0_USBLE;
+
+    // Calibrate USB based on communications
+    CMU_USHFRCOCONF = CMU_USHFRCOCONF_BAND_48MHZ;
+
+    // Enable USHFRCO Clock Recovery mode.
+    CMU_USBCRCTRL |= CMU_USBCRCTRL_EN;
+
+    /* Select USHFRCO as clock source for USB */
+    CMU_OSCENCMD = CMU_OSCENCMD_USHFRCOEN;
+    while (!(CMU_STATUS & CMU_STATUS_USHFRCORDY))
+        ;
+
+    /* Switch oscillator */
+    CMU_CMD = CMU_CMD_USBCCLKSEL_USHFRCO;
+
+    /* Wait until clock is activated */
+    while ((CMU_STATUS & CMU_STATUS_USBCUSHFRCOSEL) == 0)
+        ;
+
+    /* Turn on Low Energy Mode (LEM) features. */
+    USB_CTRL = USB_CTRL_LEMOSCCTRL_GATE | USB_CTRL_LEMIDLEEN | USB_CTRL_LEMPHYCTRL;
+
+    /* Initialize USB core */
+
+    USB_ROUTE = USB_ROUTE_PHYPEN; /* Enable PHY pins.  */
+
+    USB_PCGCCTL &= ~USB_PCGCCTL_STOPPCLK;
+    USB_PCGCCTL &= ~(USB_PCGCCTL_PWRCLMP | USB_PCGCCTL_RSTPDWNMODULE);
+
+    /* Core Soft Reset */
+    {
+        USB_GRSTCTL |= USB_GRSTCTL_CSFTRST;
+        while (USB_GRSTCTL & USB_GRSTCTL_CSFTRST)
+        {
+        }
+
+        /* Wait for AHB master IDLE state. */
+        while (!(USB_GRSTCTL & USB_GRSTCTL_AHBIDLE))
+        {
+        }
+    }
+
+    /* Setup full speed device */
+    USB_DCFG = (USB_DCFG & ~USB_DCFG_DEVSPD_MASK) | USB_DCFG_DEVSPD_FS;
+
+    /* Stall on non-zero len status OUT packets (ctrl transfers). */
+    USB_DCFG |= USB_DCFG_NZSTSOUTHSHK;
+
+    /* Set periodic frame interval to 80% */
+    USB_DCFG &= ~USB_DCFG_PERFRINT_MASK;
+
+    USB_GAHBCFG = (USB_GAHBCFG & ~USB_GAHBCFG_HBSTLEN_MASK) | USB_GAHBCFG_HBSTLEN_SINGLE;
+
+    /* Ignore frame numbers on ISO transfers. */
+    USB_DCTL = (USB_DCTL & ~DCTL_WO_BITMASK) | USB_DCTL_IGNRFRMNUM;
+
+    /* Set Rx FIFO size */
+    USB_GRXFSIZ = efm32hg_usb_driver.rx_fifo_size;
+
+    /* Set Tx EP0 FIFO size */
+    const uint32_t ep_tx_fifo_size = 64;
+    uint32_t address = efm32hg_usb_driver.rx_fifo_size;
+    uint32_t depth = ep_tx_fifo_size;
+    USB_GNPTXFSIZ = (depth << 16 /*NPTXFINEPTXF0DEP*/) | address /*NPTXFSTADDR*/;
+
+    _usbd_dev.fifo_mem_top = efm32hg_usb_driver.rx_fifo_size;
+
+    /* Connect */
+    USB_DCTL &= ~(DCTL_WO_BITMASK | USB_DCTL_SFTDISCON);
+
+    /* Unmask interrupts for TX and RX */
+    USB_GAHBCFG |= USB_GAHBCFG_GLBLINTRMSK;
+    USB_GINTMSK = USB_GINTMSK_USBRSTMSK |
+                   USB_GINTMSK_ENUMDONEMSK | USB_GINTMSK_IEPINTMSK | USB_GINTMSK_OEPINTMSK
+        /*| USB_GINTMSK_WKUPINTMSK*/;
+    USB_DAINTMSK = USB_DAINTMSK_INEPMSK0 | USB_DAINTMSK_OUTEPMSK0;
+    USB_DOEPMSK = USB_DOEPMSK_SETUPMSK | USB_DOEPMSK_XFERCOMPLMSK | USB_DOEPMSK_STSPHSERCVDMSK;
+    USB_DIEPMSK = USB_DIEPMSK_XFERCOMPLMSK;
+
+    return &_usbd_dev;
 }
 
 static void efm32hg_ep_setup(usbd_device *usbd_dev, uint8_t addr, uint8_t type,

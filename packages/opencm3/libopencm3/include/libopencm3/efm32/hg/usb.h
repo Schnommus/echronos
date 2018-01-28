@@ -45,6 +45,8 @@
 #define USB_CTRL_LEMPHYCTRL        (1 << 7)
 /* Bit 6 - Reserved */
 #define USB_CTRL_LEMOSCCTRL_MASK   (0x3 << 4)
+#define USB_CTRL_LEMOSCCTRL_NONE   (0x0 << 4)
+#define USB_CTRL_LEMOSCCTRL_GATE   (0x1 << 4)
 /* Bits 3:2 - Reserved */
 #define USB_CTRL_DMPUAP            (1 << 1)
 /* Bit 0 - Reserved */
@@ -57,8 +59,6 @@
 
 /* Core Global Control and Status Registers */
 #define USB_OTG_BASE			(USB_BASE + 0x3C000)
-#define USB_GOTGCTL			MMIO32(USB_OTG_BASE + 0x000)
-#define USB_GOTGINT			MMIO32(USB_OTG_BASE + 0x004)
 #define USB_GAHBCFG			MMIO32(USB_OTG_BASE + 0x008)
 #define USB_GUSBCFG			MMIO32(USB_OTG_BASE + 0x00C)
 #define USB_GRSTCTL			MMIO32(USB_OTG_BASE + 0x010)
@@ -68,30 +68,9 @@
 #define USB_GRXSTSP			MMIO32(USB_OTG_BASE + 0x020)
 #define USB_GRXFSIZ			MMIO32(USB_OTG_BASE + 0x024)
 #define USB_GNPTXFSIZ			MMIO32(USB_OTG_BASE + 0x028)
-#define USB_GNPTXSTS			MMIO32(USB_OTG_BASE + 0x02C)
 #define USB_GDFIFOCFG			MMIO32(USB_OTG_BASE + 0x05C)
-#define USB_HPTXFSIZ			MMIO32(USB_OTG_BASE + 0x100)
 #define USB_DIEPTXF(x)			\
 	MMIO32(USB_OTG_BASE + 0x104 + (4 * ((x) - 1)))
-
-/* Host-mode Control and Status Registers */
-#define USB_HCFG			MMIO32(USB_OTG_BASE + 0x400)
-#define USB_HFIR			MMIO32(USB_OTG_BASE + 0x404)
-#define USB_HFNUM			MMIO32(USB_OTG_BASE + 0x408)
-#define USB_HPTXSTS			MMIO32(USB_OTG_BASE + 0x410)
-#define USB_HAINT			MMIO32(USB_OTG_BASE + 0x414)
-#define USB_HAINTMSK			MMIO32(USB_OTG_BASE + 0x418)
-#define USB_HPRT			MMIO32(USB_OTG_BASE + 0x440)
-#define USB_HCx_CHAR(x)			\
-	MMIO32(USB_OTG_BASE + 0x500 + ((x) * 0x20))
-#define USB_HCx_INT(x)			\
-	MMIO32(USB_OTG_BASE + 0x508 + ((x) * 0x20))
-#define USB_HCx_INTMSK(x)		\
-	MMIO32(USB_OTG_BASE + 0x50C + ((x) * 0x20))
-#define USB_HCx_TSIZ(x)			\
-	MMIO32(USB_OTG_BASE + 0x510 + ((x) * 0x20))
-#define USB_HCx_DMAADDR(x)		\
-	MMIO32(USB_OTG_BASE + 0x514 + ((x) * 0x20))
 
 /* Device-mode Control and Status Registers */
 #define USB_DCFG			MMIO32(USB_OTG_BASE + 0x800)
@@ -101,8 +80,6 @@
 #define USB_DOEPMSK			MMIO32(USB_OTG_BASE + 0x814)
 #define USB_DAINT			MMIO32(USB_OTG_BASE + 0x818)
 #define USB_DAINTMSK			MMIO32(USB_OTG_BASE + 0x81C)
-#define USB_DVBUSDIS			MMIO32(USB_OTG_BASE + 0x828)
-#define USB_DVBUSPULSE			MMIO32(USB_OTG_BASE + 0x82C)
 #define USB_DIEPEMPMSK			MMIO32(USB_OTG_BASE + 0x834)
 
 #define USB_DIEPx_CTL(x)		\
@@ -133,6 +110,14 @@
 	(&MMIO32(USB_OTG_BASE + (((x) + 1) << 12)))
 
 /* Global CSRs */
+/* Power & clock gating control register (USB_PCGCCTL) */
+/* Bits 31:7 - Reserved */
+#define USB_PCGCCTL_PHYSLEEP            (1 << 6)
+/* Bits 5:4 - Reserved */
+#define USB_PCGCCTL_RSTPDWNMODULE       (1 << 3)
+#define USB_PCGCCTL_PWRCLMP             (1 << 2)
+#define USB_PCGCCTL_GATEHCLK            (1 << 1)
+#define USB_PCGCCTL_STOPPCLK            (1 << 0)
 
 /* AHB configuration register (USB_GAHBCFG) */
 #define USB_GAHBCFG_AHBSINGLE           (1 << 23)
@@ -143,6 +128,7 @@
 /* Bit 6 - Reserved */
 #define USB_GAHBCFG_DMAEN               (1 << 5)
 #define USB_GAHBCFG_HBSTLEN_MASK        (0xf << 1)
+#define USB_GAHBCFG_HBSTLEN_SINGLE      (0x0 << 1)
 #define USB_GAHBCFG_GLBLINTRMSK         (1 << 0)
 
 /* USB configuration register (USB_GUSBCFG) */
@@ -253,6 +239,10 @@
 #define USB_DCTL_GNPINNAKSTS       (1 << 2)
 #define USB_DCTL_SFTDISCON         (1 << 1)
 #define USB_DCTL_RMTWKUPSIG        (1 << 0)
+
+#define DCTL_WO_BITMASK \
+          (USB_DCTL_CGOUTNAK  | USB_DCTL_SGOUTNAK | \
+           USB_DCTL_CGNPINNAK | USB_DCTL_SGNPINNAK)
 
 /* device configuration register (USB_DCFG) */
 #define USB_DCFG_RESVALID_MASK     (0x3f << 26)
@@ -379,6 +369,18 @@
 #define USB_DIEP0TSIZ_PKTCNT            (1 << 19)
 /* Bits 18:7 - Reserved */
 #define USB_DIEP0TSIZ_XFERSIZE_MASK     (0x7f << 0)
+
+/* Device All Endpoints Interrupt Mask Register (USB_DAINTMSK) */
+/* Bits 31:20 - Reserved */
+#define USB_DAINTMSK_OUTEPMSK3          (1 << 19)
+#define USB_DAINTMSK_OUTEPMSK2          (1 << 18)
+#define USB_DAINTMSK_OUTEPMSK1          (1 << 17)
+#define USB_DAINTMSK_OUTEPMSK0          (1 << 16)
+/* Bits 15:4 - Reserved */
+#define USB_DAINTMSK_INEPMSK3           (1 << 3)
+#define USB_DAINTMSK_INEPMSK2           (1 << 2)
+#define USB_DAINTMSK_INEPMSK1           (1 << 1)
+#define USB_DAINTMSK_INEPMSK0           (1 << 0)
 
 #endif
 

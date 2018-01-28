@@ -14,6 +14,12 @@
 /* Systick interrupt frequency, Hz */
 #define SYSTICK_FREQUENCY 1000
 
+usbd_device *usbd_dev = 0;
+
+#define VENDOR_ID                 0x1209    // pid.codes
+#define PRODUCT_ID                0x70b1    // Assigned to Tomu project
+#define DEVICE_VER                0x0101    // Program version
+
 static const struct usb_device_descriptor dev = {
 	.bLength = USB_DT_DEVICE_SIZE,
 	.bDescriptorType = USB_DT_DEVICE,
@@ -22,9 +28,9 @@ static const struct usb_device_descriptor dev = {
 	.bDeviceSubClass = 0,
 	.bDeviceProtocol = 0,
 	.bMaxPacketSize0 = 64,
-	.idVendor = 0x0483,
-	.idProduct = 0x5740,
-	.bcdDevice = 0x0200,
+	.idVendor = VENDOR_ID,
+	.idProduct = PRODUCT_ID,
+	.bcdDevice = DEVICE_VER,
 	.iManufacturer = 1,
 	.iProduct = 2,
 	.iSerialNumber = 3,
@@ -194,6 +200,7 @@ static int cdcacm_control_request(usbd_device *usbd_dev, struct usb_setup_data *
 	return 0;
 }
 
+/* Simple callback that echoes whatever is sent */
 static void cdcacm_data_rx_cb(usbd_device *usbd_dev, uint8_t ep)
 {
 	(void)ep;
@@ -205,6 +212,12 @@ static void cdcacm_data_rx_cb(usbd_device *usbd_dev, uint8_t ep)
 		usbd_ep_write_packet(usbd_dev, 0x82, buf, len);
 		buf[len] = 0;
 	}
+}
+
+void usb_puts(const char *s) {
+    int len;
+    for(len = 0; len != 64; ++len) if(s[len] == 0) break;
+    usbd_ep_write_packet(usbd_dev, 0x82, s, len);
 }
 
 static void cdcacm_set_config(usbd_device *usbd_dev, uint16_t wValue)
@@ -224,12 +237,14 @@ static void cdcacm_set_config(usbd_device *usbd_dev, uint16_t wValue)
 
 void fn_a(void)
 {
+    /* Wait for USB stack to be brought up */
+    rtos_sleep(1000);
     for (;;)
     {
-        debug_println("task A: set led A");
+        usb_puts("task A: set led A\n\r");
         rtos_sleep(50);
         gpio_clear(GPIOA, GPIO0);
-        debug_println("task A: clear led A");
+        usb_puts("task A: clear led A\n\r");
         rtos_sleep(50);
         gpio_set(GPIOA, GPIO0);
     }
@@ -237,14 +252,24 @@ void fn_a(void)
 
 void fn_b(void)
 {
+    /* Wait for USB stack to be brought up */
+    rtos_sleep(1000);
     for (;;)
     {
-        debug_println("task B: clear led B");
+        usb_puts("task B: clear led B\n\r");
         rtos_sleep(50);
         gpio_set(GPIOB, GPIO7);
-        debug_println("task B: set led B");
+        usb_puts("task B: set led B\n\r");
         rtos_sleep(50);
         gpio_clear(GPIOB, GPIO7);
+    }
+}
+
+void fn_usb(void)
+{
+    for(;;) {
+        usbd_poll(usbd_dev);
+        rtos_yield();
     }
 }
 
@@ -273,27 +298,20 @@ int main(void)
     // TODO: Put CHIP_Init() here...
     libopencm3_pre_main();
 
-    // Relocate the vector table (probably not necessary after the bootloader but
-    // doing it anyway)
-    SCB_VTOR = 0x4000;
+    // Relocate the vector table
+    // TODO: may to set this to 0x4000 after the bootloader!
+    SCB_VTOR = 0x0000;
 
     WDOG_CTRL = WDOG_CTRL_CLKSEL_ULFRCO | WDOG_CTRL_EN | (1 << WDOG_CTRL_PERSEL_SHIFT);
 
-    debug_println("Initializing peripherals...");
-
     cmu_periph_clock_enable(CMU_GPIO);
-    //*(uint32_t*)(0x400c8044) = (1 << 8);
 
     gpio_mode_setup(GPIOA, GPIO_MODE_WIRED_AND, GPIO0);
     gpio_mode_setup(GPIOB, GPIO_MODE_WIRED_AND, GPIO7);
 
-	usbd_device *usbd_dev = usbd_init(&efm32hg_usb_driver, &dev, &config, usb_strings, 3, usbd_control_buffer, sizeof(usbd_control_buffer));
+	usbd_dev = usbd_init(&efm32hg_usb_driver, &dev, &config, usb_strings, 3, usbd_control_buffer, sizeof(usbd_control_buffer));
 	usbd_register_set_config_callback(usbd_dev, cdcacm_set_config);
 
-	while (1)
-		usbd_poll(usbd_dev);
-
-    /* DON'T CARE ABOUT RTOS AT THIS POINT
     uint32_t ahb_freq = 14000000;
 
     systick_start(SYSTICK_FREQUENCY, ahb_freq);
@@ -305,7 +323,6 @@ int main(void)
     // rtos_start should never return, spin forever 
 
     debug_println("rtos_start returned? ...");
-    */
 
     for(;;);
 

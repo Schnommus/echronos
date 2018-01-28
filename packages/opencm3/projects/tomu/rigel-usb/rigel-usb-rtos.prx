@@ -10,13 +10,19 @@
       <task>
         <name>a</name>
         <function>fn_a</function>
-        <stack_size>64</stack_size>
+        <stack_size>256</stack_size>
         <start>true</start>
       </task>
       <task>
         <name>b</name>
         <function>fn_b</function>
-        <stack_size>64</stack_size>
+        <stack_size>256</stack_size>
+        <start>true</start>
+      </task>
+      <task>
+        <name>usb</name>
+        <function>fn_usb</function>
+        <stack_size>256</stack_size>
         <start>true</start>
       </task>
     </tasks>
